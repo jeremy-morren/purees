@@ -1,7 +1,7 @@
 # PureES
 
-This is a work-in-progress framework for EventSourcing with a functional paradigm.
+This is a work-in-progress framework with a functional paradigm for Event Sourcing and .NET 6+.
 
 ### License
 
-This repository is licensed under the `MIT` license. Full license is available at [a relative link](LICENSE). 
+PureES and all related packages are licensed under the [MIT](LICENSE) license.
