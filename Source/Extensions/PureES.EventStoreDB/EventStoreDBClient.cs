@@ -58,7 +58,7 @@ public class EventStoreDBClient : IEventStore
         }
         catch (WrongExpectedVersionException e) when (e.ExpectedVersion == null)
         {
-            throw new StreamAlreadyExistsException(e.StreamName, e);
+            throw new StreamAlreadyExistsException(e.StreamName, e.ActualStreamRevision.ToUInt64(), e);
         }
     }
 

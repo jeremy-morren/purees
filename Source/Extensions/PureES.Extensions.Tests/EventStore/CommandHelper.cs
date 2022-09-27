@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Text;
 
-namespace PureES.EventStore.Tests.Framework;
+namespace PureES.Extensions.Tests.EventStore;
 
 public static class CommandHelper
 {

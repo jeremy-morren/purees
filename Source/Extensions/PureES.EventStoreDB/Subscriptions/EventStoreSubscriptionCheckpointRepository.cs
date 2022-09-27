@@ -4,11 +4,11 @@ using EventStore.Client;
 
 namespace PureES.EventStoreDB.Subscriptions;
 
-public class EventStoreSubscriptionCheckpointRepository: ISubscriptionCheckpointRepository
+internal class EventStoreSubscriptionCheckpointRepository : ISubscriptionCheckpointRepository
 {
-    private readonly global::EventStore.Client.EventStoreClient _eventStoreClient;
+    private readonly EventStoreClient _eventStoreClient;
 
-    public EventStoreSubscriptionCheckpointRepository(global::EventStore.Client.EventStoreClient eventStoreClient) => _eventStoreClient = eventStoreClient;
+    public EventStoreSubscriptionCheckpointRepository(EventStoreClient eventStoreClient) => _eventStoreClient = eventStoreClient;
 
     public async ValueTask<ulong?> Load(string subscriptionId, CancellationToken ct)
     {

@@ -88,4 +88,10 @@ public record EventEnvelope<TEvent, TMetadata>
         || ReferenceEquals(Metadata, null) 
         || ReferenceEquals(other, null)
         || Metadata.Equals(other);
+
+    public static bool operator ==(EventEnvelope<TEvent, TMetadata>? left, EventEnvelope? right) 
+        => left?.Equals(right) ?? ReferenceEquals(right, null);
+
+    public static bool operator !=(EventEnvelope<TEvent, TMetadata>? left, EventEnvelope? right) 
+        => !(left == right);
 }

@@ -5,8 +5,14 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace PureES.EventBus;
 
-public static class ServiceCollectionExtensions
+public static class EventBusServiceCollectionExtensions
 {
+    /// <summary>
+    /// Adds an <see cref="IEventBus"/> to the service collection
+    /// </summary>
+    /// <returns>
+    /// The service collection so that additional calls can be chained
+    /// </returns>
     public static IServiceCollection AddEventBus(this IServiceCollection services)
     {
         services.TryAddSingleton<IEventBus, EventBus>();
@@ -14,8 +20,11 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Adds an EventHandler to the service collection
+    /// Adds an event handler for event <typeparamref name="TEvent"/>
     /// </summary>
+    /// <returns>
+    /// The service collection so that additional calls can be chained
+    /// </returns>
     public static IServiceCollection AddEventHandler<TEvent, TMetadata>(this IServiceCollection services,
         Func<IServiceProvider, IEventHandler<TEvent, TMetadata>> factory)
         where TEvent : notnull

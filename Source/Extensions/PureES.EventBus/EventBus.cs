@@ -16,10 +16,8 @@ public class EventBus : IEventBus
 
     public Task Publish(EventEnvelope envelope, CancellationToken ct)
     {
-        if (PublishHandlers.TryGetValue(envelope.Event.GetType(), out var handler))
-            return handler(this, envelope, ct);
-        handler = CompileDelegate(envelope.Event.GetType(), envelope.Metadata?.GetType() ?? typeof(object));
-        PublishHandlers.AddOrUpdate(envelope.Event.GetType(), handler, (_, _) => handler);
+        var handler = PublishHandlers.GetOrAdd(envelope.Event.GetType(), 
+            t => CompileDelegate(t, envelope.Metadata?.GetType() ?? typeof(object)));
         return handler(this, envelope, ct);
     }
 

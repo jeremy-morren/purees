@@ -3,7 +3,7 @@ using EventStore.Client;
 using PureES.Core;
 using PureES.EventStoreDB;
 
-namespace PureES.EventStore.Tests.Framework;
+namespace PureES.Extensions.Tests.EventStore;
 
 public class TestSerializer : IEventStoreDBSerializer
 {

@@ -2,7 +2,7 @@
 
 namespace PureES.EventStoreDB.Subscriptions;
 
-public class InMemorySubscriptionCheckpointRepository: ISubscriptionCheckpointRepository
+internal class InMemorySubscriptionCheckpointRepository: ISubscriptionCheckpointRepository
 {
     private readonly ConcurrentDictionary<string, ulong> _checkpoints = new();
 

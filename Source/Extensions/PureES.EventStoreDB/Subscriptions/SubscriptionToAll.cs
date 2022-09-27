@@ -8,7 +8,7 @@ using PureES.EventBus;
 
 namespace PureES.EventStoreDB.Subscriptions;
 
-public class SubscriptionToAll : BackgroundService
+internal class SubscriptionToAll : BackgroundService
 {
     private readonly IEventBus _eventBus;
     private readonly IEventStoreDBSerializer _dbSerializer;
@@ -18,7 +18,7 @@ public class SubscriptionToAll : BackgroundService
     private readonly SubscriptionOptions _options;
 
     public SubscriptionToAll(
-        global::EventStore.Client.EventStoreClient eventStoreClient,
+        EventStoreClient eventStoreClient,
         IEventBus eventBus,
         IEventStoreDBSerializer dbSerializer,
         ISubscriptionCheckpointRepository checkpointRepository,

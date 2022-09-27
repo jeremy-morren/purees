@@ -2,12 +2,12 @@
 using System.Diagnostics.CodeAnalysis;
 using EventStore.Client;
 
-namespace PureES.EventStore.Tests.Framework;
+namespace PureES.Extensions.Tests.EventStore;
 
 [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
 public sealed class EventStoreTestHarness : IDisposable
 {
-    private static readonly string File = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Framework", "docker-compose.yaml");
+    private static readonly string File = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "EventStore", "docker-compose.yaml");
 
     private readonly EventStoreClient _client;
 

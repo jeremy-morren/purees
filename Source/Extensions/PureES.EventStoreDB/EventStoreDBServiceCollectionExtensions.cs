@@ -12,7 +12,7 @@ using Timeout = System.Threading.Timeout;
 
 namespace PureES.EventStoreDB;
 
-public static class ApplicationExtensions
+public static class EventStoreDBServiceCollectionExtensions
 {
     public static IServiceCollection AddEventStoreDB(this IServiceCollection services, 
         Action<EventStoreDBOptions> configureOptions)
