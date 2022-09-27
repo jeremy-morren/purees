@@ -1,9 +1,9 @@
-﻿using EventStore.Client;
+﻿
 
 // ReSharper disable MemberCanBePrivate.Global
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 
-namespace PureES.EventStoreDB;
+namespace PureES.Core.EventStore;
 
 /// <summary>
 /// Exception thrown if the expected version specified when reading a stream
@@ -12,13 +12,15 @@ namespace PureES.EventStoreDB;
 public class WrongStreamVersionException : Exception
 {
     public string StreamName { get; }
-    public StreamRevision ExpectedRevision { get; }
-    public StreamRevision ActualRevision { get; }
+    public ulong ExpectedRevision { get; }
+    public ulong ActualRevision { get; }
 
     public WrongStreamVersionException(string streamName,
-        StreamRevision expectedRevision,
-        StreamRevision actualRevision)
-        : base($"Read failed due to WrongStreamVersion. Stream: {streamName}, Expected version: {expectedRevision}, Actual version: {actualRevision}")
+        ulong expectedRevision,
+        ulong actualRevision,
+        Exception? innerException = null)
+        : base($"Read failed due to WrongStreamVersion. Stream: '{streamName}', Expected version: {expectedRevision}, Actual version: {actualRevision}",
+            innerException)
     {
         StreamName = streamName;
         ExpectedRevision = expectedRevision;

@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
+using PureES.Core.EventStore;
 using PureES.Core.ExpBuilders.AggregateCmdHandlers;
 using PureES.Core.Tests.Models;
 using Xunit;

@@ -16,5 +16,9 @@
     <ItemGroup>
       <ProjectReference Include="..\PureES.Core.Abstractions\PureES.Core.Abstractions.csproj" />
     </ItemGroup>
+    
+    <ItemGroup>
+        <InternalsVisibleTo Include="$(AssemblyName).Tests" />
+    </ItemGroup>
 
 </Project>

@@ -9,7 +9,7 @@ namespace PureES.Core.ExpBuilders;
 /// Builds expressions to resolve
 /// services from <see cref="IServiceProvider"/>
 /// </summary>
-public class GetServiceExpBuilder
+internal class GetServiceExpBuilder
 {
     private readonly CommandHandlerOptions _options;
 

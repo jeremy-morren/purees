@@ -9,17 +9,6 @@ namespace PureES.Core.Tests.ExpBuilders;
 public class NewUncommittedEventExpBuilderTests
 {
     [Fact]
-    public void CreateImmutableArray()
-    {
-        var value = Rand.NextInt();
-        var exp = new NewUncommittedEventExpBuilder(new CommandHandlerOptions())
-            .CreateImmutableArray(Expression.Constant(value));
-        var func = Expression.Lambda<Func<ImmutableArray<int>>>(exp).Compile();
-        Assert.Single(func());
-        Assert.Equal(value, func()[0]);
-    }
-
-    [Fact]
     public void CreateUncommittedEvent()
     {
         var eventId = Expression.Constant(Guid.NewGuid(), typeof(Guid));

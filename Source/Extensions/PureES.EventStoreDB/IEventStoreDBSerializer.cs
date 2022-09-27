@@ -7,9 +7,9 @@ public interface IEventStoreDBSerializer
 {
     string GetTypeName(Type eventType);
     
-    EventEnvelope DeSerialize(EventRecord record);
+    EventEnvelope Deserialize(EventRecord record);
     EventData Serialize(UncommittedEvent @event);
 
     EventData Serialize<T>(T @event);
-    T DeSerialize<T>(EventRecord record);
+    T Deserialize<T>(EventRecord record);
 }

@@ -140,7 +140,7 @@ public class SubscriptionToAll : BackgroundService
                 return;
             }
 
-            var envelope = _dbSerializer.DeSerialize(resolvedEvent.Event);
+            var envelope = _dbSerializer.Deserialize(resolvedEvent.Event);
             
             // publish event to internal event bus
             await _eventBus.Publish(envelope, ct);

@@ -5,6 +5,7 @@ using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
+using PureES.Core.EventStore;
 using PureES.Core.ExpBuilders;
 using Xunit;
 

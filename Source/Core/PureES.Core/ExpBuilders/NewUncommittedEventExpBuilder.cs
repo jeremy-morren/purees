@@ -1,30 +1,15 @@
 ﻿using System.Collections;
-using System.Collections.Immutable;
 using System.Linq.Expressions;
 
 // ReSharper disable MemberCanBeMadeStatic.Global
 
 namespace PureES.Core.ExpBuilders;
 
-public class NewUncommittedEventExpBuilder
+internal class NewUncommittedEventExpBuilder
 {
     private readonly CommandHandlerOptions _options;
 
     public NewUncommittedEventExpBuilder(CommandHandlerOptions options) => _options = options;
-
-    public Expression CreateImmutableArray(Expression value)
-    {
-        //Looks like ImmutableArray.Create<valueType>(value)
-        var method = typeof(ImmutableArray)
-                         .GetMethods()
-                         .SingleOrDefault(m => 
-                             m.Name == nameof(ImmutableArray.Create)
-                             && m.GetGenericArguments().Length == 1
-                             && m.GetParameters().Length == 1
-                             && !typeof(IEnumerable).IsAssignableFrom(m.GetParameters()[0].ParameterType))
-                     ?? throw new InvalidOperationException("Unable to get ImmutableArray.Create<T>(T) method");
-        return Expression.Call(method.MakeGenericMethod(value.Type), value);
-    }
 
     public Expression New(Expression @event, Expression metadata)
     {

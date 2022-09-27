@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace PureES.Core.ExpBuilders.AggregateCmdHandlers;
 
-public class CreateExpBuilder
+internal class CreateExpBuilder
 {
     private readonly CommandHandlerOptions _options;
 

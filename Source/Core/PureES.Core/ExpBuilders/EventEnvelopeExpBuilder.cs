@@ -2,7 +2,7 @@
 
 namespace PureES.Core.ExpBuilders;
 
-public class NewEventEnvelopeExpBuilder
+internal class NewEventEnvelopeExpBuilder
 {
     private readonly CommandHandlerOptions _options;
 

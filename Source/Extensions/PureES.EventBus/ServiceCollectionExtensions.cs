@@ -1,7 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Polly;
-using PureES.Core;
 
 // ReSharper disable MemberCanBePrivate.Global
 
@@ -31,7 +29,8 @@ public static class ServiceCollectionExtensions
         }
         else
         {
-            var factories = (Func<IServiceProvider, IEventHandler<TEvent, TMetadata>>[]) current.ImplementationInstance;
+            if (current.ImplementationInstance is not Func<IServiceProvider, IEventHandler<TEvent, TMetadata>>[] factories)
+                throw new InvalidOperationException("Invalid current descriptor");
             Array.Resize(ref factories, factories.Length + 1);
             factories[^1] = factory;
             services.Remove(current);

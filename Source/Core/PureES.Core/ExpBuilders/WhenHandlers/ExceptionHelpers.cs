@@ -2,7 +2,7 @@
 
 namespace PureES.Core.ExpBuilders.WhenHandlers;
 
-public class ExceptionHelpers
+internal class ExceptionHelpers
 {
     public static void ThrowCreatedWhenBase(Type aggregateType, object @event)
     {

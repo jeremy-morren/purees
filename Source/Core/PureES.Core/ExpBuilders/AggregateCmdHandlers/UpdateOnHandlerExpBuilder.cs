@@ -3,10 +3,11 @@ using System.Linq.Expressions;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using PureES.Core.EventStore;
 
 namespace PureES.Core.ExpBuilders.AggregateCmdHandlers;
 
-public class UpdateOnHandlerExpBuilder
+internal class UpdateOnHandlerExpBuilder
 {
     private readonly CommandHandlerOptions _options;
 

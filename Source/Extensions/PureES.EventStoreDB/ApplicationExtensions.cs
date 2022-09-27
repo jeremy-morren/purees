@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PureES.Core;
+using PureES.Core.EventStore;
 using PureES.EventStoreDB.Subscriptions;
 using Timeout = System.Threading.Timeout;
 

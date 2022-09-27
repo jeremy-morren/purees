@@ -9,7 +9,7 @@ namespace PureES.Core.ExpBuilders;
 /// Builds expressions to
 /// get stream id from command
 /// </summary>
-public class GetStreamIdExpBuilder
+internal class GetStreamIdExpBuilder
 {
     private static readonly NullabilityInfoContext NullContext = new ();
     

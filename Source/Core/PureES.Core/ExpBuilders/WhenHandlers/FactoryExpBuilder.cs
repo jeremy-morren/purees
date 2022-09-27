@@ -11,7 +11,7 @@ namespace PureES.Core.ExpBuilders.WhenHandlers;
 /// Works with 2 methods : CreateWhen(event) and UpdateWhen(Agg, event)
 /// (depending on if this is the first event)
 /// </remarks>
-public class FactoryExpBuilder
+internal class FactoryExpBuilder
 {
     private readonly CommandHandlerOptions _options;
 

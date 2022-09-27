@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
-using Polly;
 using PureES.Core;
 
 namespace PureES.EventBus;
@@ -28,7 +27,7 @@ public class EventBus : IEventBus
         where TEvent : notnull
         where TMetadata : notnull
     {
-        using var scope = bus._serviceProvider.CreateScope();
+        await using var scope = bus._serviceProvider.CreateAsyncScope();
         
         var handler = scope.ServiceProvider.GetService<IEventHandler<TEvent, TMetadata>>();
         if (handler != null)

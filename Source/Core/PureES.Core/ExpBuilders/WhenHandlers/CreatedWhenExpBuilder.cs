@@ -3,7 +3,7 @@ using System.Reflection;
 
 namespace PureES.Core.ExpBuilders.WhenHandlers;
 
-public class CreatedWhenExpBuilder
+internal class CreatedWhenExpBuilder
 {
     private readonly CommandHandlerOptions _options;
 

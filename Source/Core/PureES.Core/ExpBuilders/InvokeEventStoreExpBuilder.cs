@@ -1,11 +1,12 @@
 ﻿using System.Collections;
 using System.Linq.Expressions;
+using PureES.Core.EventStore;
 
 // ReSharper disable MemberCanBeMadeStatic.Global
 
 namespace PureES.Core.ExpBuilders;
 
-public class InvokeEventStoreExpBuilder
+internal class InvokeEventStoreExpBuilder
 {
     private readonly CommandHandlerOptions _options;
 

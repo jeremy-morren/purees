@@ -1,6 +1,8 @@
-﻿namespace PureES.Core;
+﻿using PureES.Core.EventStore;
 
-public class AggregateStore<TAggregate> : IAggregateStore<TAggregate>
+namespace PureES.Core;
+
+internal class AggregateStore<TAggregate> : IAggregateStore<TAggregate>
 {
     private readonly AggregateFactory<TAggregate> _factory;
     private readonly IEventStore _eventStore;

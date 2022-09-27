@@ -2,7 +2,7 @@
 
 namespace PureES.Core;
 
-public static class Resources
+internal static class Resources
 {
     public const string UndecoratedCreateHandlerParameters = 
         $"Undecorated parameters on create handler method. All parameters except CancellationTokens on Create handler method must be decorated with either {nameof(CommandAttribute)} or {nameof(FromServicesAttribute)}";

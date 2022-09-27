@@ -6,7 +6,7 @@ using PureES.Core.ExpBuilders.WhenHandlers;
 
 namespace PureES.Core.ExpBuilders.AggregateCmdHandlers;
 
-public class CommandHandlerBuilder
+internal class CommandHandlerBuilder
 {
     private readonly CommandHandlerOptions _options;
 
