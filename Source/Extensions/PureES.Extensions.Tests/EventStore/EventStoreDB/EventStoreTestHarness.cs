@@ -5,7 +5,7 @@ using EventStore.Client;
 // ReSharper disable StringLiteralTypo
 // ReSharper disable MemberCanBePrivate.Global
 
-namespace PureES.Extensions.Tests.EventStore;
+namespace PureES.Extensions.Tests.EventStore.EventStoreDB;
 
 [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
 public sealed class EventStoreTestHarness : IDisposable
@@ -45,11 +45,14 @@ public sealed class EventStoreTestHarness : IDisposable
         RunCommand(args.ToArray());
         
         //Wait for start
-        Thread.Sleep(TimeSpan.FromSeconds(1));
+        Thread.Sleep(TimeSpan.FromSeconds(2.5));
     }
 
-    private static void RunCommand(params string[] arguments) => 
-        Debug.WriteLine(CommandHelper.RunCommand("docker", arguments));
+    private static void RunCommand(params string[] arguments)
+    {
+        var resp = CommandHelper.RunCommand("docker", arguments);
+        Debug.WriteLine(resp);
+    }
 
     private static readonly Dictionary<string, string> Options = new()
     {

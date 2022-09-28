@@ -1,11 +1,9 @@
 ﻿using AspNetCore.HealthChecks.EventStoreDB;
 using EventStore.Client;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Moq;
-using Timeout = System.Threading.Timeout;
 
-namespace PureES.Extensions.Tests.EventStore;
+namespace PureES.Extensions.Tests.EventStore.EventStoreDB;
 
 public class HealthCheckTests : IClassFixture<EventStoreTestHarness>
 {

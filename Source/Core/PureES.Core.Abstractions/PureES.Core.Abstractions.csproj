@@ -9,7 +9,6 @@
     </PropertyGroup>
 
     <PropertyGroup>
-        <PackageId>PureES.Core.Abstractions.Beta</PackageId>
         <Authors>Jeremy Morren</Authors>
         <Description>EventSourcing framework with a functional paradigm for .NET6+</Description>
         <PackageReadmeUrl>https://github.com/jeremy-morren/purees/blob/main/README.md</PackageReadmeUrl>

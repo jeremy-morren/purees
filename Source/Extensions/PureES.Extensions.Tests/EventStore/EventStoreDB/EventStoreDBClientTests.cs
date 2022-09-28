@@ -1,9 +1,7 @@
-﻿using System.Text.Json;
-using PureES.Core.EventStore;
+﻿using PureES.Core.EventStore;
 using PureES.EventStoreDB;
-using PureES.EventStoreDB.Serialization;
 
-namespace PureES.Extensions.Tests.EventStore;
+namespace PureES.Extensions.Tests.EventStore.EventStoreDB;
 
 public class EventStoreDBClientTests  : EventStoreTestsBase, IClassFixture<EventStoreTestHarness>
 {

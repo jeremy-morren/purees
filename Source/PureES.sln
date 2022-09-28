@@ -22,6 +22,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PureES.EventStore.InMemory"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AspNetCore.HealthChecks.EventStoreDB", "Extensions\AspNetCore.HealthChecks.EventStoreDB\AspNetCore.HealthChecks.EventStoreDB.csproj", "{4A35F03C-0901-4DFA-A00F-B73D247A46E2}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Build", "Build\Build.csproj", "{69B6D0F2-C7E3-42C8-A98C-D5589C222015}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -64,6 +66,10 @@ Global
 		{4A35F03C-0901-4DFA-A00F-B73D247A46E2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4A35F03C-0901-4DFA-A00F-B73D247A46E2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4A35F03C-0901-4DFA-A00F-B73D247A46E2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{69B6D0F2-C7E3-42C8-A98C-D5589C222015}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{69B6D0F2-C7E3-42C8-A98C-D5589C222015}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{69B6D0F2-C7E3-42C8-A98C-D5589C222015}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{69B6D0F2-C7E3-42C8-A98C-D5589C222015}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{438EDB72-978F-4BBE-9814-E2A54DE26ADE} = {4F003FAA-0133-4856-905A-58FE2F125C34}
