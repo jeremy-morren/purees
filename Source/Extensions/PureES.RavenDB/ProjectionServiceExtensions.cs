@@ -6,6 +6,8 @@ using PureES.EventBus;
 using Raven.Client.Documents;
 using Raven.Client.Documents.Session;
 
+// ReSharper disable MemberCanBePrivate.Global
+
 namespace PureES.RavenDB;
 
 public static class ProjectionServiceExtensions

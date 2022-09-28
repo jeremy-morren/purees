@@ -23,12 +23,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <None Update="EventStore\docker-compose.yaml">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </None>
-    </ItemGroup>
-
-    <ItemGroup>
+      <ProjectReference Include="..\AspNetCore.HealthChecks.EventStoreDB\AspNetCore.HealthChecks.EventStoreDB.csproj" />
       <ProjectReference Include="..\PureES.EventStore.InMemory\PureES.EventStore.InMemory.csproj" />
       <ProjectReference Include="..\PureES.EventStoreDB\PureES.EventStoreDB.csproj" />
     </ItemGroup>

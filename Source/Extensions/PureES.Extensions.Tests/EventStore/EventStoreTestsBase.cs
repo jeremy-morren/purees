@@ -6,15 +6,12 @@ namespace PureES.Extensions.Tests.EventStore;
 
 public abstract class EventStoreTestsBase
 {
-    private readonly Func<IEventStore> _createStore;
-
-    protected EventStoreTestsBase(Func<IEventStore> createStore) =>
-        _createStore = createStore;
+    protected abstract IEventStore CreateStore();
 
     [Fact]
     public async Task Create()
     {
-        var store = _createStore();
+        var store = CreateStore();
         const string stream = nameof(Create);
         var events = Enumerable.Range(0, 10)
             .Select(_ => NewEvent())
@@ -29,7 +26,7 @@ public abstract class EventStoreTestsBase
     [Fact]
     public async Task Create_Existing_Should_Throw()
     {
-        var store = _createStore();
+        var store = CreateStore();
         const string stream = nameof(Create_Existing_Should_Throw);
         const ulong revision = 0;
         Assert.Equal(revision, await store.Create(stream, NewEvent(), default));
@@ -40,7 +37,7 @@ public abstract class EventStoreTestsBase
     [Fact]
     public async Task Append()
     {
-        var store = _createStore();
+        var store = CreateStore();
         const string stream = nameof(Append);
         var events = Enumerable.Range(0, 10)
             .Select(_ => NewEvent())
@@ -54,7 +51,7 @@ public abstract class EventStoreTestsBase
     [Fact]
     public async Task Append_To_Invalid_Should_Throw()
     {
-        var store = _createStore();
+        var store = CreateStore();
         const string stream = nameof(Append_To_Invalid_Should_Throw);
         await Assert.ThrowsAsync<StreamNotFoundException>(() => store.Append(stream, 0, NewEvent(), default));
     }
@@ -62,7 +59,7 @@ public abstract class EventStoreTestsBase
     [Fact]
     public async Task Append_With_Invalid_Revision_Should_Throw()
     {
-        var store = _createStore();
+        var store = CreateStore();
         const string stream = nameof(Append_With_Invalid_Revision_Should_Throw);
         var events = Enumerable.Range(0, 10)
             .Select(_ => NewEvent())
@@ -77,7 +74,7 @@ public abstract class EventStoreTestsBase
     [Fact]
     public async Task Load_Invalid_Stream_Should_Throw()
     {
-        var store = _createStore();
+        var store = CreateStore();
         const string stream = nameof(Load_Invalid_Stream_Should_Throw);
         Assert.False(await store.Exists(stream, default));
         await Assert.ThrowsAsync<StreamNotFoundException>(() => store.GetRevision(stream, default));
@@ -91,7 +88,7 @@ public abstract class EventStoreTestsBase
     [Fact]
     public async Task Load()
     {
-        var store = _createStore();
+        var store = CreateStore();
         const string stream = nameof(Load);
         var events = Enumerable.Range(0, 10)
             .Select(_ => NewEvent())
@@ -118,7 +115,7 @@ public abstract class EventStoreTestsBase
     [Fact]
     public async Task LoadByEventType()
     {
-        var store = _createStore();
+        var store = CreateStore();
         
         Assert.Empty(await store.LoadByEventType(typeof(int), default).ToListAsync());
     }
