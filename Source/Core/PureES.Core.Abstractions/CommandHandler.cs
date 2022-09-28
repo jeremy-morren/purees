@@ -5,13 +5,28 @@ namespace PureES.Core;
 
 /// <summary>
 /// Handles the given <c>Command</c>
-/// and returns the <c>StreamPosition</c>
-/// from <see cref="IEventStore"/>
 /// </summary>
-/// <typeparam name="T">Command type</typeparam>
+/// <typeparam name="TCommand">Command type</typeparam>
+/// <returns>
+/// The <c>StreamPosition</c> of the added event(s)
+/// from <see cref="IEventStore"/>
+/// </returns>
 /// <remarks>
-/// If <paramref name="cancellationToken"/> is null
-/// then <see cref="HttpContext"/>.<see cref="HttpContext.RequestAborted"/>
-/// will be used instead
+/// This handler is registered for a method that
+/// does not return <see cref="CommandResult"/>
 /// </remarks>
-public delegate Task<ulong> CommandHandler<in T>(T arg, CancellationToken cancellationToken);
+public delegate Task<ulong> CommandHandler<in TCommand>(TCommand arg, CancellationToken cancellationToken);
+
+/// <summary>
+/// Handles the given <c>Command</c>
+/// </summary>
+/// <typeparam name="TCommand">Command type</typeparam>
+/// <typeparam name="TResult">Command result</typeparam>
+/// <returns>
+/// The Res
+/// </returns>
+/// <remarks>
+/// This handler is registered for a method that
+/// does not return <see cref="CommandResult"/>
+/// </remarks>
+public delegate Task<TResult> CommandHandler<in TCommand, TResult>(TCommand arg, CancellationToken cancellationToken);

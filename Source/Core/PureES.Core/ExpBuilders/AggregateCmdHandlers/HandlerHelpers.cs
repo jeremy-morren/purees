@@ -24,11 +24,8 @@ public static class HandlerHelpers
 
     public static void ValidateCommandReturnType(Type aggregateType, Type returnType)
     {
-        //The method should return T, IReadOnlyList<T>, Task<T>, Task<ImmutableList<T>>
-        //Therefore, we are only checking that all enumerable types are ImmutableList<T>
+        //The method should return T, IEnumerable or CommandResult
         //TODO: Check for IAsyncEnumerable
-        if (typeof(IEnumerable).IsAssignableFrom(returnType) && returnType != typeof(string))
-            throw new NotImplementedException("Enumerable return types are not supported");
         if (returnType == aggregateType)
             throw new NotImplementedException("Command handler methods must return event(s), not the aggregate");
         // ReSharper disable once InvertIf
@@ -77,4 +74,27 @@ public static class HandlerHelpers
             .FirstOrDefault(p => p.GetCustomAttribute(typeof(CommandAttribute)) != null)
             ?.ParameterType ?? throw new ArgumentException(
             $"Handler methods must have at least 1 parameter decorated with {typeof(CommandAttribute)}");
+
+    /// <summary>
+    /// Checks that a type is <see cref="CommandResult{TEvent,TResult}"/>
+    /// of a deriving type
+    /// </summary>
+    /// <param name="type">Type to check</param>
+    /// <param name="event">Type of response (i.e. <c>TEvent</c>)</param>
+    /// <param name="result">Type of result (i.e. <c>TResult</c>)</param>
+    /// <returns></returns>
+    public static bool IsCommandResult(Type type, out Type @event, out Type result)
+    {
+        if (type.BaseType != null && type.BaseType != typeof(object))
+            // ReSharper disable once TailRecursiveCall
+            return IsCommandResult(type.BaseType, out @event, out result);
+        @event = null!;
+        result = null!;
+        var genericArgs = type.GetGenericArguments();
+        if (genericArgs.Length != 2) return false;
+        if (typeof(CommandResult<,>).MakeGenericType(genericArgs) != type) return false;
+        @event = genericArgs[0];
+        result = genericArgs[1];
+        return true;
+    }
 }
