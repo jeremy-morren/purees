@@ -8,7 +8,6 @@ namespace Build;
 
 internal static class Program
 {
-
     public static async Task Main(string[] args)
     {
         const string core = "core";
@@ -49,16 +48,25 @@ internal static class Program
         string[] build,
         string[] test)
     {
+        var dotnetParams = new[]
+        {
+            "-consoleLoggerParameters:DisableConsoleColor",
+            "--nologo",
+            "-c=Release"
+        };
+        
         Target(Build(name), () =>
         {
             foreach (var b in build)
-                Run("dotnet", new[] { "build", GetProjectPath(b), "-c=Release", "--nologo" });
+                Run("dotnet", new[] { "build", GetProjectPath(b) }.Concat(dotnetParams),
+                noEcho: true);
         });
         
         Target(Test(name), DependsOn(Build(name)), () =>
         {
             foreach (var t in test)
-                Run("dotnet", new [] {"test", GetProjectPath(t), "-c=Release", "--nologo"});
+                Run("dotnet", new [] {"test", GetProjectPath(t) }.Concat(dotnetParams),
+                    noEcho: true);
         });
         
         Target(Pack(name), () =>
@@ -76,7 +84,8 @@ internal static class Program
                     }
                 }
                 Run("dotnet", 
-                    new[] { "pack", GetProjectPath(b),  "-c=Release", "--nologo", "-o", Nuget, "--include-symbols", "--include-source" });
+                    new[] { "pack", GetProjectPath(b), "-o", Nuget, "--include-symbols", "--include-source" }.Concat(dotnetParams),
+                    noEcho: true);
             }
         });
 
