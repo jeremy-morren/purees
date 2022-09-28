@@ -8,6 +8,8 @@ namespace Build;
 
 internal static class Program
 {
+    private const string Version = "0.9.0";
+    
     public static async Task Main(string[] args)
     {
         const string core = "core";
@@ -26,7 +28,9 @@ internal static class Program
             Console.WriteLine($"Cleaned package output {Nuget}");
         });
 
-        AddTargets(core, new [] { "PureES.Core" }, new [] { "PureES.Core.Tests" });
+        AddTargets(core, 
+            new [] { "PureES.Core.Abstractions", "PureES.Core" }, 
+            new [] { "PureES.Core.Tests" });
         AddTargets(extensions, new[]
             {
                 "AspNetCore.HealthChecks.EventStoreDB",
@@ -75,7 +79,7 @@ internal static class Program
             {
                 if (Directory.Exists(Nuget))
                 {
-                    var package = Directory.GetFiles(Nuget, "*.nupkg").FirstOrDefault(f => f.Contains(b));
+                    var package = Directory.GetFiles(Nuget, $"{b}.{Version}.nupkg").FirstOrDefault();
                     //Check if pack is required
                     if (package != null)
                     {
@@ -83,8 +87,14 @@ internal static class Program
                         continue;
                     }
                 }
-                Run("dotnet", 
-                    new[] { "pack", GetProjectPath(b), "-o", Nuget, "--include-symbols", "--include-source" }.Concat(dotnetParams),
+                Run("dotnet", new[]
+                    { 
+                        "pack", 
+                        GetProjectPath(b), 
+                        "-o", Nuget,
+                        $"-p:Version={Version}",
+                        "--include-symbols", "--include-source"
+                    }.Concat(dotnetParams),
                     noEcho: true);
             }
         });
