@@ -2,6 +2,7 @@
 using EventStore.Client;
 using PureES.Core;
 using PureES.Core.EventStore;
+using PureES.EventStoreDB.Serialization;
 using StreamNotFoundException = EventStore.Client.StreamNotFoundException;
 
 namespace PureES.EventStoreDB;

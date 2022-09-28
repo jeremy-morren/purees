@@ -1,5 +1,7 @@
-﻿using PureES.Core.EventStore;
+﻿using System.Text.Json;
+using PureES.Core.EventStore;
 using PureES.EventStoreDB;
+using PureES.EventStoreDB.Serialization;
 
 namespace PureES.Extensions.Tests.EventStore;
 

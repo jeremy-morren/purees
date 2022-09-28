@@ -1,7 +1,7 @@
 ﻿using EventStore.Client;
 using PureES.Core;
 
-namespace PureES.EventStoreDB;
+namespace PureES.EventStoreDB.Serialization;
 
 public interface IEventStoreDBSerializer
 {

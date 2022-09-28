@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PureES.Core;
 using PureES.EventBus;
+using PureES.EventStoreDB.Serialization;
 
 namespace PureES.EventStoreDB.Subscriptions;
 
