@@ -55,16 +55,16 @@ public class InMemoryEventStore : IEventStore
     public Task<ulong> Create(string streamId, UncommittedEvent @event, CancellationToken _)
         => Create(streamId, ImmutableArray.Create(@event), _);
 
-    public Task<ulong> Append(string streamId, ulong expectedRevision, IEnumerable<UncommittedEvent> events,
+    public Task<ulong> Append(string streamId, ulong expectedVersion, IEnumerable<UncommittedEvent> events,
         CancellationToken _)
     {
         lock (_mutex)
         {
             if (!_events.TryGetValue(streamId, out var current))
                 throw new StreamNotFoundException(streamId);
-            if (current.Count - 1 != (long) expectedRevision)
+            if (current.Count - 1 != (long) expectedVersion)
                 throw new WrongStreamVersionException(streamId,
-                    expectedRevision,
+                    expectedVersion,
                     (ulong)current.Count - 1);
             var timestamp = DateTime.UtcNow;
             var values = events
@@ -74,8 +74,8 @@ public class InMemoryEventStore : IEventStore
         }
     }
 
-    public Task<ulong> Append(string streamId, ulong expectedRevision, UncommittedEvent @event, CancellationToken _)
-        => Append(streamId, expectedRevision, ImmutableArray.Create(@event), _);
+    public Task<ulong> Append(string streamId, ulong expectedVersion, UncommittedEvent @event, CancellationToken _)
+        => Append(streamId, expectedVersion, ImmutableArray.Create(@event), _);
 
     public IAsyncEnumerable<EventEnvelope> Load(string streamId, CancellationToken _)
     {

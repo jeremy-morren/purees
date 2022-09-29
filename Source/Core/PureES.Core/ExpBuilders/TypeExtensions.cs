@@ -14,6 +14,13 @@ internal static class TypeExtensions
         if (IsNullable(parameter.ParameterType)) return true;
         return Nullability.Create(parameter).WriteState == NullabilityState.Nullable;
     }
+    
+    [MethodImpl(MethodImplOptions.Synchronized)] //This is necessary for some reason
+    public static bool IsNullable(this PropertyInfo property)
+    {
+        if (IsNullable(property.PropertyType)) return true;
+        return Nullability.Create(property).WriteState == NullabilityState.Nullable;
+    }
 
     public static bool IsStruct(this Type type) => type.IsValueType && !type.IsPrimitive;
 

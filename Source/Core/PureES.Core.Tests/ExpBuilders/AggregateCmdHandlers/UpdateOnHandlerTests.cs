@@ -201,13 +201,9 @@ public class UpdateOnHandlerTests
             return new Events.Updated(cmd.Id, cmd.Value);
         }
 
-        public static Task<Events.Updated> UpdateOnAsync(Aggregate current, [Command] Commands.Update cmd)
-        {
-            Assert.NotNull(current);
-            Assert.NotNull(current.Created);
-            return Task.FromResult(new Events.Updated(cmd.Id, cmd.Value));
-        }
-        
+        public static Task<Events.Updated> UpdateOnAsync(Aggregate current, [Command] Commands.Update cmd) 
+            => Task.FromResult(UpdateOn(current, cmd));
+
         public static object? UpdateOnNull(Aggregate current, [Command] Commands.Update cmd)
         {
             Assert.NotNull(current);
@@ -215,13 +211,9 @@ public class UpdateOnHandlerTests
             return null;
         }
         
-        public static Task<object?> UpdateOnNullAsync(Aggregate current, [Command] Commands.Update cmd)
-        {
-            Assert.NotNull(current);
-            Assert.NotNull(current.Created);
-            return Task.FromResult<object?>(null);
-        }
-        
+        public static Task<object?> UpdateOnNullAsync(Aggregate current, [Command] Commands.Update cmd) 
+            => Task.FromResult(UpdateOnNull(current, cmd));
+
         public static CommandResult<Events.Updated, Result> UpdateWithResult(Aggregate current, 
             [Command] Commands.Update cmd)
             => new (UpdateOn(current, cmd), new Result(cmd.Id));

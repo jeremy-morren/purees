@@ -97,4 +97,14 @@ public static class HandlerHelpers
         result = genericArgs[1];
         return true;
     }
+
+    public static bool ReturnsCommandResult(MethodInfo method, out Type result)
+    {
+        if (!method.ReturnType.IsTask(out var returnType)) 
+            return IsCommandResult(method.ReturnType, out _, out result);
+        if (returnType == null)
+            throw new InvalidOperationException(
+                $"Method {method.DeclaringType?.FullName}+{method.Name} returns non-generic Task");
+        return IsCommandResult(returnType, out _, out result);
+    }
 }

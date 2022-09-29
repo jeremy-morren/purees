@@ -4,8 +4,8 @@ namespace PureES.Core;
 
 internal static class Resources
 {
-    public const string UndecoratedCreateHandlerParameters = 
-        $"Undecorated parameters on create handler method. All parameters except CancellationTokens on Create handler method must be decorated with either {nameof(CommandAttribute)} or {nameof(FromServicesAttribute)}";
+    public const string UndecoratedHandlerParameter = 
+        $"Undecorated parameter '{{Parameter}}' on command handler '{{Aggregate}}+{{Method}}'. All parameters except CancellationTokens on handler method must be decorated with either {nameof(CommandAttribute)} or {nameof(FromServicesAttribute)}";
 
     public const string MultipleCommandParameters = $"Only one parameter may be decorated with the {nameof(CommandAttribute)}";
 

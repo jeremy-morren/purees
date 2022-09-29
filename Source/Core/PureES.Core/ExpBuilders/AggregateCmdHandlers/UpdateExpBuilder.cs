@@ -53,7 +53,7 @@ internal class UpdateExpBuilder
             }
             else
             {
-                throw new InvalidOperationException(Resources.UndecoratedCreateHandlerParameters);
+                throw new InvalidOperationException(Resources.UndecoratedHandlerParameter);
             }
         }
         return Expression.Call(methodInfo, parameters.ToArray());

@@ -49,9 +49,17 @@ internal class CreateExpBuilder
                 parameters.Add(exp);
             }
             else if (p.ParameterType == typeof(CancellationToken))
+            {
                 parameters.Add(cancellationToken);
+            }
             else
-                throw new InvalidOperationException(Resources.UndecoratedCreateHandlerParameters);
+            {
+                var message = Resources.UndecoratedHandlerParameter
+                    .Replace("{Aggregate}", aggregateType.FullName)
+                    .Replace("{Method}", methodInfo.Name)
+                    .Replace("{Parameter}", p.Name);
+                throw new InvalidOperationException(message);
+            }
         }
         return Expression.Call(methodInfo, parameters.ToArray());
     }

@@ -3,6 +3,9 @@
 /// <summary>
 /// A repository wrapping an <c>EventSourcing</c> database
 /// </summary>
+/// <remarks>
+/// Any <c>Version</c> parameter is 0-index based
+/// </remarks>
 public interface IEventStore
 {
     /// <summary>
@@ -50,13 +53,13 @@ public interface IEventStore
     /// Appends <paramref name="events"/> to stream <paramref name="streamId"/>
     /// </summary>
     /// <param name="streamId">Event stream to append to</param>
-    /// <param name="expectedRevision">Current stream revision</param>
+    /// <param name="expectedVersion">Current stream revision</param>
     /// <param name="events">Events to append to <paramref name="streamId"/></param>
     /// <param name="cancellationToken"></param>
     /// <returns><c>Revision</c> of stream after append</returns>
     /// <exception cref="StreamNotFoundException">Stream <paramref name="streamId"/> not found</exception>
     Task<ulong> Append(string streamId,
-        ulong expectedRevision,
+        ulong expectedVersion,
         IEnumerable<UncommittedEvent> events,
         CancellationToken cancellationToken);
     
@@ -64,13 +67,13 @@ public interface IEventStore
     /// Appends <paramref name="event"/> to stream <paramref name="streamId"/>
     /// </summary>
     /// <param name="streamId">Event stream to append to</param>
-    /// <param name="expectedRevision">Current stream revision</param>
+    /// <param name="expectedVersion">Current stream revision</param>
     /// <param name="event">Event to append to <paramref name="streamId"/></param>
     /// <param name="cancellationToken"></param>
     /// <returns><c>Revision</c> of stream after append</returns>
     /// <exception cref="StreamNotFoundException">Stream <paramref name="streamId"/> not found</exception>
     Task<ulong> Append(string streamId,
-        ulong expectedRevision,
+        ulong expectedVersion,
         UncommittedEvent @event,
         CancellationToken cancellationToken);
 

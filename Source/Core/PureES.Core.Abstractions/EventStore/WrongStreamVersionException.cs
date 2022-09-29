@@ -12,18 +12,18 @@ namespace PureES.Core.EventStore;
 public class WrongStreamVersionException : Exception
 {
     public string StreamName { get; }
-    public ulong ExpectedRevision { get; }
+    public ulong ExpectedVersion { get; }
     public ulong ActualRevision { get; }
 
     public WrongStreamVersionException(string streamName,
-        ulong expectedRevision,
+        ulong expectedVersion,
         ulong actualRevision,
         Exception? innerException = null)
-        : base($"Read failed due to WrongStreamVersion. Stream: '{streamName}', Expected version: {expectedRevision}, Actual version: {actualRevision}",
+        : base($"Read failed due to WrongStreamVersion. Stream: '{streamName}', Expected version: {expectedVersion}, Actual version: {actualRevision}",
             innerException)
     {
         StreamName = streamName;
-        ExpectedRevision = expectedRevision;
+        ExpectedVersion = expectedVersion;
         ActualRevision = actualRevision;
     }
 }

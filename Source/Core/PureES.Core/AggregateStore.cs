@@ -1,13 +1,15 @@
-﻿using PureES.Core.EventStore;
+﻿using System.Collections.Concurrent;
+using PureES.Core.EventStore;
 
 namespace PureES.Core;
 
-internal class AggregateStore<TAggregate> : IAggregateStore<TAggregate>
+internal class AggregateStore<TAggregate> : IAggregateStore<TAggregate> where TAggregate : notnull
 {
     private readonly AggregateFactory<TAggregate> _factory;
     private readonly IEventStore _eventStore;
 
-    public AggregateStore(AggregateFactory<TAggregate> factory, IEventStore eventStore)
+    public AggregateStore(AggregateFactory<TAggregate> factory, 
+        IEventStore eventStore)
     {
         _factory = factory;
         _eventStore = eventStore;

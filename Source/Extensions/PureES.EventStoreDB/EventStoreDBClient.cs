@@ -68,12 +68,12 @@ public class EventStoreDBClient : IEventStore
         Create(streamId, new[] {@event}, cancellationToken);
 
     /// <inheritdoc />
-    public async Task<ulong> Append(string streamId, ulong expectedRevision, IEnumerable<UncommittedEvent> events, CancellationToken cancellationToken)
+    public async Task<ulong> Append(string streamId, ulong expectedVersion, IEnumerable<UncommittedEvent> events, CancellationToken cancellationToken)
     {
         try
         {
             var result = await _eventStoreClient.AppendToStreamAsync(streamId,
-                StreamRevision.FromStreamPosition(expectedRevision),
+                StreamRevision.FromStreamPosition(expectedVersion),
                 events.Select(_serializer.Serialize),
                 cancellationToken: cancellationToken);
             return result.NextExpectedStreamRevision.ToUInt64();
@@ -90,8 +90,8 @@ public class EventStoreDBClient : IEventStore
     }
 
     /// <inheritdoc />
-    public Task<ulong> Append(string streamId, ulong expectedRevision, UncommittedEvent @event, CancellationToken cancellationToken)
-        => Append(streamId, expectedRevision, new[] {@event}, cancellationToken);
+    public Task<ulong> Append(string streamId, ulong expectedVersion, UncommittedEvent @event, CancellationToken cancellationToken)
+        => Append(streamId, expectedVersion, new[] {@event}, cancellationToken);
 
     /// <inheritdoc />
     public async IAsyncEnumerable<EventEnvelope> Load(string streamId, [EnumeratorCancellation] CancellationToken cancellationToken)
