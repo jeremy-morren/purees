@@ -4,7 +4,7 @@ using SimpleExec;
 using static Bullseye.Targets;
 using static SimpleExec.Command;
 
-namespace Build;
+namespace PureES.Build;
 
 internal static class Program
 {
@@ -56,7 +56,8 @@ internal static class Program
         {
             "-consoleLoggerParameters:DisableConsoleColor",
             "--nologo",
-            "-c=Release"
+            "-c=Release",
+            "-v=q"
         };
         
         Target(Build(name), () =>
@@ -114,7 +115,7 @@ internal static class Program
     
     private static string Test(string name) => $"test-{name}";
 
-    private static string Nuget => Path.Combine(Root, "Nuget");
+    private static string Nuget => Path.Combine(Root, "NuGet");
 
     private static string Root => RootLazy.Value;
 
