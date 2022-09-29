@@ -8,7 +8,7 @@ namespace Build;
 
 internal static class Program
 {
-    private const string Version = "0.9.0";
+    private const string Version = "0.9.1";
     
     public static async Task Main(string[] args)
     {

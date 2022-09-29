@@ -68,7 +68,7 @@ public abstract class EventStoreTestsBase
         Assert.Equal(revision, await store.Create(stream, events, default));
         var ex = await Assert.ThrowsAsync<WrongStreamVersionException>(() =>
             store.Append(stream, RandVersion(events.Count + 1), NewEvent(), default));
-        Assert.Equal(revision, ex.ActualRevision);
+        Assert.Equal(revision, ex.ActualVersion);
     }
     
     [Fact]
@@ -103,7 +103,7 @@ public abstract class EventStoreTestsBase
         async Task AssertWrongVersion(Func<IAsyncEnumerable<EventEnvelope>> getEvents)
         {
             var ex = await Assert.ThrowsAsync<WrongStreamVersionException>(async () => await getEvents().CountAsync());
-            Assert.Equal(revision, ex.ActualRevision);
+            Assert.Equal(revision, ex.ActualVersion);
         }
         await AssertWrongVersion(() => store.Load(stream, RandVersion(events.Count + 1), default));
         

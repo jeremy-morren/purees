@@ -13,17 +13,17 @@ public class WrongStreamVersionException : Exception
 {
     public string StreamName { get; }
     public ulong ExpectedVersion { get; }
-    public ulong ActualRevision { get; }
+    public ulong ActualVersion { get; }
 
     public WrongStreamVersionException(string streamName,
         ulong expectedVersion,
-        ulong actualRevision,
+        ulong actualVersion,
         Exception? innerException = null)
-        : base($"Read failed due to WrongStreamVersion. Stream: '{streamName}', Expected version: {expectedVersion}, Actual version: {actualRevision}",
+        : base($"Read failed due to WrongStreamVersion. Stream: '{streamName}', Expected version: {expectedVersion}, Actual version: {actualVersion}",
             innerException)
     {
         StreamName = streamName;
         ExpectedVersion = expectedVersion;
-        ActualRevision = actualRevision;
+        ActualVersion = actualVersion;
     }
 }
