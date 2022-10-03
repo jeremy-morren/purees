@@ -12,7 +12,7 @@ public class UpdatedWhenTests
     [Fact]
     public void ValidateUpdatedWhen()
     {
-        var builder = new UpdatedWhenExpBuilder(new CommandHandlerOptions());
+        var builder = new UpdatedWhenExpBuilder(new CommandHandlerBuilderOptions());
         Assert.True(builder.IsUpdatedWhen(typeof(Aggregate), Aggregate.OneMethod));
         Assert.True(builder.IsUpdatedWhen(typeof(Aggregate), Aggregate.TwoMethod));
         builder.ValidateUpdatedWhen(typeof(Aggregate), Aggregate.OneMethod);
@@ -22,7 +22,7 @@ public class UpdatedWhenTests
     [Fact]
     public void Validate_CreatedWhen_ShouldFail()
     {
-        var builder = new UpdatedWhenExpBuilder(new CommandHandlerOptions());
+        var builder = new UpdatedWhenExpBuilder(new CommandHandlerBuilderOptions());
         Assert.False(builder.IsUpdatedWhen(typeof(Aggregate), Aggregate.ThreeMethod));
         Assert.ThrowsAny<Exception>(() => builder.ValidateUpdatedWhen(typeof(Aggregate), Aggregate.ThreeMethod));
     }
@@ -37,7 +37,7 @@ public class UpdatedWhenTests
             new Updated1(Guid.NewGuid()),
             new Metadata(Guid.NewGuid()));
         var current = new Aggregate(null, null);
-        var builder = new UpdatedWhenExpBuilder(new CommandHandlerOptions());
+        var builder = new UpdatedWhenExpBuilder(new CommandHandlerBuilderOptions());
         var exp = builder.BuildUpdatedWhen(typeof(Aggregate), 
             Aggregate.OneMethod,
             Expression.Constant(current),
@@ -57,7 +57,7 @@ public class UpdatedWhenTests
         var currentParam = Expression.Parameter(typeof(Aggregate));
         var envParam = Expression.Parameter(typeof(EventEnvelope));
 
-        var builder = new UpdatedWhenExpBuilder(new CommandHandlerOptions());
+        var builder = new UpdatedWhenExpBuilder(new CommandHandlerBuilderOptions());
         var exp = builder.BuildUpdateExpression(typeof(Aggregate), currentParam, envParam);
         var func = Expression.Lambda<Func<Aggregate, EventEnvelope, Aggregate>>(exp, currentParam, envParam).Compile();
 

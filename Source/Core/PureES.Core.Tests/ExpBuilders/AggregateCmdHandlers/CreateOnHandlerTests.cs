@@ -41,7 +41,7 @@ public class CreateOnHandlerTests
                 return metadata;
             }));
 
-        var builder = new CreateOnHandlerExpBuilder(new CommandHandlerOptions());
+        var builder = new CreateOnHandlerExpBuilder(new CommandHandlerBuilderOptions());
         var exp = builder.BuildCreateOnExpression(typeof(TestAggregate),
             typeof(TestAggregate).GetMethod(methodName, BindingFlags.Public | BindingFlags.Static)!,
             Expression.Constant(cmd),
@@ -82,7 +82,7 @@ public class CreateOnHandlerTests
                 return metadata;
             }));
 
-        var builder = new CreateOnHandlerExpBuilder(new CommandHandlerOptions());
+        var builder = new CreateOnHandlerExpBuilder(new CommandHandlerBuilderOptions());
         var exp = builder.BuildCreateOnExpression(typeof(TestAggregate),
             typeof(TestAggregate).GetMethod(methodName, BindingFlags.Public | BindingFlags.Static)!,
             Expression.Constant(cmd),

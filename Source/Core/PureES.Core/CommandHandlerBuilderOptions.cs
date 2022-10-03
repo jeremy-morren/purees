@@ -2,7 +2,7 @@
 
 namespace PureES.Core;
 
-public record CommandHandlerOptions
+public record CommandHandlerBuilderOptions
 {
     #region Get Id
     

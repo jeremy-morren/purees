@@ -10,7 +10,7 @@ public class GetServiceBuilderExpTests
     public void Get_Singleton_Service()
     {
         var svc = new Service();
-        var func = new GetServiceExpBuilder(new CommandHandlerOptions())
+        var func = new GetServiceExpBuilder(new CommandHandlerBuilderOptions())
             .CompileDelegate<Service>();
         using var provider = Services.Build(s => s.AddSingleton(svc));
         Assert.Same(svc, func(provider));
@@ -19,7 +19,7 @@ public class GetServiceBuilderExpTests
     [Fact]
     public void Get_Transient_Service()
     {
-        var func = new GetServiceExpBuilder(new CommandHandlerOptions())
+        var func = new GetServiceExpBuilder(new CommandHandlerBuilderOptions())
             .CompileDelegate<Service>();
         using var provider = Services.Build(s => s.AddTransient<Service>());
         func(provider); //As long as it succeeds

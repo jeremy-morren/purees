@@ -6,9 +6,9 @@ namespace PureES.Core.ExpBuilders.AggregateCmdHandlers;
 
 internal class CreateExpBuilder
 {
-    private readonly CommandHandlerOptions _options;
+    private readonly CommandHandlerBuilderOptions _options;
 
-    public CreateExpBuilder(CommandHandlerOptions options) => _options = options;
+    public CreateExpBuilder(CommandHandlerBuilderOptions options) => _options = options;
 
     public static void Validate(Type aggregateType,
         MethodInfo methodInfo,

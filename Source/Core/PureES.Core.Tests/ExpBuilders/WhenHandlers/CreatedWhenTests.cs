@@ -14,7 +14,7 @@ public class CreatedWhenTests
     [Fact]
     public void ValidateCreatedWhen()
     {
-        var builder = new CreatedWhenExpBuilder(new CommandHandlerOptions());
+        var builder = new CreatedWhenExpBuilder(new CommandHandlerBuilderOptions());
         Assert.True(builder.IsCreatedWhen(typeof(Aggregate), Aggregate.CreatedWhenOne));
         Assert.True(builder.IsCreatedWhen(typeof(Aggregate), Aggregate.CreatedWhenTwo));
         
@@ -25,7 +25,7 @@ public class CreatedWhenTests
     [Fact]
     public void Validate_UpdatedWhen_ShouldFail()
     {
-        var builder = new CreatedWhenExpBuilder(new CommandHandlerOptions());
+        var builder = new CreatedWhenExpBuilder(new CommandHandlerBuilderOptions());
         Assert.False(builder.IsCreatedWhen(typeof(Aggregate), Aggregate.WhenThree));
         Assert.ThrowsAny<Exception>(() => builder.ValidateCreatedWhen(typeof(Aggregate), Aggregate.WhenThree));
     }
@@ -39,7 +39,7 @@ public class CreatedWhenTests
             DateTime.UtcNow,
             new Created1(Guid.NewGuid()),
             new Metadata(Guid.NewGuid()));
-        var builder = new CreatedWhenExpBuilder(new CommandHandlerOptions());
+        var builder = new CreatedWhenExpBuilder(new CommandHandlerBuilderOptions());
         var exp = builder.BuildCreatedWhen(typeof(Aggregate), 
             Aggregate.CreatedWhenOne,
             Expression.Constant(envelope));
@@ -56,7 +56,7 @@ public class CreatedWhenTests
     public void InvokeCreatedWhen()
     {
         var param = Expression.Parameter(typeof(EventEnvelope));
-        var builder = new CreatedWhenExpBuilder(new CommandHandlerOptions());
+        var builder = new CreatedWhenExpBuilder(new CommandHandlerBuilderOptions());
         var exp = builder.BuildCreateExpression(typeof(Aggregate), param);
         var func = Expression.Lambda<Func<EventEnvelope, Aggregate>>(exp, param).Compile();
 

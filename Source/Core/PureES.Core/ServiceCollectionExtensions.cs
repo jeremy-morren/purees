@@ -1,6 +1,7 @@
 ﻿using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
-using PureES.Core.ExpBuilders.AggregateCmdHandlers;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using PureES.Core.ExpBuilders.Services;
 
 // ReSharper disable MemberCanBePrivate.Global
 
@@ -8,23 +9,58 @@ namespace PureES.Core;
 
 public static class ServiceCollectionExtensions
 {
-    public static IServiceCollection AddCommandHandlers(this IServiceCollection services,
-        CommandHandlerOptions? options = null)
+    /// <summary>
+    /// Adds core PureES services
+    /// </summary>
+    /// <param name="services"></param>
+    /// <returns></returns>
+    private static IServiceCollection AddPureESCore(this IServiceCollection services)
+    {
+        services.TryAddSingleton<PureESServices>();
+        services.TryAddTransient(typeof(ICommandHandler<>), typeof(CommandHandler<>));
+        services.TryAddTransient(typeof(IAggregateStore<>), typeof(AggregateStore<>));
+        return services;
+    }
+    
+    /// <summary>
+    /// Adds PureES services from for <paramref name="assemblies"/>
+    /// </summary>
+    /// <param name="services"></param>
+    /// <param name="assemblies"></param>
+    /// <param name="options"></param>
+    /// <returns></returns>
+    public static IServiceCollection AddPureES(this IServiceCollection services,
+        Assembly[] assemblies,
+        CommandHandlerBuilderOptions options)
+    {
+        services.AddPureESCore();
+        services.Configure<CommandHandlerOptions>(o =>
+        {
+            foreach (var a in assemblies)
+                o.AddAssembly(a);
+            o.BuilderOptions = options;
+        });
+        return services;
+    }
+    
+    /// <summary>
+    /// Adds PureES services from assembly
+    /// </summary>
+    /// <param name="services"></param>
+    /// <param name="options"></param>
+    /// <returns></returns>
+    /// <exception cref="InvalidOperationException"></exception>
+    public static IServiceCollection AddPureES(this IServiceCollection services,
+        CommandHandlerBuilderOptions options)
     {
         var entryAssembly = Assembly.GetEntryAssembly() ??
                             throw new InvalidOperationException("Unable to locate Entry Assembly");
-        return services.AddCommandHandlers(entryAssembly, options ?? new CommandHandlerOptions());
-    }
-
-    public static IServiceCollection AddCommandHandlers(this IServiceCollection services,
-        Assembly assembly,
-        CommandHandlerOptions options)
-    {
-        var aggregateTypes = assembly.GetTypes()
-            .Where(t => t.GetCustomAttribute(typeof(AggregateAttribute)) != null);
-        var builder = new CommandHandlerBuilder(options);
-        foreach (var t in aggregateTypes)
-            builder.AddCommandServices(services, t);
+        services.AddPureESCore();
+        services.Configure<CommandHandlerOptions>(o =>
+        {
+            o.AddAssembly(entryAssembly);
+            o.BuilderOptions = options;
+        });
         return services;
     }
 }

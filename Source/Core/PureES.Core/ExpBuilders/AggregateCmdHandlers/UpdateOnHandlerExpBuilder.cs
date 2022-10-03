@@ -4,14 +4,15 @@ using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using PureES.Core.EventStore;
+using PureES.Core.ExpBuilders.Services;
 
 namespace PureES.Core.ExpBuilders.AggregateCmdHandlers;
 
 internal class UpdateOnHandlerExpBuilder
 {
-    private readonly CommandHandlerOptions _options;
+    private readonly CommandHandlerBuilderOptions _options;
 
-    public UpdateOnHandlerExpBuilder(CommandHandlerOptions options) => _options = options;
+    public UpdateOnHandlerExpBuilder(CommandHandlerBuilderOptions options) => _options = options;
 
     public Expression BuildUpdateOnExpression(Type aggregateType,
         MethodInfo handlerMethod,
@@ -49,9 +50,9 @@ internal class UpdateOnHandlerExpBuilder
             throw new ArgumentException("Invalid ServiceProvider expression");
         if (cancellationToken.Type != typeof(CancellationToken))
             throw new ArgumentException("Invalid CancellationToken expression");
-        var getStreamId = new CommandHandlerBuilder(_options)
+        var getStreamId = new CommandServicesBuilder(_options)
             .GetStreamId(HandlerHelpers.GetCommandType(handlerMethod));
-        var load = new CommandHandlerBuilder(_options).Load(aggregateType);
+        var load = new CommandServicesBuilder(_options).Factory(aggregateType);
         var handler = BuildUpdateHandler(aggregateType, handlerMethod);
         return Expression.Call(method,
             command,

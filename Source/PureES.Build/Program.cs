@@ -8,7 +8,7 @@ namespace PureES.Build;
 
 internal static class Program
 {
-    private const string Version = "0.9.1";
+    private const string Version = "0.9.2";
     
     public static async Task Main(string[] args)
     {

@@ -13,9 +13,9 @@ namespace PureES.Core.ExpBuilders.WhenHandlers;
 /// </remarks>
 internal class FactoryExpBuilder
 {
-    private readonly CommandHandlerOptions _options;
+    private readonly CommandHandlerBuilderOptions _options;
 
-    public FactoryExpBuilder(CommandHandlerOptions options) => _options = options;
+    public FactoryExpBuilder(CommandHandlerBuilderOptions options) => _options = options;
 
     public Expression BuildExpression(Type aggregateType,
         Expression @events,

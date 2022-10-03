@@ -11,7 +11,7 @@ namespace PureES.Core.Tests.ExpBuilders.WhenHandlers;
 
 public class CreatedWhenCustomEnvelopeTests
 {
-    private static CommandHandlerOptions Options => new ()
+    private static CommandHandlerBuilderOptions Options => new ()
     {
         IsEventEnvelope = type => type.GetGenericArguments().Length == 1 
                                   && typeof(EventEnvelope<>).MakeGenericType(type.GetGenericArguments()[0]) == type,

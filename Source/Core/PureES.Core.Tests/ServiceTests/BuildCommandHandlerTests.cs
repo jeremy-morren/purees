@@ -3,7 +3,8 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
-using PureES.Core.ExpBuilders.AggregateCmdHandlers;
+using PureES.Core.ExpBuilders.Services;
+using PureES.Core.Tests.ExpBuilders.AggregateCmdHandlers;
 using PureES.Core.Tests.Models;
 using PureES.EventStore.InMemory;
 using PureES.EventStoreDB.Serialization;
@@ -14,7 +15,7 @@ using Xunit;
 // ReSharper disable NotAccessedPositionalProperty.Local
 // ReSharper disable UnusedType.Local
 
-namespace PureES.Core.Tests.ExpBuilders.AggregateCmdHandlers;
+namespace PureES.Core.Tests.ServiceTests;
 
 public class BuildCommandHandlerTests
 {
@@ -25,14 +26,14 @@ public class BuildCommandHandlerTests
     {
         await using var sp = BuildServices(aggregateType, out var create, out var update);
 
-        var createHandler = sp.GetRequiredService<CommandHandler<Commands.Create>>();
-        var updateHandler = sp.GetRequiredService<CommandHandler<Commands.Update>>();
+        var createHandler = sp.GetRequiredService<ICommandHandler<Commands.Create>>();
+        var updateHandler = sp.GetRequiredService<ICommandHandler<Commands.Update>>();
 
-        Assert.Equal((ulong) 0, await createHandler(create, default));
+        Assert.Equal((ulong) 0, await createHandler.Handle(create, default));
 
         await Verify(aggregateType, sp, create, null);
         
-        Assert.Equal((ulong) 1, await updateHandler(update, default));
+        Assert.Equal((ulong) 1, await updateHandler.Handle(update, default));
 
         await Verify(aggregateType, sp, create, update);
     }
@@ -44,14 +45,14 @@ public class BuildCommandHandlerTests
     {
         await using var sp = BuildServices(aggregateType, out var create, out var update);
 
-        var createHandler = sp.GetRequiredService<CommandHandler<Commands.Create, Result>>();
-        var updateHandler = sp.GetRequiredService<CommandHandler<Commands.Update, Result>>();
+        var createHandler = sp.GetRequiredService<ICommandHandler<Commands.Create>>();
+        var updateHandler = sp.GetRequiredService<ICommandHandler<Commands.Update>>();
 
-        Assert.Equal(create.Id, (await createHandler(create, default)).Id);
+        Assert.Equal(create.Id, (await createHandler.Handle<Result>(create, default)).Id);
 
         await Verify(aggregateType, sp, create, null);
         
-        Assert.Equal(create.Id, (await updateHandler(update, default)).Id);
+        Assert.Equal(create.Id, (await updateHandler.Handle<Result>(update, default)).Id);
 
         await Verify(aggregateType, sp, create, update);
     }
@@ -64,7 +65,7 @@ public class BuildCommandHandlerTests
         var createCmd = create;
         var updateCmd = update;
         
-        return Services.Build(services =>
+        return Tests.Services.Build(services =>
         {
             services.AddInMemoryEventStore()
                 .AddEventStoreDBSerializer<Metadata>(configureTypeMapper: mapper => mapper.AddAssembly(typeof(BuildCommandHandlerTests).Assembly))
@@ -73,10 +74,10 @@ public class BuildCommandHandlerTests
                     switch (c)
                     {
                         case Commands.Create:
-                            Assert.Equal(createCmd, c);
+                            Assert.Equal<object>(createCmd, c);
                             break;
                         case Commands.Update:
-                            Assert.Equal(updateCmd, c);
+                            Assert.Equal<object>(updateCmd, c);
                             break;
                         default:
                             throw new Exception($"Unknown command {c.GetType()}");
@@ -94,8 +95,8 @@ public class BuildCommandHandlerTests
                             throw new Exception($"Unknown command {c.GetType()}");
                     }
                 });
-            new CommandHandlerBuilder(new CommandHandlerOptions())
-                .AddCommandServices(services, aggregateType);
+            new CommandServicesBuilder(new CommandHandlerBuilderOptions())
+                .AddCommandHandlers(aggregateType, services);
         });
     }
 

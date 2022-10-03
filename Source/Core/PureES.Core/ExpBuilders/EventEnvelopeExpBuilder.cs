@@ -4,9 +4,9 @@ namespace PureES.Core.ExpBuilders;
 
 internal class NewEventEnvelopeExpBuilder
 {
-    private readonly CommandHandlerOptions _options;
+    private readonly CommandHandlerBuilderOptions _options;
 
-    public NewEventEnvelopeExpBuilder(CommandHandlerOptions options) => _options = options;
+    public NewEventEnvelopeExpBuilder(CommandHandlerBuilderOptions options) => _options = options;
 
     public Expression New(Type envelopeType, Expression sourceEnvelope)
     {

@@ -11,9 +11,9 @@ namespace PureES.Core.ExpBuilders;
 /// </summary>
 internal class GetServiceExpBuilder
 {
-    private readonly CommandHandlerOptions _options;
+    private readonly CommandHandlerBuilderOptions _options;
 
-    public GetServiceExpBuilder(CommandHandlerOptions options) => _options = options;
+    public GetServiceExpBuilder(CommandHandlerBuilderOptions options) => _options = options;
 
     public Func<IServiceProvider, T> CompileDelegate<T>()
     {

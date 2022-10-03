@@ -21,23 +21,12 @@ public static class Services
         return services.BuildServiceProvider();
     }
     
-    /// <summary>
-    /// Builds a service collection
-    /// using provided <paramref name="configure"/>
-    /// and attempts to active
-    /// an instance of <see cref="CommandHandler{T}"/>
-    /// </summary>
-    /// <param name="configure">Configure services</param>
-    /// <typeparam name="T"></typeparam>
-    /// <returns></returns>
     [Pure]
-    public static CommandHandler<T> GetCommandHandler<T>(Action<IServiceCollection> configure)
+    public static ICommandHandler<T> GetCommandHandler<T>(Action<IServiceCollection> configure)
     {
         var services = new ServiceCollection();
         configure(services);
         using var provider = services.BuildServiceProvider();
-        var handler = provider.GetService<CommandHandler<T>>();
-        return handler ??
-               throw new InvalidOperationException($"Unable to create instance of {typeof(CommandHandler<T>)}");
+        return provider.GetRequiredService<ICommandHandler<T>>();
     }
 }

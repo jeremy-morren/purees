@@ -3,6 +3,7 @@ using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using PureES.Core.EventStore;
+using PureES.Core.ExpBuilders.Services;
 
 namespace PureES.Core.ExpBuilders.AggregateCmdHandlers;
 
@@ -17,7 +18,7 @@ internal static class HandleCreateOn
         where TResponse : notnull
     {
         var logger = serviceProvider.GetRequiredService<ILoggerFactory>()
-            .CreateLogger(CommandHandlerBuilder.LoggerCategory);
+            .CreateLogger(CommandServicesBuilder.LoggerCategory);
         try
         {
             logger.LogInformation("Handling command {@Command}", typeof(TCommand));
@@ -40,19 +41,10 @@ internal static class HandleCreateOn
         where TResponse : CommandResult<TEvent, TResult>
     {
         var logger = serviceProvider.GetRequiredService<ILoggerFactory>()
-            .CreateLogger(CommandHandlerBuilder.LoggerCategory);
-        try
-        {
-            logger.LogInformation("Handling command {@Command}", typeof(TCommand));
-            var response = handle(command, serviceProvider, ct);
-            await ProcessCreateResponse(logger, serviceProvider, getStreamId, command, response.Event, ct);
-            return response.Result;
-        }
-        catch (Exception e)
-        {
-            logger.LogInformation(e, "Error handling command {@Command}", typeof(TCommand));
-            throw;
-        }
+            .CreateLogger(CommandServicesBuilder.LoggerCategory);
+        var response = handle(command, serviceProvider, ct);
+        await ProcessCreateResponse(logger, serviceProvider, getStreamId, command, response.Event, ct);
+        return response.Result;
     }
     
     public static async Task<ulong> CreateOnAsync<TCommand, TResponse>(TCommand command,
@@ -63,18 +55,9 @@ internal static class HandleCreateOn
         where TCommand : notnull
     {
         var logger = serviceProvider.GetRequiredService<ILoggerFactory>()
-            .CreateLogger(CommandHandlerBuilder.LoggerCategory);
-        try
-        {
-            logger.LogInformation("Handling command {@Command}", typeof(TCommand));
-            var response = await handle(command, serviceProvider, ct);
-            return await ProcessCreateResponse(logger, serviceProvider, getStreamId, command, response, ct);
-        }
-        catch (Exception e)
-        {
-            logger.LogInformation(e, "Error handling command {@Command}", typeof(TCommand));
-            throw;
-        }
+            .CreateLogger(CommandServicesBuilder.LoggerCategory);
+        var response = await handle(command, serviceProvider, ct);
+        return await ProcessCreateResponse(logger, serviceProvider, getStreamId, command, response, ct);
     }
     
     public static async Task<TResult> CreateOnAsyncWithResult<TCommand, TResponse, TEvent, TResult>(TCommand command,
@@ -86,19 +69,10 @@ internal static class HandleCreateOn
         where TResponse : CommandResult<TEvent, TResult>
     {
         var logger = serviceProvider.GetRequiredService<ILoggerFactory>()
-            .CreateLogger(CommandHandlerBuilder.LoggerCategory);
-        try
-        {
-            logger.LogInformation("Handling command {@Command}", typeof(TCommand));
-            var response = await handle(command, serviceProvider, ct);
-            await ProcessCreateResponse(logger, serviceProvider, getStreamId, command, response.Event, ct);
-            return response.Result;
-        }
-        catch (Exception e)
-        {
-            logger.LogInformation(e, "Error handling command {@Command}", typeof(TCommand));
-            throw;
-        }
+            .CreateLogger(CommandServicesBuilder.LoggerCategory);
+        var response = await handle(command, serviceProvider, ct);
+        await ProcessCreateResponse(logger, serviceProvider, getStreamId, command, response.Event, ct);
+        return response.Result;
     }
     
     

@@ -64,7 +64,7 @@ public class UpdateOnHandlerTests
                 return expectedVersion;
             }));
 
-        var builder = new UpdateOnHandlerExpBuilder(new CommandHandlerOptions());
+        var builder = new UpdateOnHandlerExpBuilder(new CommandHandlerBuilderOptions());
         var exp = builder.BuildUpdateOnExpression(typeof(Aggregate),
             typeof(Aggregate).GetMethod(methodName, BindingFlags.Static | BindingFlags.Public)!,
             Expression.Constant(cmd),
@@ -108,7 +108,7 @@ public class UpdateOnHandlerTests
                 return expectedVersion;
             }));
 
-        var builder = new UpdateOnHandlerExpBuilder(new CommandHandlerOptions());
+        var builder = new UpdateOnHandlerExpBuilder(new CommandHandlerBuilderOptions());
         var exp = builder.BuildUpdateOnExpression(typeof(Aggregate),
             typeof(Aggregate).GetMethod(methodName, BindingFlags.Static | BindingFlags.Public)!,
             Expression.Constant(cmd),
@@ -178,7 +178,7 @@ public class UpdateOnHandlerTests
                 return expectedVersion;
             }));
 
-        var builder = new UpdateOnHandlerExpBuilder(new CommandHandlerOptions());
+        var builder = new UpdateOnHandlerExpBuilder(new CommandHandlerBuilderOptions());
         var exp = builder.BuildUpdateOnExpression(typeof(Aggregate),
             typeof(Aggregate).GetMethod(methodName, BindingFlags.Static | BindingFlags.Public)!,
             Expression.Constant(cmd),

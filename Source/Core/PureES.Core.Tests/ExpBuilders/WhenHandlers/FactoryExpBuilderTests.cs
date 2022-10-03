@@ -30,7 +30,7 @@ public class FactoryExpBuilderTests
 
         var @events = ImmutableArray.Create(created, updated).AsAsyncEnumerable();
         var ct = new CancellationTokenSource().Token;
-        var builder = new FactoryExpBuilder(new CommandHandlerOptions());
+        var builder = new FactoryExpBuilder(new CommandHandlerBuilderOptions());
         var exp = builder.BuildExpression(typeof(Aggregate), 
             Expression.Constant(@events), 
             Expression.Constant(ct));

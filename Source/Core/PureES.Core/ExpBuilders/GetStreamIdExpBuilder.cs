@@ -13,9 +13,9 @@ internal class GetStreamIdExpBuilder
 {
     private static readonly NullabilityInfoContext NullContext = new ();
     
-    private readonly CommandHandlerOptions _options;
+    private readonly CommandHandlerBuilderOptions _options;
 
-    public GetStreamIdExpBuilder(CommandHandlerOptions options) => _options = options;
+    public GetStreamIdExpBuilder(CommandHandlerBuilderOptions options) => _options = options;
 
     public Expression GetStreamId(Expression cmdParam)
     {

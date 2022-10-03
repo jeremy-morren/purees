@@ -5,9 +5,9 @@ namespace PureES.Core.ExpBuilders.WhenHandlers;
 
 internal class UpdatedWhenExpBuilder
 {
-    private readonly CommandHandlerOptions _options;
+    private readonly CommandHandlerBuilderOptions _options;
 
-    public UpdatedWhenExpBuilder(CommandHandlerOptions options) => _options = options;
+    public UpdatedWhenExpBuilder(CommandHandlerBuilderOptions options) => _options = options;
 
     public Expression BuildUpdateExpression(Type aggregateType,
         Expression current,
