@@ -24,7 +24,18 @@ internal class UpdateOnHandlerExpBuilder
             throw new ArgumentException("Invalid update handler method");
         var commandType = HandlerHelpers.GetCommandType(handlerMethod);
         MethodInfo method;
-        if (handlerMethod.ReturnType.IsTask(out var returnType))
+        if (handlerMethod.ReturnType.IsValueTask(out var returnType))
+        {
+            if (returnType == null)
+                throw new ArgumentException("Return type cannot be non-generic Task");
+            if (HandlerHelpers.IsCommandResult(returnType, out var eventType, out var resultType))
+                method = HandleUpdateOn.UpdateOnValueTaskAsyncWithResultMethod
+                    .MakeGenericMethod(aggregateType, commandType, returnType, eventType, resultType);
+            else
+                method = HandleUpdateOn.UpdateOnValueTaskAsyncMethod
+                    .MakeGenericMethod(aggregateType, commandType, returnType);
+        }
+        else if (handlerMethod.ReturnType.IsTask(out returnType))
         {
             if (returnType == null)
                 throw new ArgumentException("Return type cannot be non-generic Task");

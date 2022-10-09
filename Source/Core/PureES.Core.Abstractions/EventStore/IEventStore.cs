@@ -102,7 +102,7 @@ public interface IEventStore
     /// from the events in the stream in the order in which they were added
     /// </returns>
     /// <exception cref="StreamNotFoundException">Stream <paramref name="streamId" /> not found</exception>
-    /// <exception cref="WrongStreamVersionException">
+    /// <exception cref="WrongStreamRevisionException">
     /// Stream <paramref name="streamId"/> not at revision <paramref name="expectedRevision"/>
     /// </exception>
     IAsyncEnumerable<EventEnvelope> Load(string streamId, 
@@ -122,7 +122,7 @@ public interface IEventStore
     /// up to and including event at <paramref name="requiredRevision"/>
     /// </returns>
     /// <exception cref="StreamNotFoundException">Stream <paramref name="streamId" /> not found</exception>
-    /// <exception cref="WrongStreamVersionException">
+    /// <exception cref="WrongStreamRevisionException">
     /// Revision of stream <paramref name="streamId"/> less than <paramref name="requiredRevision"/>
     /// </exception>
     IAsyncEnumerable<EventEnvelope> LoadPartial(string streamId, 

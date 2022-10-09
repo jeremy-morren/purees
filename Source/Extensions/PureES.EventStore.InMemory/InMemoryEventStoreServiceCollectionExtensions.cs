@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Internal;
 using PureES.Core.EventStore;
 using PureES.EventStoreDB;
 using PureES.EventStoreDB.Serialization;
@@ -20,9 +21,11 @@ public static class InMemoryEventStoreServiceCollectionExtensions
     /// </remarks>
     public static IServiceCollection AddInMemoryEventStore(this IServiceCollection services)
     {
-        services.TryAddSingleton<IEventStore, InMemoryEventStore>();
-        services.TryAddTransient<InMemoryEventStore>(sp => 
-            (InMemoryEventStore) sp.GetRequiredService<IEventStore>());
+        services.TryAddSingleton<ISystemClock, SystemClock>();
+        
+        services.TryAddSingleton<InMemoryEventStore>();
+        
+        services.TryAddTransient<IEventStore>(sp => sp.GetRequiredService<InMemoryEventStore>());
 
         return services;
     }

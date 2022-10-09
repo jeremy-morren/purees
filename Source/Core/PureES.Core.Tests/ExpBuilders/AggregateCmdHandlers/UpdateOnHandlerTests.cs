@@ -19,6 +19,7 @@ public class UpdateOnHandlerTests
     [Theory]
     [InlineData(nameof(Aggregate.UpdateOn))]
     [InlineData(nameof(Aggregate.UpdateOnAsync))]
+    [InlineData(nameof(Aggregate.UpdateOnValueTaskAsync))]
     public void BuildHandler(string methodName)
     {
         var eventStore = new Mock<IEventStore>();
@@ -55,7 +56,8 @@ public class UpdateOnHandlerTests
             .AddEventEnricher((c, e) =>
             {
                 Assert.Equal(cmd, c);
-                Assert.True(e is Events.Updated @event && @event.Equals(cmd));
+                Assert.IsType<Events.Updated>(e);
+                Assert.True(((Events.Updated)e).Equals(cmd));
                 return metadata;
             })
             .AddOptimisticConcurrency(c =>
@@ -79,6 +81,7 @@ public class UpdateOnHandlerTests
     [Theory]
     [InlineData(nameof(Aggregate.UpdateOnNull))]
     [InlineData(nameof(Aggregate.UpdateOnNullAsync))]
+    [InlineData(nameof(Aggregate.UpdateOnNullValueTaskAsync))]
     public void BuildHandlerNull(string methodName)
     {
         var eventStore = new Mock<IEventStore>();
@@ -130,9 +133,11 @@ public class UpdateOnHandlerTests
     
     [Theory]
     [InlineData(nameof(Aggregate.UpdateWithResult))]
-    [InlineData(nameof(Aggregate.UpdateWithResultAsync))]
-    [InlineData(nameof(Aggregate.UpdateWithDerivedResult))]
-    [InlineData(nameof(Aggregate.UpdateWithDerivedResultAsync))]
+    [InlineData(nameof(Aggregate.UpdateAsyncResult))]
+    [InlineData(nameof(Aggregate.UpdateValueTaskAsyncResult))]
+    [InlineData(nameof(Aggregate.UpdateDerivedResult))]
+    [InlineData(nameof(Aggregate.UpdateAsyncDerivedResult))]
+    [InlineData(nameof(Aggregate.UpdateValueTaskAsyncDerivedResult))]
     public void BuildHandlerWithResult(string methodName)
     {
         var eventStore = new Mock<IEventStore>();
@@ -169,7 +174,8 @@ public class UpdateOnHandlerTests
             .AddEventEnricher((c, e) =>
             {
                 Assert.Equal(cmd, c);
-                Assert.True(e is Events.Updated @event && @event.Equals(cmd));
+                Assert.IsType<Events.Updated>(e);
+                Assert.True(((Events.Updated)e).Equals(cmd));
                 return metadata;
             })
             .AddOptimisticConcurrency(c =>
@@ -203,6 +209,9 @@ public class UpdateOnHandlerTests
 
         public static Task<Events.Updated> UpdateOnAsync(Aggregate current, [Command] Commands.Update cmd) 
             => Task.FromResult(UpdateOn(current, cmd));
+        
+        public static ValueTask<Events.Updated> UpdateOnValueTaskAsync(Aggregate current, [Command] Commands.Update cmd) 
+            => ValueTask.FromResult(UpdateOn(current, cmd));
 
         public static object? UpdateOnNull(Aggregate current, [Command] Commands.Update cmd)
         {
@@ -213,20 +222,30 @@ public class UpdateOnHandlerTests
         
         public static Task<object?> UpdateOnNullAsync(Aggregate current, [Command] Commands.Update cmd) 
             => Task.FromResult(UpdateOnNull(current, cmd));
+        
+        public static ValueTask<object?> UpdateOnNullValueTaskAsync(Aggregate current, [Command] Commands.Update cmd) 
+            => ValueTask.FromResult(UpdateOnNull(current, cmd));
 
         public static CommandResult<Events.Updated, Result> UpdateWithResult(Aggregate current, 
             [Command] Commands.Update cmd)
             => new (UpdateOn(current, cmd), new Result(cmd.Id));
 
-        public static Task<CommandResult<Events.Updated, Result>> UpdateWithResultAsync(Aggregate current, 
+        public static Task<CommandResult<Events.Updated, Result>> UpdateAsyncResult(Aggregate current, 
             [Command] Commands.Update cmd)
             => Task.FromResult(UpdateWithResult(current, cmd));
         
-        public static CommandResult UpdateWithDerivedResult(Aggregate current, [Command] Commands.Update cmd)
+        public static ValueTask<CommandResult<Events.Updated, Result>> UpdateValueTaskAsyncResult(Aggregate current, 
+            [Command] Commands.Update cmd)
+            => ValueTask.FromResult(UpdateWithResult(current, cmd));
+        
+        public static CommandResult UpdateDerivedResult(Aggregate current, [Command] Commands.Update cmd)
             => new (UpdateOn(current, cmd), new Result(cmd.Id));
 
-        public static Task<CommandResult> UpdateWithDerivedResultAsync(Aggregate current, [Command] Commands.Update cmd)
-            => Task.FromResult(UpdateWithDerivedResult(current, cmd));
+        public static Task<CommandResult> UpdateAsyncDerivedResult(Aggregate current, [Command] Commands.Update cmd)
+            => Task.FromResult(UpdateDerivedResult(current, cmd));
+        
+        public static ValueTask<CommandResult> UpdateValueTaskAsyncDerivedResult(Aggregate current, [Command] Commands.Update cmd)
+            => ValueTask.FromResult(UpdateDerivedResult(current, cmd));
     }
 
     private record Metadata;

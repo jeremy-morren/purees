@@ -83,7 +83,7 @@ public class EventStoreDBClient : IEventStore
         {
             if (e.ActualVersion == null)
                 throw new Core.EventStore.StreamNotFoundException(e.StreamName, e);
-            throw new WrongStreamVersionException(e.StreamName, 
+            throw new WrongStreamRevisionException(e.StreamName, 
                 e.ExpectedStreamRevision.ToUInt64(), 
                 e.ActualStreamRevision.ToUInt64());
         }
@@ -130,7 +130,7 @@ public class EventStoreDBClient : IEventStore
         }
         count--; //Make count 0-index based
         if (count != expectedRevision)
-            throw new WrongStreamVersionException(streamId,
+            throw new WrongStreamRevisionException(streamId,
                 new StreamRevision(expectedRevision),
                 new StreamRevision(count));
     }
@@ -160,7 +160,7 @@ public class EventStoreDBClient : IEventStore
         count--; //Make count 0-index based
         //If we get here, then we didn't reach requiredVersion
         if (count < requiredRevision)
-            throw new WrongStreamVersionException(streamId,
+            throw new WrongStreamRevisionException(streamId,
                 new StreamRevision(requiredRevision),
                 new StreamRevision(count));
     }

@@ -32,7 +32,7 @@ internal static class HandleCreateOn
         }
     }
     
-    public static async Task<TResult> CreateOnSyncWithResult<TCommand, TResponse, TEvent, TResult>(TCommand command,
+    public static async Task<TResult> CreateOnSyncResult<TCommand, TResponse, TEvent, TResult>(TCommand command,
         Func<TCommand, string> getStreamId,
         Func<TCommand, IServiceProvider, CancellationToken, TResponse> handle,
         IServiceProvider serviceProvider,
@@ -60,9 +60,37 @@ internal static class HandleCreateOn
         return await ProcessCreateResponse(logger, serviceProvider, getStreamId, command, response, ct);
     }
     
-    public static async Task<TResult> CreateOnAsyncWithResult<TCommand, TResponse, TEvent, TResult>(TCommand command,
+    public static async Task<ulong> CreateOnValueTaskAsync<TCommand, TResponse>(TCommand command,
+        Func<TCommand, string> getStreamId,
+        Func<TCommand, IServiceProvider, CancellationToken, ValueTask<TResponse>> handle,
+        IServiceProvider serviceProvider,
+        CancellationToken ct) 
+        where TCommand : notnull
+    {
+        var logger = serviceProvider.GetRequiredService<ILoggerFactory>()
+            .CreateLogger(CommandServicesBuilder.LoggerCategory);
+        var response = await handle(command, serviceProvider, ct);
+        return await ProcessCreateResponse(logger, serviceProvider, getStreamId, command, response, ct);
+    }
+    
+    public static async Task<TResult> CreateOnAsyncResult<TCommand, TResponse, TEvent, TResult>(TCommand command,
         Func<TCommand, string> getStreamId,
         Func<TCommand, IServiceProvider, CancellationToken, Task<TResponse>> handle,
+        IServiceProvider serviceProvider,
+        CancellationToken ct) 
+        where TCommand : notnull
+        where TResponse : CommandResult<TEvent, TResult>
+    {
+        var logger = serviceProvider.GetRequiredService<ILoggerFactory>()
+            .CreateLogger(CommandServicesBuilder.LoggerCategory);
+        var response = await handle(command, serviceProvider, ct);
+        await ProcessCreateResponse(logger, serviceProvider, getStreamId, command, response.Event, ct);
+        return response.Result;
+    }
+    
+    public static async Task<TResult> CreateOnValueTaskAsyncResult<TCommand, TResponse, TEvent, TResult>(TCommand command,
+        Func<TCommand, string> getStreamId,
+        Func<TCommand, IServiceProvider, CancellationToken, ValueTask<TResponse>> handle,
         IServiceProvider serviceProvider,
         CancellationToken ct) 
         where TCommand : notnull
@@ -116,14 +144,10 @@ internal static class HandleCreateOn
         return revision;
     }
 
-    private static MethodInfo GetMethod(string name) 
-        => typeof(HandleCreateOn)
-               .GetMethods(BindingFlags.Public | BindingFlags.Static)
-               .SingleOrDefault(m => m.Name == name) 
-           ?? throw new InvalidOperationException($"Unable to get method {name}");
-
-    public static readonly MethodInfo CreateOnSyncMethod = GetMethod(nameof(CreateOnSync));
-    public static readonly MethodInfo CreateOnAsyncMethod = GetMethod(nameof(CreateOnAsync));
-    public static readonly MethodInfo CreateOnSyncWithResultMethod = GetMethod(nameof(CreateOnSyncWithResult));
-    public static readonly MethodInfo CreateOnAsyncWithResultMethod = GetMethod(nameof(CreateOnAsyncWithResult));
+    public static readonly MethodInfo CreateOnSyncMethod = typeof(HandleCreateOn).GetStaticMethod(nameof(CreateOnSync));
+    public static readonly MethodInfo CreateOnAsyncMethod = typeof(HandleCreateOn).GetStaticMethod(nameof(CreateOnAsync));
+    public static readonly MethodInfo CreateOnValueTaskAsyncMethod = typeof(HandleCreateOn).GetStaticMethod(nameof(CreateOnValueTaskAsync));
+    public static readonly MethodInfo CreateOnSyncResultMethod = typeof(HandleCreateOn).GetStaticMethod(nameof(CreateOnSyncResult));
+    public static readonly MethodInfo CreateOnAsyncResultMethod = typeof(HandleCreateOn).GetStaticMethod(nameof(CreateOnAsyncResult));
+    public static readonly MethodInfo CreateOnValueTaskAsyncResultMethod = typeof(HandleCreateOn).GetStaticMethod(nameof(CreateOnValueTaskAsyncResult));
 }

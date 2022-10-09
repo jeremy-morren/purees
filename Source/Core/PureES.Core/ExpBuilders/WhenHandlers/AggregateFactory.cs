@@ -1,5 +1,6 @@
 ﻿namespace PureES.Core.ExpBuilders.WhenHandlers;
 
-internal delegate Task<LoadedAggregate<T>> AggregateFactory<T>(
+internal delegate ValueTask<LoadedAggregate<T>> AggregateFactory<T>(
     IAsyncEnumerable<EventEnvelope> @events, 
+    IServiceProvider serviceProvider,
     CancellationToken cancellationToken);

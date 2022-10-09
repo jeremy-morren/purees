@@ -1,7 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using PureES.Core.ExpBuilders;
 using PureES.Core.ExpBuilders.WhenHandlers;
 using Xunit;
 
@@ -9,117 +14,128 @@ namespace PureES.Core.Tests.ExpBuilders.WhenHandlers;
 
 public class UpdatedWhenTests
 {
-    [Fact]
-    public void ValidateUpdatedWhen()
+    [Theory]
+    [MemberData(nameof(GetAggregateAndUpdatedEventTypes))]
+    public void ValidateUpdatedWhenShouldSucceed(Type aggregateType, Type eventType)
     {
-        var builder = new UpdatedWhenExpBuilder(new CommandHandlerBuilderOptions());
-        Assert.True(builder.IsUpdatedWhen(typeof(Aggregate), Aggregate.OneMethod));
-        Assert.True(builder.IsUpdatedWhen(typeof(Aggregate), Aggregate.TwoMethod));
-        builder.ValidateUpdatedWhen(typeof(Aggregate), Aggregate.OneMethod);
-        builder.ValidateUpdatedWhen(typeof(Aggregate), Aggregate.TwoMethod);
+        var builder = new UpdatedWhenExpBuilder(TestAggregates.Options);
+        var method = TestAggregates.GetMethod(aggregateType, eventType);
+        builder.ValidateUpdatedWhen(aggregateType, method);
+        Assert.True(builder.IsUpdatedWhen(aggregateType, method));
     }
     
-    [Fact]
-    public void Validate_CreatedWhen_ShouldFail()
+    [Theory]
+    [MemberData(nameof(GetAggregateAndCreatedEventTypes))]
+    public void ValidateCreatedWhenShouldFail(Type aggregateType, Type eventType)
     {
-        var builder = new UpdatedWhenExpBuilder(new CommandHandlerBuilderOptions());
-        Assert.False(builder.IsUpdatedWhen(typeof(Aggregate), Aggregate.ThreeMethod));
-        Assert.ThrowsAny<Exception>(() => builder.ValidateUpdatedWhen(typeof(Aggregate), Aggregate.ThreeMethod));
+        var builder = new UpdatedWhenExpBuilder(TestAggregates.Options);
+        var method = TestAggregates.GetMethod(aggregateType, eventType);
+        Assert.ThrowsAny<Exception>(() => builder.ValidateUpdatedWhen(aggregateType, method));
+        Assert.False(builder.IsUpdatedWhen(aggregateType, method));
     }
-    
-    [Fact]
-    public void InvokeUpdatedWhenMethod()
+
+    [Theory]
+    [MemberData(nameof(GetAggregateAndUpdatedEventTypes))]
+    public async Task InvokeSingleMethod(Type aggregateType, Type eventType)
+    {
+        var method = typeof(UpdatedWhenTests).GetStaticMethod(nameof(InvokeSingleMethodGeneric));
+        var task = (Task)method.MakeGenericMethod(aggregateType, eventType)
+            .Invoke(null, Array.Empty<object?>())!;
+        await task;
+    }
+
+    private static async Task InvokeSingleMethodGeneric<TAggregate, TEvent>()
+        where TEvent : notnull
+        where TAggregate : notnull
     {
         var envelope = new EventEnvelope(Guid.NewGuid(),
             Guid.NewGuid().ToString(),
             Rand.NextULong(),
             DateTime.UtcNow,
-            new Updated1(Guid.NewGuid()),
+            TestAggregates.NewEvent<TEvent>(),
             new Metadata(Guid.NewGuid()));
-        var current = new Aggregate(null, null);
-        var builder = new UpdatedWhenExpBuilder(new CommandHandlerBuilderOptions());
-        var exp = builder.BuildUpdatedWhen(typeof(Aggregate), 
-            Aggregate.OneMethod,
-            Expression.Constant(current),
-            Expression.Constant(envelope));
-        var func = Expression.Lambda<Func<Aggregate>>(exp).Compile();
 
-        var agg = func();
+        var svc = new AggregateService()
+        {
+            Event = envelope
+        };
+        
+        await using var sp = new ServiceCollection()
+            .AddSingleton(svc)
+            .BuildServiceProvider();
+
+        var builder = new UpdatedWhenExpBuilder(TestAggregates.Options);
+        var exp = builder.BuildUpdatedWhen(typeof(TAggregate), 
+            TestAggregates.GetMethod(typeof(TAggregate), typeof(TEvent)),
+            Expression.Constant(TestAggregates.NewAggregate<TAggregate>()),
+            Expression.Constant(envelope),
+            Expression.Constant(sp, typeof(IServiceProvider)),
+            Expression.Constant(default(CancellationToken)));
+        var func = Expression.Lambda<Func<ValueTask<TAggregate>>>(exp).Compile();
+
+        var agg = await func();
         Assert.NotNull(agg);
-        Assert.NotNull(agg.One);
-        Assert.Null(agg.Two);
-        Assert.True(envelope.Equals(agg.One));
+        Assert.Equal(new EventEnvelope<TEvent, Metadata>(envelope), TestAggregates.GetEnvelope<TEvent>(agg));
     }
-
-    [Fact]
-    public void InvokeUpdatedWhen()
+    
+    [Theory]
+    [MemberData(nameof(GetAggregateTypes))]
+    public async Task InvokeUpdatedWhen(Type aggregateType)
     {
-        var currentParam = Expression.Parameter(typeof(Aggregate));
-        var envParam = Expression.Parameter(typeof(EventEnvelope));
-
-        var builder = new UpdatedWhenExpBuilder(new CommandHandlerBuilderOptions());
-        var exp = builder.BuildUpdateExpression(typeof(Aggregate), currentParam, envParam);
-        var func = Expression.Lambda<Func<Aggregate, EventEnvelope, Aggregate>>(exp, currentParam, envParam).Compile();
-
-        EventEnvelope New(object @event) => new EventEnvelope(Guid.NewGuid(),
+        var method = typeof(UpdatedWhenTests).GetStaticMethod(nameof(InvokeUpdatedWhenGeneric));
+        await (Task) method.MakeGenericMethod(aggregateType).Invoke(null, Array.Empty<object?>())!;
+    }
+    
+    private static async Task InvokeUpdatedWhenGeneric<TAggregate>() where TAggregate : notnull
+    {
+        var svc = new AggregateService();
+        await using var sp = new ServiceCollection()
+            .AddSingleton(svc)
+            .BuildServiceProvider();
+        
+        var param = Expression.Parameter(typeof(EventEnvelope));
+        var builder = new UpdatedWhenExpBuilder(TestAggregates.Options);
+        var exp = builder.BuildUpdateExpression(typeof(TAggregate), 
+            Expression.Constant(TestAggregates.NewAggregate<TAggregate>()),
+            param,
+            Expression.Constant(sp, typeof(IServiceProvider)),
+            Expression.Constant(default(CancellationToken)));
+        
+        var func = Expression.Lambda<Func<EventEnvelope, ValueTask<TAggregate>>>(exp, param).Compile();
+    
+        EventEnvelope CreateEnvelope<TEvent>() where TEvent : notnull => new (Guid.NewGuid(),
             Guid.NewGuid().ToString(),
             Rand.NextULong(),
             DateTime.UtcNow,
-            @event,
+            TestAggregates.NewEvent<TEvent>(),
             new Metadata(Guid.NewGuid()));
+    
+        var one = CreateEnvelope<Updated1>();
+        var two = CreateEnvelope<Updated2>();
 
-        var one = New(new Updated1(Guid.NewGuid()));
-        var two = New(new Updated2(Guid.NewGuid()));
-        var three = New(new Updated3(Guid.NewGuid()));
+        svc.Event = one;
+        var agg = await func(one);
+        Assert.NotNull(agg);
+        TestAggregates.AssertEqual<Updated1>(agg, one);
+        Assert.Null(TestAggregates.GetEnvelope<Updated2>(agg));
 
-        var cur = func(new Aggregate(null, new EventEnvelope<Updated2, Metadata>(two)), one);
-
-        Assert.NotNull(cur);
-        Assert.NotNull(cur.One);
-        Assert.NotNull(cur.Two);
-        Assert.True(cur.One!.Equals(one));
-        Assert.True(cur.Two!.Equals(two));
-        
-        cur = func(new Aggregate(new EventEnvelope<Updated1, Metadata>(one), null), two);
-
-        Assert.NotNull(cur);
-        Assert.NotNull(cur.One);
-        Assert.NotNull(cur.Two);
-        Assert.True(cur.One!.Equals(one));
-        Assert.True(cur.Two!.Equals(two));
-
-        Assert.Throws<ArgumentException>(() => func(new Aggregate(null, null), New(three)));
+        svc.Event = two;
+        agg = await func(two);
+        Assert.NotNull(agg);
+        TestAggregates.AssertEqual<Updated2>(agg, two);
+        Assert.Null(TestAggregates.GetEnvelope<Updated1>(agg));
+    
+        //Test base case (i.e. no event handler found)
+        await Assert.ThrowsAsync<ArgumentException>(async () => await func(CreateEnvelope<Created1>()));
+        await Assert.ThrowsAsync<ArgumentException>(async () => await func(CreateEnvelope<Created2>()));
     }
 
-    private record Aggregate(EventEnvelope<Updated1, Metadata>? One, EventEnvelope<Updated2, Metadata>? Two)
-    {
-        public static Aggregate When(Aggregate current, EventEnvelope<Updated1, Metadata> envelope) =>
-            current with {One = envelope };
+    public static IEnumerable<object[]> GetAggregateTypes() => TestAggregates.GetAggregateTypes()
+        .Select(t => new object[] {t});
 
-        public static Aggregate When(Aggregate current, EventEnvelope<Updated2, Metadata> envelope) =>
-            current with { Two = envelope };
-
-        public static Aggregate When(EventEnvelope<Updated3, Metadata> _) =>
-            throw new Exception("This is a created when method");
-
-        private  static MethodInfo GetMethod(Type eventType) => typeof(Aggregate)
-            .GetMethods(BindingFlags.Public | BindingFlags.Static)
-            .Single(m => m.Name == nameof(When) 
-                        && m.GetParameters().Length == 2
-                        && m.GetParameters()[1].ParameterType.GetGenericArguments().Length == 2
-                        && m.GetParameters()[1].ParameterType.GetGenericArguments()[0] == eventType);
-
-        public static readonly MethodInfo OneMethod = GetMethod(typeof(Updated1));
-
-        public static readonly MethodInfo TwoMethod = GetMethod(typeof(Updated2));
-
-        public static readonly MethodInfo ThreeMethod = typeof(Aggregate)
-            .GetMethods(BindingFlags.Public | BindingFlags.Static)
-            .Single(m => m.GetParameters().Length == 1);
-    }
-
-    private record Updated1(Guid Id);
-    private record Updated2(Guid Id);
-    private record Updated3(Guid Id);
-    private record Metadata(Guid Id);
+    public static IEnumerable<object[]> GetAggregateAndUpdatedEventTypes() =>
+        TestAggregates.GetAggregateAndUpdatedEventTypes();
+    
+    public static IEnumerable<object[]> GetAggregateAndCreatedEventTypes() =>
+        TestAggregates.GetAggregateAndCreatedEventTypes();
 }

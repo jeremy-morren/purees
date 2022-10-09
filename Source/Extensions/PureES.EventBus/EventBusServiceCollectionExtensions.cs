@@ -7,6 +7,12 @@ namespace PureES.EventBus;
 
 public static class EventBusServiceCollectionExtensions
 {
+    private static void AddEventHandlersCore(this IServiceCollection services)
+    {
+        services.TryAddSingleton(new EventHandlerCollection());
+        services.TryAddTransient(typeof(IEventHandler<,>), typeof(CompositeEventHandler<,>));
+    }
+    
     /// <summary>
     /// Adds an <see cref="IEventBus"/> to the service collection
     /// </summary>
@@ -15,7 +21,10 @@ public static class EventBusServiceCollectionExtensions
     /// </returns>
     public static IServiceCollection AddEventBus(this IServiceCollection services)
     {
+        services.AddEventHandlersCore();
+        
         services.TryAddSingleton<IEventBus, EventBus>();
+        
         return services;
     }
 
@@ -30,23 +39,12 @@ public static class EventBusServiceCollectionExtensions
         where TEvent : notnull
         where TMetadata : notnull
     {
-        var current = services.FirstOrDefault(d => 
-            d.ServiceType == typeof(Func<IServiceProvider, IEventHandler<TEvent, TMetadata>>[]));
-        if (current == null)
-        {
-            services.AddSingleton(new[] {factory});
-        }
-        else
-        {
-            if (current.ImplementationInstance is not Func<IServiceProvider, IEventHandler<TEvent, TMetadata>>[] factories)
-                throw new InvalidOperationException("Invalid current descriptor");
-            Array.Resize(ref factories, factories.Length + 1);
-            factories[^1] = factory;
-            services.Remove(current);
-            services.AddSingleton(factories);
-        }
-        //Add the composite handler
-        services.TryAddSingleton<IEventHandler<TEvent, TMetadata>, CompositeEventHandler<TEvent, TMetadata>>();
+        services.AddEventHandlersCore();
+
+        var descriptor = services.Single(d => d.ServiceType == typeof(EventHandlerCollection));
+
+        var collection = (EventHandlerCollection?) descriptor.ImplementationInstance!;
+        collection.AddEventHandler(factory);
         return services;
     }
 }

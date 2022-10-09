@@ -1,117 +1,140 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
+using PureES.Core.ExpBuilders;
 using PureES.Core.ExpBuilders.WhenHandlers;
 using Xunit;
-
-// ReSharper disable NotAccessedPositionalProperty.Local
 
 namespace PureES.Core.Tests.ExpBuilders.WhenHandlers;
 
 public class CreatedWhenTests
 {
-    [Fact]
-    public void ValidateCreatedWhen()
+    [Theory]
+    [MemberData(nameof(GetAggregateAndCreatedEventTypes))]
+    public void ValidateCreatedWhenShouldSucceed(Type aggregateType, Type eventType)
     {
-        var builder = new CreatedWhenExpBuilder(new CommandHandlerBuilderOptions());
-        Assert.True(builder.IsCreatedWhen(typeof(Aggregate), Aggregate.CreatedWhenOne));
-        Assert.True(builder.IsCreatedWhen(typeof(Aggregate), Aggregate.CreatedWhenTwo));
+        var builder = new CreatedWhenExpBuilder(TestAggregates.Options);
         
-        builder.ValidateCreatedWhen(typeof(Aggregate), Aggregate.CreatedWhenOne);
-        builder.ValidateCreatedWhen(typeof(Aggregate), Aggregate.CreatedWhenTwo);
+        var method = TestAggregates.GetMethod(aggregateType, eventType);
+        builder.ValidateCreatedWhen(aggregateType, method);
+        Assert.True(builder.IsCreatedWhen(aggregateType, method));
     }
 
-    [Fact]
-    public void Validate_UpdatedWhen_ShouldFail()
+    [Theory]
+    [MemberData(nameof(GetAggregateAndUpdatedEventTypes))]
+    public void ValidateUpdatedWhenShouldFail(Type aggregateType, Type eventType)
     {
-        var builder = new CreatedWhenExpBuilder(new CommandHandlerBuilderOptions());
-        Assert.False(builder.IsCreatedWhen(typeof(Aggregate), Aggregate.WhenThree));
-        Assert.ThrowsAny<Exception>(() => builder.ValidateCreatedWhen(typeof(Aggregate), Aggregate.WhenThree));
+        var method = TestAggregates.GetMethod(aggregateType, eventType);
+        var builder = new CreatedWhenExpBuilder(TestAggregates.Options);
+        Assert.False(builder.IsCreatedWhen(aggregateType, method));
+        Assert.ThrowsAny<Exception>(() => builder.ValidateCreatedWhen(aggregateType, method));
     }
 
-    [Fact]
-    public void InvokeCreatedWhenMethod()
+    [Theory]
+    [MemberData(nameof(GetAggregateAndCreatedEventTypes))]
+    public async Task InvokeSingleMethod(Type aggregateType, Type eventType)
+    {
+        var method = typeof(CreatedWhenTests).GetStaticMethod(nameof(InvokeSingleMethodGeneric));
+        var task = (Task)method.MakeGenericMethod(aggregateType, eventType)
+            .Invoke(null, Array.Empty<object?>())!;
+        await task;
+    }
+
+    private static async Task InvokeSingleMethodGeneric<TAggregate, TEvent>()
+        where TEvent : notnull
+        where TAggregate : notnull
     {
         var envelope = new EventEnvelope(Guid.NewGuid(),
             Guid.NewGuid().ToString(),
             Rand.NextULong(),
             DateTime.UtcNow,
-            new Created1(Guid.NewGuid()),
+            TestAggregates.NewEvent<TEvent>(),
             new Metadata(Guid.NewGuid()));
-        var builder = new CreatedWhenExpBuilder(new CommandHandlerBuilderOptions());
-        var exp = builder.BuildCreatedWhen(typeof(Aggregate), 
-            Aggregate.CreatedWhenOne,
-            Expression.Constant(envelope));
-        var func = Expression.Lambda<Func<Aggregate>>(exp).Compile();
 
-        var agg = func();
+        var svc = new AggregateService()
+        {
+            Event = envelope
+        };
+        
+        await using var sp = new ServiceCollection()
+            .AddSingleton(svc)
+            .BuildServiceProvider();
+
+        var builder = new CreatedWhenExpBuilder(TestAggregates.Options);
+        var exp = builder.BuildCreatedWhen(typeof(TAggregate), 
+            TestAggregates.GetMethod(typeof(TAggregate), typeof(TEvent)),
+            Expression.Constant(envelope),
+            Expression.Constant(sp, typeof(IServiceProvider)),
+            Expression.Constant(default(CancellationToken)));
+        var func = Expression.Lambda<Func<ValueTask<TAggregate>>>(exp).Compile();
+
+        var agg = await func();
         Assert.NotNull(agg);
-        Assert.NotNull(agg.One);
-        Assert.True(envelope.Equals(agg.One));
-        Assert.Null(agg.Two);
+        Assert.Equal(new EventEnvelope<TEvent, Metadata>(envelope), TestAggregates.GetEnvelope<TEvent>(agg));
     }
 
-    [Fact]
-    public void InvokeCreatedWhen()
+    [Theory]
+    [MemberData(nameof(GetAggregateTypes))]
+    public async Task InvokeCreatedWhen(Type aggregateType)
     {
+        var method = typeof(CreatedWhenTests).GetStaticMethod(nameof(InvokeCreatedWhenGeneric));
+        await (Task) method.MakeGenericMethod(aggregateType).Invoke(null, Array.Empty<object?>())!;
+    }
+    
+    private static async Task InvokeCreatedWhenGeneric<TAggregate>() where TAggregate : notnull
+    {
+        var svc = new AggregateService();
+        await using var sp = new ServiceCollection()
+            .AddSingleton(svc)
+            .BuildServiceProvider();
+        
         var param = Expression.Parameter(typeof(EventEnvelope));
-        var builder = new CreatedWhenExpBuilder(new CommandHandlerBuilderOptions());
-        var exp = builder.BuildCreateExpression(typeof(Aggregate), param);
-        var func = Expression.Lambda<Func<EventEnvelope, Aggregate>>(exp, param).Compile();
-
-        var one = new Created1(Guid.NewGuid());
-        var two = new Created2(Guid.NewGuid());
-        var three = new Created3(Guid.NewGuid());
-
-        EventEnvelope CreateEnvelope(object @event) => new EventEnvelope(Guid.NewGuid(),
+        var builder = new CreatedWhenExpBuilder(TestAggregates.Options);
+        var exp = builder.BuildCreateExpression(typeof(TAggregate), 
+            param,
+            Expression.Constant(sp, typeof(IServiceProvider)),
+            Expression.Constant(default(CancellationToken)));
+        
+        var func = Expression.Lambda<Func<EventEnvelope, ValueTask<TAggregate>>>(exp, param).Compile();
+    
+        EventEnvelope CreateEnvelope<TEvent>() where TEvent : notnull => new (Guid.NewGuid(),
             Guid.NewGuid().ToString(),
             Rand.NextULong(),
             DateTime.UtcNow,
-            @event,
+            TestAggregates.NewEvent<TEvent>(),
             new Metadata(Guid.NewGuid()));
-
-        var agg = func(CreateEnvelope(one));
-        Assert.NotNull(agg.One);
-        Assert.Equal(one, agg.One!.Event);
-        agg = func(CreateEnvelope(two));
-        Assert.Null(agg.One);
-        Assert.NotNull(agg.Two);
-        Assert.Equal(two, agg.Two!.Event);
-
-        Assert.Throws<ArgumentException>(() => func(CreateEnvelope(three)));
-    }
-
-    private record Aggregate(EventEnvelope<Created1, Metadata>? One, EventEnvelope<Created2, Metadata>? Two)
-    {
-        public static Aggregate When(EventEnvelope<Created1, Metadata> envelope) =>
-            new(envelope, null);
-        public static Aggregate When(EventEnvelope<Created2, Metadata> envelope) =>
-            new(null, envelope);
-
-        public static Aggregate When(Aggregate _, EventEnvelope<Created3, Metadata> __) =>
-            throw new Exception("Invalid create method");
-
-        private static MethodInfo GetMethod(Type eventType) => typeof(Aggregate)
-            .GetMethods(BindingFlags.Public | BindingFlags.Static)
-            .Single(m => m.Name == nameof(When) 
-                         && m.GetParameters().Length == 1
-                         && m.GetParameters()[0].ParameterType.GetGenericArguments()[0] == eventType);
-
-        public static readonly MethodInfo CreatedWhenOne = GetMethod(typeof(Created1));
-
-        public static readonly MethodInfo CreatedWhenTwo = GetMethod(typeof(Created2));
-
-        public static readonly MethodInfo WhenThree = typeof(Aggregate)
-            .GetMethods(BindingFlags.Public | BindingFlags.Static)
-            .Single(m => m.Name == nameof(When) && m.GetParameters().Length == 2);
-    }
-
-    private record Created1(Guid Id);
-
-    private record Created2(Guid Id);
     
-    private record Created3(Guid Id);
+        var one = CreateEnvelope<Created1>();
+        var two = CreateEnvelope<Created2>();
 
-    private record Metadata(Guid Id);
+        var agg = await func(one);
+        Assert.NotNull(agg);
+        TestAggregates.AssertEqual<Created1>(agg, one);
+        Assert.Null(TestAggregates.GetEnvelope<Created2>(agg));
+
+        svc.Event = two;
+        agg = await func(two);
+        Assert.NotNull(agg);
+        TestAggregates.AssertEqual<Created2>(agg, two);
+        Assert.Null(TestAggregates.GetEnvelope<Created1>(agg));
+    
+        //Test base case (i.e. no event handler found)
+        await Assert.ThrowsAsync<ArgumentException>(async () => await func(CreateEnvelope<Updated1>()));
+        await Assert.ThrowsAsync<ArgumentException>(async () => await func(CreateEnvelope<Updated2>()));
+    }
+
+     public static IEnumerable<object[]> GetAggregateTypes() => TestAggregates.GetAggregateTypes()
+         .Select(t => new object[] {t});
+     
+     public static IEnumerable<object[]> GetAggregateAndCreatedEventTypes() =>
+         TestAggregates.GetAggregateAndCreatedEventTypes();
+
+     public static IEnumerable<object[]> GetAggregateAndUpdatedEventTypes() =>
+         TestAggregates.GetAggregateAndUpdatedEventTypes();
 }

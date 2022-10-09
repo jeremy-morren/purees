@@ -1,9 +1,5 @@
-﻿using System.Collections;
-using System.Linq.Expressions;
+﻿using System.Linq.Expressions;
 using System.Reflection;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using PureES.Core.EventStore;
 using PureES.Core.ExpBuilders.Services;
 
 namespace PureES.Core.ExpBuilders.AggregateCmdHandlers;
@@ -24,12 +20,24 @@ internal class CreateOnHandlerExpBuilder
             throw new ArgumentException("Invalid create handler method");
         var commandType = HandlerHelpers.GetCommandType(handlerMethod);
         MethodInfo method;
-        if (handlerMethod.ReturnType.IsTask(out var returnType))
+        
+        if (handlerMethod.ReturnType.IsValueTask(out var returnType))
+        {
+            if (returnType == null)
+                throw new ArgumentException("Return type cannot be non-generic ValueTask");
+            if (HandlerHelpers.IsCommandResult(returnType, out var eventType, out var resultType))
+                method = HandleCreateOn.CreateOnValueTaskAsyncResultMethod
+                    .MakeGenericMethod(commandType, returnType, eventType, resultType);
+            else
+                method = HandleCreateOn.CreateOnValueTaskAsyncMethod
+                    .MakeGenericMethod(commandType, returnType);
+        }
+        else if (handlerMethod.ReturnType.IsTask(out returnType))
         {
             if (returnType == null)
                 throw new ArgumentException("Return type cannot be non-generic Task");
             if (HandlerHelpers.IsCommandResult(returnType, out var eventType, out var resultType))
-                method = HandleCreateOn.CreateOnAsyncWithResultMethod
+                method = HandleCreateOn.CreateOnAsyncResultMethod
                     .MakeGenericMethod(commandType, returnType, eventType, resultType);
             else
                 method = HandleCreateOn.CreateOnAsyncMethod
@@ -40,7 +48,7 @@ internal class CreateOnHandlerExpBuilder
             if (handlerMethod.ReturnType == typeof(void))
                 throw new ArgumentException("Return type cannot be void");
             if (HandlerHelpers.IsCommandResult(handlerMethod.ReturnType, out var eventType, out var resultType))
-                method = HandleCreateOn.CreateOnSyncWithResultMethod
+                method = HandleCreateOn.CreateOnSyncResultMethod
                     .MakeGenericMethod(commandType, handlerMethod.ReturnType, eventType, resultType);
             else
                 method = HandleCreateOn.CreateOnSyncMethod

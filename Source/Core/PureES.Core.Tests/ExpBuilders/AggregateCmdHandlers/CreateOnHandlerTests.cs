@@ -17,6 +17,7 @@ public class CreateOnHandlerTests
     [Theory]
     [InlineData(nameof(TestAggregate.Create))]
     [InlineData(nameof(TestAggregate.CreateAsync))]
+    [InlineData(nameof(TestAggregate.CreateValueTaskAsync))]
     public void BuildHandler(string methodName)
     {
         var eventStore = new Mock<IEventStore>();
@@ -58,6 +59,7 @@ public class CreateOnHandlerTests
     [InlineData(nameof(TestAggregate.CreateWithResultAsync))]
     [InlineData(nameof(TestAggregate.CreateWithDerivedResult))]
     [InlineData(nameof(TestAggregate.CreateWithDerivedResultAsync))]
+    [InlineData(nameof(TestAggregate.CreateWithDerivedResultValueTaskAsync))]
     public void BuildHandlerWithResult(string methodName)
     {
         var eventStore = new Mock<IEventStore>();
@@ -100,17 +102,25 @@ public class CreateOnHandlerTests
 
         public static Task<Events.Created> CreateAsync([Command] Commands.Create cmd) => Task.FromResult(Create(cmd));
         
+        public static ValueTask<Events.Created> CreateValueTaskAsync([Command] Commands.Create cmd) => ValueTask.FromResult(Create(cmd));
+        
         public static CommandResult<Events.Created, Result> CreateWithResult([Command] Commands.Create cmd)
             => new (new Events.Created(cmd.Id, cmd.Value), new Result(cmd.Id));
 
         public static Task<CommandResult<Events.Created, Result>> CreateWithResultAsync([Command] Commands.Create cmd)
             => Task.FromResult(CreateWithResult(cmd));
         
+        public static ValueTask<CommandResult<Events.Created, Result>> CreateWithResultValueTaskAsync([Command] Commands.Create cmd)
+            => ValueTask.FromResult(CreateWithResult(cmd));
+        
         public static CommandResult CreateWithDerivedResult([Command] Commands.Create cmd)
             => new (new Events.Created(cmd.Id, cmd.Value), new Result(cmd.Id));
 
         public static Task<CommandResult> CreateWithDerivedResultAsync([Command] Commands.Create cmd)
             => Task.FromResult(CreateWithDerivedResult(cmd));
+        
+        public static ValueTask<CommandResult> CreateWithDerivedResultValueTaskAsync([Command] Commands.Create cmd)
+            => ValueTask.FromResult(CreateWithDerivedResult(cmd));
     }
 
     private record Result(TestAggregateId Id);

@@ -25,6 +25,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\..\Extensions\PureES.EventStore.InMemory\PureES.EventStore.InMemory.csproj" />
+      <ProjectReference Include="..\..\Extensions\PureES.EventStoreDB\PureES.EventStoreDB.csproj" />
       <ProjectReference Include="..\PureES.Core.Abstractions\PureES.Core.Abstractions.csproj" />
       <ProjectReference Include="..\PureES.Core\PureES.Core.csproj" />
     </ItemGroup>

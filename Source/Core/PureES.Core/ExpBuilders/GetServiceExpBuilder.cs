@@ -24,6 +24,8 @@ internal class GetServiceExpBuilder
     
     public Expression GetRequiredService(Expression provider, Type serviceType)
     {
+        if (!typeof(IServiceProvider).IsAssignableFrom(provider.Type))
+            throw new InvalidOperationException("Invalid service provider expression");
         if (serviceType.IsValueType)
             throw new InvalidOperationException($"Service {serviceType} is not a reference type");
         //as ServiceProviderServiceExtensions.GetRequiredService<T>(provider

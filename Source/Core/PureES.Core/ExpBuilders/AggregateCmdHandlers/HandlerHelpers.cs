@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 using System.Reflection;
 
@@ -25,11 +26,22 @@ public static class HandlerHelpers
     public static void ValidateCommandReturnType(Type aggregateType, Type returnType)
     {
         //The method should return T, IEnumerable or CommandResult
+        //Or their async equivalent
+
+        if (returnType.IsAsyncEnumerable())
+            throw new NotImplementedException("IAsyncEnumerable return types are not supported");
         //TODO: Check for IAsyncEnumerable
         if (returnType == aggregateType)
             throw new NotImplementedException("Command handler methods must return event(s), not the aggregate");
         // ReSharper disable once InvertIf
         if (returnType.IsTask(out var valueType))
+        {
+            if (valueType == null)
+                throw new NotImplementedException("Command Handler methods must return an event or Task<TEvent>");
+            // ReSharper disable once TailRecursiveCall
+            ValidateCommandReturnType(aggregateType, valueType);
+        }
+        else if (returnType.IsValueTask(out valueType))
         {
             if (valueType == null)
                 throw new NotImplementedException("Command Handler methods must return an event or Task<TEvent>");
@@ -98,13 +110,23 @@ public static class HandlerHelpers
         return true;
     }
 
+    [SuppressMessage("ReSharper", "InvertIf")]
     public static bool ReturnsCommandResult(MethodInfo method, out Type result)
     {
-        if (!method.ReturnType.IsTask(out var returnType)) 
-            return IsCommandResult(method.ReturnType, out _, out result);
-        if (returnType == null)
-            throw new InvalidOperationException(
-                $"Method {method.DeclaringType?.FullName}+{method.Name} returns non-generic Task");
-        return IsCommandResult(returnType, out _, out result);
+        if (method.ReturnType.IsTask(out var returnType))
+        {
+            if (returnType == null)
+                throw new InvalidOperationException(
+                    $"Method {method.DeclaringType?.FullName}+{method.Name} returns non-generic Task");
+            return IsCommandResult(returnType, out _, out result);
+        }
+        if (method.ReturnType.IsValueTask(out returnType))
+        {
+            if (returnType == null)
+                throw new InvalidOperationException(
+                    $"Method {method.DeclaringType?.FullName}+{method.Name} returns non-generic ValueTask");
+            return IsCommandResult(returnType, out _, out result);
+        }
+        return IsCommandResult(method.ReturnType, out _, out result);
     }
 }

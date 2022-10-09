@@ -1,5 +1,7 @@
 ﻿using System.Linq.Expressions;
 using System.Reflection;
+using Microsoft.AspNetCore.Mvc;
+using PureES.Core.ExpBuilders.AggregateCmdHandlers;
 
 namespace PureES.Core.ExpBuilders.WhenHandlers;
 
@@ -10,16 +12,25 @@ internal class CreatedWhenExpBuilder
     public CreatedWhenExpBuilder(CommandHandlerBuilderOptions options) => _options = options;
 
     public Expression BuildCreateExpression(Type aggregateType,
-        Expression envelope)
+        Expression envelope,
+        Expression serviceProvider,
+        Expression cancellationToken)
     {
         if (envelope.Type != typeof(EventEnvelope))
             throw new ArgumentException("Invalid envelope expression");
+        if (serviceProvider.Type != typeof(IServiceProvider))
+            throw new ArgumentException("Invalid serviceProvider expression");
+        if (cancellationToken.Type != typeof(CancellationToken))
+            throw new ArgumentException("Invalid cancellationToken expression");
         var createMethods = aggregateType.GetMethods(BindingFlags.Public | BindingFlags.Static)
             .Where(m => IsCreatedWhen(aggregateType, m))
             .ToList();
         //TODO: validate multiple methods with identical parameters
+        
         //We need an expression along the lines of
         //if (envelope.Event is EventType) return When(NewGenericEnvelope(envelope))
+        //When method builder returns ValueTask<TAggregate>
+        
         var eventProperty =
             envelope.Type.GetProperty(nameof(EventEnvelope.Event), BindingFlags.Instance | BindingFlags.Public)
             ?? throw new InvalidOperationException("Unable to get EventEnvelope.Event property");
@@ -31,55 +42,96 @@ internal class CreatedWhenExpBuilder
             Expression.Assign(envelopeVar, envelope),
             Expression.Assign(@event, Expression.Property(envelopeVar, eventProperty))
         };
-        var returnTarget = Expression.Label(aggregateType);
+        var returnTarget = Expression.Label(typeof(ValueTask<>).MakeGenericType(aggregateType));
         foreach (var m in createMethods)
         {
             ValidateCreatedWhen(aggregateType, m);
             var envelopeType = m.GetParameters()[0].ParameterType;
             var eventType =  _options.GetEventType?.Invoke(envelopeType) ?? envelopeType.GetGenericArguments()[0];
             var check = Expression.TypeIs(@event, @eventType);
-            var call = BuildCreatedWhen(aggregateType, m, envelopeVar);
+            var call = BuildCreatedWhen(aggregateType, m, envelopeVar, serviceProvider, cancellationToken);
             var whole = Expression.IfThen(check, Expression.Return(returnTarget, call));
             expressions.Add(whole);
         }
         var @base = Expression.Call(ExceptionHelpers.ThrowCreatedWhenBaseMethod,
             Expression.Constant(aggregateType), @event);
         expressions.Add(@base);
-        //TODO: Better default value
-        expressions.Add(Expression.Label(returnTarget, Expression.Constant(null, aggregateType)));
+        //Base case: Return ValueTask.FromResult<T>(null)
+        //Should never be called however, because we get an exception above
+        var @default = ValueTaskHelpers.DefaultMethod.MakeGenericMethod(aggregateType);
+        expressions.Add(Expression.Label(returnTarget, Expression.Call(@default)));
         return Expression.Block(new[] {envelopeVar, @event}, expressions);
     }
 
     public Expression BuildCreatedWhen(Type aggregateType,
-        MethodInfo methodInfo,
-        Expression envelope)
+        MethodInfo method,
+        Expression envelope,
+        Expression serviceProvider,
+        Expression cancellationToken)
     {
         if (envelope.Type != typeof(EventEnvelope))
             throw new ArgumentException("Invalid envelope expression");
-        ValidateCreatedWhen(aggregateType, methodInfo);
+        ValidateCreatedWhen(aggregateType, method);
         envelope = new NewEventEnvelopeExpBuilder(_options)
-            .New(methodInfo.GetParameters()[0].ParameterType, envelope);
-        //Looks like T When(envelope)
-        return Expression.Call(methodInfo, envelope);
+            .New(method.GetParameters()[0].ParameterType, envelope);
+        var parameters = method.GetParameters()
+            .Select(p => p.ParameterType == typeof(CancellationToken) ? cancellationToken
+                : p.GetCustomAttribute(typeof(FromServicesAttribute)) != null
+                    ? new GetServiceExpBuilder(_options).GetRequiredService(serviceProvider, p.ParameterType)
+                    : envelope)
+            .ToArray();
+        var invoke = Expression.Call(method, parameters);
+        MethodInfo wrapper;
+        if (method.ReturnType.IsTask(out var rt))
+        {
+            if (rt == null)
+                throw new InvalidOperationException($"CreateWhen method {method} returns non-generic Task");
+            //Looks like Task<T> When(envelope)
+            wrapper = ValueTaskHelpers.FromTaskMethod.MakeGenericMethod(rt);
+            return Expression.Call(wrapper, invoke);
+        }
+        if (method.ReturnType.IsValueTask(out rt))
+        {
+            if (rt == null)
+                throw new InvalidOperationException($"CreateWhen method {method} returns non-generic ValueTask");
+            //Looks like ValueTask<T> When(envelope)
+            //We don't need a wrapper here
+            return invoke;
+        }
+        wrapper = ValueTaskHelpers.FromResultMethod.MakeGenericMethod(method.ReturnType);
+        return Expression.Call(wrapper, invoke);
     }
+
+    /// <summary>
+    /// Returns parameters that are not CancellationTokens or have [FromServices] attribute
+    /// </summary>
+    private static List<ParameterInfo> GetEnvelopeParams(MethodBase method) => method.GetParameters()
+        .Where(p => p.ParameterType != typeof(CancellationToken) && p.GetCustomAttribute(typeof(FromServicesAttribute)) == null)
+        .ToList();
 
     public void ValidateCreatedWhen(Type aggregateType, MethodInfo method)
     {
         //We are expecting a T When(EventEnvelope<TAny, TAny> @event) method
         FactoryExpBuilder.ValidateWhen(aggregateType, method);
-        var parameters = method.GetParameters();
-        if (parameters.Length != 1)
-            throw new InvalidOperationException("Create When method must have exactly 1 parameter");
+        var parameters = GetEnvelopeParams(method);
+        if (parameters.Count != 1)
+            throw new InvalidOperationException(
+                $"Create When method {method} has too many parameters");
         new FactoryExpBuilder(_options).ValidateEnvelope(parameters[0]);
     }
 
     public bool IsCreatedWhen(Type aggregateType, MethodInfo method)
     {
         //We are expecting a T When(EventEnvelope<TAny, TAny> @event) method
+        //Return type can be T, ValueTask<T>, or Task<T>
+        
         //Validate method returns the aggregate and takes a single EventEnvelope parameter
-        if (method.ReturnType != aggregateType) return false;
-        var parameters = method.GetParameters();
-        if (parameters.Length != 1)
+        var returnType = method.ReturnType.IsTask(out var rt) ? rt
+            : method.ReturnType.IsValueTask(out rt) ? rt
+            : method.ReturnType;
+        if (returnType != aggregateType) return false;
+        var parameters = GetEnvelopeParams(method);
+        if (parameters.Count != 1)
             return false;
         return _options.IsEventEnvelope?.Invoke(parameters[0].ParameterType) 
                ?? new FactoryExpBuilder(_options).IsEnvelope(parameters[0].ParameterType);

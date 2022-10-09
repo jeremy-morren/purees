@@ -18,7 +18,6 @@ internal class CommandServicesBuilder
             throw new ArgumentException("Type is not an aggregate");
         foreach (var m in aggregateType.GetMethods(BindingFlags.Public | BindingFlags.Static))
         {
-            //TODO: Confirm no efficiency loss with MakeGenericMethod
             if (HandlerHelpers.IsCreateHandler(aggregateType, m))
             {
                 var @delegate = CompileCreateOnHandler(aggregateType, m, out var delegateType);
@@ -94,13 +93,14 @@ internal class CommandServicesBuilder
     public ConstantExpression Factory(Type aggregateType)
     {
         var events = Expression.Parameter(typeof(IAsyncEnumerable<EventEnvelope>));
+        var services = Expression.Parameter(typeof(IServiceProvider));
         var ct = Expression.Parameter(typeof(CancellationToken));
         var exp = new FactoryExpBuilder(_options)
-            .BuildExpression(aggregateType, events, ct);
+            .BuildExpression(aggregateType, events, services, ct);
         
         //Output is AggregateFactory<TAggregate>
         var type = typeof(AggregateFactory<>).MakeGenericType(aggregateType);
-        var lambda = Expression.Lambda(type, exp, "Load", true, new[] {events, ct});
+        var lambda = Expression.Lambda(type, exp, $"Factory[{aggregateType}]", true, new[] {events, services, ct});
         return Expression.Constant(lambda.Compile(), type);
     }
 

@@ -14,7 +14,7 @@ public static class ServiceCollectionExtensions
     /// </summary>
     /// <param name="services"></param>
     /// <returns></returns>
-    private static IServiceCollection AddPureESCore(this IServiceCollection services)
+    public static IServiceCollection AddPureESCore(this IServiceCollection services)
     {
         services.TryAddSingleton<PureESServices>();
         services.TryAddTransient(typeof(ICommandHandler<>), typeof(CommandHandler<>));

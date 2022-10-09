@@ -9,21 +9,21 @@ namespace PureES.Core.EventStore;
 /// Exception thrown if the expected version specified when reading a stream
 /// does not match the actual version of the stream when the operation was attempted.
 /// </summary>
-public class WrongStreamVersionException : Exception
+public class WrongStreamRevisionException : Exception
 {
     public string StreamName { get; }
-    public ulong ExpectedVersion { get; }
-    public ulong ActualVersion { get; }
+    public ulong ExpectedRevision { get; }
+    public ulong ActualRevision { get; }
 
-    public WrongStreamVersionException(string streamName,
-        ulong expectedVersion,
-        ulong actualVersion,
+    public WrongStreamRevisionException(string streamName,
+        ulong expectedRevision,
+        ulong actualRevision,
         Exception? innerException = null)
-        : base($"Read failed due to WrongStreamVersion. Stream: '{streamName}', Expected version: {expectedVersion}, Actual version: {actualVersion}",
+        : base($"Read failed due to WrongStreamRevision. Stream: '{streamName}', Expected revision: {expectedRevision}, Actual revision: {actualRevision}",
             innerException)
     {
         StreamName = streamName;
-        ExpectedVersion = expectedVersion;
-        ActualVersion = actualVersion;
+        ExpectedRevision = expectedRevision;
+        ActualRevision = actualRevision;
     }
 }

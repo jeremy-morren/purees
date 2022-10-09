@@ -5,31 +5,32 @@ using PureES.Core;
 
 namespace PureES.EventBus;
 
-public class CompositeEventHandler<TEvent, TMetadata> : IEventHandler<TEvent, TMetadata>
+internal class CompositeEventHandler<TEvent, TMetadata> : IEventHandler<TEvent, TMetadata>
     where TEvent : notnull
     where TMetadata : notnull
 {
     private readonly ILogger _logger;
-    private readonly IEventHandler<TEvent, TMetadata>[] _handlers;
+    private readonly IEventHandler<TEvent, TMetadata>[]? _handlers;
 
     public CompositeEventHandler(IServiceProvider provider,
-        Func<IServiceProvider, IEventHandler<TEvent, TMetadata>>[] handlers,
+        EventHandlerCollection handlers,
         ILoggerFactory loggerFactory)
     {
         _logger = loggerFactory.CreateLogger($"PureES.EventBus.CompositeEventHandler<{typeof(TEvent)}>");
-        _handlers = handlers.Select(h => h(provider)).ToArray();
+        _handlers = handlers.Resolve<TEvent, TMetadata>(provider);
     }
 
     public Task Handle(EventEnvelope<TEvent, TMetadata> @event, CancellationToken ct)
     {
+        if (_handlers == null) return Task.CompletedTask;
         var tasks = _handlers
             .Select(async h =>
             {
                 try
                 {
-                    _logger.LogDebug("Handling projections for event {@Event}", typeof(TEvent));
+                    _logger.LogDebug("Handling projection for event {@Event}", typeof(TEvent));
                     await h.Handle(@event, ct);
-                    _logger.LogInformation("Successfully handled projections for event {@Event}", typeof(TEvent));
+                    _logger.LogInformation("Successfully handled projection for event {@Event}", typeof(TEvent));
                 }
                 catch (Exception e)
                 {

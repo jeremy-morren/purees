@@ -25,9 +25,34 @@ internal static class HandleUpdateOn
         var events = expectedVersion != null
             ? store.Load(getStreamId(command), expectedVersion.Value, ct)
             : store.Load(getStreamId(command), ct);
-        var current = await factory(@events, ct);
+        var current = await factory(@events, serviceProvider, ct);
         var response = handle(current.Aggregate, command, serviceProvider, ct);
-        return await ProcessUpdateResponse(logger, serviceProvider, getStreamId, current.Revision, command, response, ct);
+        return await ProcessUpdateResponse(logger, serviceProvider, getStreamId, current.Version, command, response, ct);
+    }
+    
+    public static async Task<ulong> UpdateOnValueTaskAsync<TAggregate, TCommand, TResponse>(TCommand command,
+        Func<TCommand, string> getStreamId,
+        AggregateFactory<TAggregate> factory,
+        Func<TAggregate, TCommand, IServiceProvider, CancellationToken, ValueTask<TResponse>> handle,
+        IServiceProvider serviceProvider,
+        CancellationToken ct)
+        where TCommand : notnull
+    {
+        var logger = serviceProvider.GetRequiredService<ILoggerFactory>()
+            .CreateLogger(CommandServicesBuilder.LoggerCategory);
+        var store = serviceProvider.GetRequiredService<IEventStore>();
+        var expectedVersion = await serviceProvider.GetExpectedVersion(@command, ct);
+        var events = expectedVersion != null
+            ? store.Load(getStreamId(command), expectedVersion.Value, ct)
+            : store.Load(getStreamId(command), ct);
+        var current = await factory(@events, serviceProvider, ct);
+        var response = await handle(current.Aggregate, command, serviceProvider, ct);
+        return await ProcessUpdateResponse(logger, 
+            serviceProvider,
+            getStreamId, 
+            current.Version, 
+            command, 
+            response, ct);
     }
     
     public static async Task<ulong> UpdateOnAsync<TAggregate, TCommand, TResponse>(TCommand command,
@@ -45,12 +70,12 @@ internal static class HandleUpdateOn
         var events = expectedVersion != null
             ? store.Load(getStreamId(command), expectedVersion.Value, ct)
             : store.Load(getStreamId(command), ct);
-        var current = await factory(@events, ct);
+        var current = await factory(@events, serviceProvider, ct);
         var response = await handle(current.Aggregate, command, serviceProvider, ct);
         return await ProcessUpdateResponse(logger, 
             serviceProvider,
             getStreamId, 
-            current.Revision, 
+            current.Version, 
             command, 
             response, ct);
     }
@@ -71,9 +96,9 @@ internal static class HandleUpdateOn
         var events = expectedVersion != null
             ? store.Load(getStreamId(command), expectedVersion.Value, ct)
             : store.Load(getStreamId(command), ct);
-        var current = await factory(@events, ct);
+        var current = await factory(@events, serviceProvider, ct);
         var response = handle(current.Aggregate, command, serviceProvider, ct);
-        await ProcessUpdateResponse(logger, serviceProvider, getStreamId, current.Revision, command, response.Event, ct);
+        await ProcessUpdateResponse(logger, serviceProvider, getStreamId, current.Version, command, response.Event, ct);
         return response.Result;
     }
     
@@ -93,9 +118,31 @@ internal static class HandleUpdateOn
         var events = expectedVersion != null
             ? store.Load(getStreamId(command), expectedVersion.Value, ct)
             : store.Load(getStreamId(command), ct);
-        var current = await factory(@events, ct);
+        var current = await factory(@events, serviceProvider, ct);
         var response = await handle(current.Aggregate, command, serviceProvider, ct);
-        await ProcessUpdateResponse(logger, serviceProvider, getStreamId, current.Revision, command, response.Event, ct);
+        await ProcessUpdateResponse(logger, serviceProvider, getStreamId, current.Version, command, response.Event, ct);
+        return response.Result;
+    }
+    
+    public static async Task<TResult> UpdateOnValueTaskAsyncWithResult<TAggregate, TCommand, TResponse, TEvent, TResult>(TCommand command,
+        Func<TCommand, string> getStreamId,
+        AggregateFactory<TAggregate> factory,
+        Func<TAggregate, TCommand, IServiceProvider, CancellationToken, ValueTask<TResponse>> handle,
+        IServiceProvider serviceProvider,
+        CancellationToken ct)
+        where TCommand : notnull
+        where TResponse : CommandResult<TEvent, TResult>
+    {
+        var logger = serviceProvider.GetRequiredService<ILoggerFactory>()
+            .CreateLogger(CommandServicesBuilder.LoggerCategory);
+        var store = serviceProvider.GetRequiredService<IEventStore>();
+        var expectedVersion = await serviceProvider.GetExpectedVersion(command, ct);
+        var events = expectedVersion != null
+            ? store.Load(getStreamId(command), expectedVersion.Value, ct)
+            : store.Load(getStreamId(command), ct);
+        var current = await factory(@events, serviceProvider, ct);
+        var response = await handle(current.Aggregate, command, serviceProvider, ct);
+        await ProcessUpdateResponse(logger, serviceProvider, getStreamId, current.Version, command, response.Event, ct);
         return response.Result;
     }
 
@@ -107,15 +154,17 @@ internal static class HandleUpdateOn
     public static async Task<ulong> ProcessUpdateResponse<TCommand, TResponse>(ILogger logger,
         IServiceProvider serviceProvider,
         Func<TCommand, string> getStreamId,
-        ulong currentRevision,
+        ulong currentVersion,
         TCommand command,
         TResponse? response, 
         CancellationToken ct)
         where TCommand : notnull
     {
+        var currentRevision = currentVersion - 1;
         if (response == null)
         {
-            logger.LogInformation("Command {@Command} returned no result", typeof(TCommand));
+            logger.LogInformation("Command {@Command} returned no result. Stream at revision {Revision}", 
+                typeof(TCommand), currentRevision);
             return currentRevision;
         }
         var store = serviceProvider.GetRequiredService<IEventStore>();
@@ -143,15 +192,11 @@ internal static class HandleUpdateOn
             typeof(TCommand), streamId, revision);
         return revision;
     }
-    
-    public static MethodInfo GetMethod(string name) 
-        => typeof(HandleUpdateOn)
-               .GetMethods(BindingFlags.Public | BindingFlags.Static)
-               .SingleOrDefault(m => m.Name == name) 
-           ?? throw new InvalidOperationException($"Unable to get method {name}");
 
-    public static readonly MethodInfo UpdateOnSyncMethod = GetMethod(nameof(UpdateOnSync));
-    public static readonly MethodInfo UpdateOnAsyncMethod = GetMethod(nameof(UpdateOnAsync));
-    public static readonly MethodInfo UpdateOnSyncWithResultMethod = GetMethod(nameof(UpdateOnSyncWithResult));
-    public static readonly MethodInfo UpdateOnAsyncWithResultMethod = GetMethod(nameof(UpdateOnAsyncWithResult));
+    public static readonly MethodInfo UpdateOnSyncMethod = typeof(HandleUpdateOn).GetStaticMethod(nameof(UpdateOnSync));
+    public static readonly MethodInfo UpdateOnAsyncMethod = typeof(HandleUpdateOn).GetStaticMethod(nameof(UpdateOnAsync));
+    public static readonly MethodInfo UpdateOnValueTaskAsyncMethod = typeof(HandleUpdateOn).GetStaticMethod(nameof(UpdateOnValueTaskAsync));
+    public static readonly MethodInfo UpdateOnSyncWithResultMethod = typeof(HandleUpdateOn).GetStaticMethod(nameof(UpdateOnSyncWithResult));
+    public static readonly MethodInfo UpdateOnAsyncWithResultMethod = typeof(HandleUpdateOn).GetStaticMethod(nameof(UpdateOnAsyncWithResult));
+    public static readonly MethodInfo UpdateOnValueTaskAsyncWithResultMethod = typeof(HandleUpdateOn).GetStaticMethod(nameof(UpdateOnValueTaskAsyncWithResult));
 }

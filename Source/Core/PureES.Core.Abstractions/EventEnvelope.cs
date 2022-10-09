@@ -35,7 +35,6 @@ public record EventEnvelope(Guid EventId,
 
 public record EventEnvelope<TEvent, TMetadata>
     where TEvent : notnull
-    where TMetadata : notnull
 {
     public Guid EventId { get; }
     public string StreamId { get; }

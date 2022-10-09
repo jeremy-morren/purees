@@ -30,20 +30,50 @@ internal static class TypeExtensions
         {
             case 0:
                 valueType = null;
-                if (type == typeof(ValueTask))
-                    throw new InvalidOperationException("ValueTask return types are not supported");
                 return type == typeof(Task);
             case 1:
             {
                 var t = type.GetGenericArguments()[0];
                 valueType = t;
-                if (typeof(ValueTask<>).MakeGenericType(t) == type)
-                    throw new InvalidOperationException("ValueTask return types are not supported");
                 return typeof(Task<>).MakeGenericType(t) == type;
             }
             default:
                 valueType = null;
                 return false;
         }
+    }
+    
+    public static bool IsValueTask(this Type type, out Type? valueType)
+    {
+        switch (type.GetGenericArguments().Length)
+        {
+            case 0:
+                valueType = null;
+                return type == typeof(ValueTask);
+            case 1:
+            {
+                var t = type.GetGenericArguments()[0];
+                valueType = t;
+                return typeof(ValueTask<>).MakeGenericType(t) == type;
+            }
+            default:
+                valueType = null;
+                return false;
+        }
+    }
+
+    public static bool IsAsyncEnumerable(this Type type)
+    {
+        if (type.BaseType != null && type.BaseType != typeof(object))
+            return IsAsyncEnumerable(type.BaseType);
+        return type.GetGenericArguments().Length == 1 &&
+               typeof(IAsyncEnumerable<>).MakeGenericType(type.GetGenericArguments()[0]) == type;
+    }
+
+    public static MethodInfo GetStaticMethod(this Type type, string name)
+    {
+        return type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
+                   .SingleOrDefault(m => m.Name == name)
+               ?? throw new InvalidOperationException($"Unable to get method {type}+{name}");
     }
 }
