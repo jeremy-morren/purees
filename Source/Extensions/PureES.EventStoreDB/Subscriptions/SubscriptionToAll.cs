@@ -9,7 +9,7 @@ using PureES.EventStoreDB.Serialization;
 
 namespace PureES.EventStoreDB.Subscriptions;
 
-internal class SubscriptionToAll : BackgroundService
+internal class SubscriptionToAll : BackgroundService, ISubscription
 {
     private readonly IEventBus _eventBus;
     private readonly IEventStoreDBSerializer _dbSerializer;

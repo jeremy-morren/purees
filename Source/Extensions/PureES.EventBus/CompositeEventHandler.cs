@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using PureES.Core;
 
 // ReSharper disable ParameterTypeCanBeEnumerable.Local
@@ -9,13 +10,16 @@ internal class CompositeEventHandler<TEvent, TMetadata> : IEventHandler<TEvent, 
     where TEvent : notnull
     where TMetadata : notnull
 {
+    private readonly IOptions<EventBusOptions> _options;
     private readonly ILogger _logger;
     private readonly IEventHandler<TEvent, TMetadata>[]? _handlers;
 
     public CompositeEventHandler(IServiceProvider provider,
         EventHandlerCollection handlers,
-        ILoggerFactory loggerFactory)
+        ILoggerFactory loggerFactory,
+        IOptions<EventBusOptions> options)
     {
+        _options = options;
         _logger = loggerFactory.CreateLogger($"PureES.EventBus.CompositeEventHandler<{typeof(TEvent)}>");
         _handlers = handlers.Resolve<TEvent, TMetadata>(provider);
     }
@@ -35,7 +39,9 @@ internal class CompositeEventHandler<TEvent, TMetadata> : IEventHandler<TEvent, 
                 catch (Exception e)
                 {
                     _logger.LogError(e, "Error processing projection for event {@Event}", typeof(TEvent));
-                    //We don't rethrow because projections should not fail
+                    if (_options.Value.PropagateEventHandlerExceptions)
+                        throw;
+                    //This allows suppressing exceptions if that is desired
                 }
             });
         return Task.WhenAll(tasks);
