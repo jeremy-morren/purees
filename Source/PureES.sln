@@ -22,7 +22,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PureES.EventStore.InMemory"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AspNetCore.HealthChecks.EventStoreDB", "Extensions\AspNetCore.HealthChecks.EventStoreDB\AspNetCore.HealthChecks.EventStoreDB.csproj", "{4A35F03C-0901-4DFA-A00F-B73D247A46E2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PureES.Build", "PureES.Build\PureES.Build.csproj", "{69B6D0F2-C7E3-42C8-A98C-D5589C222015}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Build", "Build\Build.csproj", "{69B6D0F2-C7E3-42C8-A98C-D5589C222015}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
