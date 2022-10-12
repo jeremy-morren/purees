@@ -15,6 +15,11 @@ public class EventStoreDBOptions
     /// </summary>
     public bool ValidateCertificate { get; set; } = true;
 
+    /// <summary>
+    /// Indicates whether logging should be enabled
+    /// </summary>
+    public bool EnableLogging { get; set; } = false;
+
     public EventStoreClientSettings CreateSettings(ILoggerFactory? loggerFactory = null)
     {
         if (string.IsNullOrWhiteSpace(ConnectionString))

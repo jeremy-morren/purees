@@ -6,11 +6,23 @@ using PureES.Core;
 
 namespace PureES.EventBus;
 
-public class EventBus : IEventBus
+internal class EventBus : IEventBus
 {
     private readonly IServiceProvider _serviceProvider;
+    private readonly EventHandlerCollection _eventHandlers;
 
-    public EventBus(IServiceProvider serviceProvider) => _serviceProvider = serviceProvider;
+    public EventBus(IServiceProvider serviceProvider,
+        EventHandlerCollection eventHandlers)
+    {
+        _serviceProvider = serviceProvider;
+        _eventHandlers = eventHandlers;
+    }
+
+    public IEventHandler<TEvent, TMetadata>[] GetRegisteredEventHandlers<TEvent, TMetadata>()
+        where TEvent : notnull
+        where TMetadata : notnull 
+        => _eventHandlers.Resolve<TEvent, TMetadata>(_serviceProvider) ?? 
+           Array.Empty<IEventHandler<TEvent, TMetadata>>();
 
     private static readonly ConcurrentDictionary<Type, Func<EventBus, EventEnvelope, CancellationToken, Task>> PublishHandlers = new();
 
