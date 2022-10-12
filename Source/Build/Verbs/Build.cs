@@ -15,9 +15,24 @@ public class Build
     [Option('t', "targets", Required = true, HelpText = "Build targets")]
     public IEnumerable<string> Targets { get; }
 
-    public Build(IEnumerable<string> targets) => Targets = targets;
+    [Option('q', "quiet", Default = false, HelpText = "Suppress output")]
+    public bool Quiet { get; }
+
+    public Build(IEnumerable<string> targets, bool quiet)
+    {
+        Targets = targets;
+        Quiet = quiet;
+    }
 
     public const string Version = "0.9.7";
+
+    private void WriteLine(string message)
+    {
+        if (!Quiet)
+            Console.WriteLine(message);
+    }
+    
+    #region Implementation
 
     public async Task Invoke()
     {
@@ -43,12 +58,12 @@ public class Build
         
         Target("default", DependsOn("clean", extensions, core));
 
-        await RunTargetsAndExitAsync(Targets, ex => ex is ExitCodeException);
+        await RunTargetsAndExitAsync(Targets,
+            ex => ex is ExitCodeException,
+            outputWriter: Quiet ? TextWriter.Null : Console.Out);
     }
     
-    #region Implementation
-    
-    private void AddTargets(string name,
+    private static void AddTargets(string name,
         string[] build,
         string[] test)
     {
@@ -94,17 +109,11 @@ public class Build
                 Run("dotnet", new [] {"test", GetProjectPath(t).FullName }.Concat(buildParams),
                     noEcho: true);
         });
-        
+
         Target(PackTarget(name), () =>
         {
-            foreach (var b in build)
+            foreach (var b in build.Where(b => !GetPackagePath(b).Exists))
             {
-                var package = GetPackagePath(b);
-                if (package.Exists)
-                {
-                    Console.WriteLine($"Nuget package {package} already exists");
-                    continue;
-                }
                 Run("dotnet", new[]
                     { 
                         "pack", 
@@ -127,7 +136,7 @@ public class Build
 
     private static string NuGet => Path.Combine(Root.Value, "NuGet");
 
-    private static FileInfo GetPackagePath(string project) => new (Path.Combine(NuGet, $"{project}-{Version}.nupkg"));
+    private static FileInfo GetPackagePath(string project) => new (Path.Combine(NuGet, $"{project}.{Version}.nupkg"));
     
     private static string BuildTarget(string name) => $"build-{name}";
 
