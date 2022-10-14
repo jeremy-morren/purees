@@ -30,6 +30,7 @@ public class CompositeEventHandlerTests
         Guid.NewGuid(), 
         Guid.NewGuid().ToString(),
         0,
+        0,
         DateTime.UtcNow,
         new object(),
         new object());

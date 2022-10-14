@@ -8,21 +8,20 @@ namespace PureES.EventBus;
 
 internal class EventBus : IEventBus
 {
-    private readonly IServiceProvider _serviceProvider;
+    private readonly IServiceProvider _services;
     private readonly EventHandlerCollection _eventHandlers;
 
-    public EventBus(IServiceProvider serviceProvider,
+    public EventBus(IServiceProvider services,
         EventHandlerCollection eventHandlers)
     {
-        _serviceProvider = serviceProvider;
+        _services = services;
         _eventHandlers = eventHandlers;
     }
 
-    public IEventHandler<TEvent, TMetadata>[] GetRegisteredEventHandlers<TEvent, TMetadata>()
+    public Func<IServiceProvider, IEventHandler<TEvent, TMetadata>>[] GetRegisteredEventHandlers<TEvent, TMetadata>()
         where TEvent : notnull
-        where TMetadata : notnull 
-        => _eventHandlers.Resolve<TEvent, TMetadata>(_serviceProvider) ?? 
-           Array.Empty<IEventHandler<TEvent, TMetadata>>();
+        where TMetadata : notnull =>
+        _eventHandlers.Get<TEvent, TMetadata>() ?? Array.Empty<Func<IServiceProvider, IEventHandler<TEvent, TMetadata>>>();
 
     private static readonly ConcurrentDictionary<Type, Func<EventBus, EventEnvelope, CancellationToken, Task>> PublishHandlers = new();
 
@@ -37,11 +36,8 @@ internal class EventBus : IEventBus
         where TEvent : notnull
         where TMetadata : notnull
     {
-        await using var scope = bus._serviceProvider.CreateAsyncScope();
-        
-        var handler = scope.ServiceProvider.GetService<IEventHandler<TEvent, TMetadata>>();
-        if (handler != null)
-            await handler.Handle(new EventEnvelope<TEvent, TMetadata>(envelope), ct);
+        var handler = bus._services.GetRequiredService<IEventHandler<TEvent, TMetadata>>();
+        await handler.Handle(new EventEnvelope<TEvent, TMetadata>(envelope), ct);
     }
     
     private Func<EventBus, EventEnvelope, CancellationToken, Task> CompileDelegate(Type eventType, Type metadataType)

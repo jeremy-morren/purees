@@ -28,11 +28,11 @@ internal class AggregateStore<TAggregate> : IAggregateStore<TAggregate> where TA
         => Factory(events, _serviceProvider, token);
 
     public ValueTask<LoadedAggregate<TAggregate>> Load(string streamId, CancellationToken token) 
-        => Factory(_eventStore.Load(streamId, token), _serviceProvider, token);
+        => Factory(_eventStore.Read(streamId, token), _serviceProvider, token);
 
     public ValueTask<LoadedAggregate<TAggregate>> Load(string streamId, ulong expectedVersion, CancellationToken token)
-        => Factory(_eventStore.Load(streamId, expectedVersion, token), _serviceProvider, token);
+        => Factory(_eventStore.Read(streamId, expectedVersion, token), _serviceProvider, token);
 
     public ValueTask<LoadedAggregate<TAggregate>> LoadPartial(string streamId, ulong requiredVersion, CancellationToken token) 
-        => Factory(_eventStore.LoadPartial(streamId, requiredVersion, token), _serviceProvider, token);
+        => Factory(_eventStore.ReadPartial(streamId, requiredVersion, token), _serviceProvider, token);
 }

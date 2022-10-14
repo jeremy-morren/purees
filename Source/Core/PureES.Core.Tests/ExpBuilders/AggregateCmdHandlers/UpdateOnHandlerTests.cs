@@ -27,6 +27,7 @@ public class UpdateOnHandlerTests
             Guid.NewGuid(),
             Guid.NewGuid().ToString(),
             Rand.NextULong(),
+            Rand.NextULong(),
             DateTime.UtcNow,
             Events.Created.New(),
             new Metadata());
@@ -36,7 +37,7 @@ public class UpdateOnHandlerTests
         var version = Rand.NextULong();
         var ct = new CancellationTokenSource().Token;
 
-        eventStore.Setup(s => s.Load(cmd.Id.StreamId, expectedVersion, ct))
+        eventStore.Setup(s => s.Read(cmd.Id.StreamId, expectedVersion, ct))
             .Returns(new []{created}.AsAsyncEnumerable())
             .Verifiable("Load not called");
         
@@ -89,6 +90,7 @@ public class UpdateOnHandlerTests
             Guid.NewGuid(),
             Guid.NewGuid().ToString(),
             Rand.NextULong(),
+            Rand.NextULong(),
             DateTime.UtcNow,
             Events.Created.New(),
             new Metadata());
@@ -98,7 +100,7 @@ public class UpdateOnHandlerTests
 
         var eventEnricher = new Mock<IEventEnricher>();
 
-        eventStore.Setup(s => s.Load(cmd.Id.StreamId, expectedVersion, ct))
+        eventStore.Setup(s => s.Read(cmd.Id.StreamId, expectedVersion, ct))
             .Returns(new []{created}.AsAsyncEnumerable())
             .Verifiable("Load not called");
 
@@ -145,6 +147,7 @@ public class UpdateOnHandlerTests
             Guid.NewGuid(),
             Guid.NewGuid().ToString(),
             Rand.NextULong(),
+            Rand.NextULong(),
             DateTime.UtcNow,
             Events.Created.New(),
             new Metadata());
@@ -154,7 +157,7 @@ public class UpdateOnHandlerTests
         var version = Rand.NextULong();
         var ct = new CancellationTokenSource().Token;
 
-        eventStore.Setup(s => s.Load(cmd.Id.StreamId, expectedVersion, ct))
+        eventStore.Setup(s => s.Read(cmd.Id.StreamId, expectedVersion, ct))
             .Returns(new []{created}.AsAsyncEnumerable())
             .Verifiable("Load not called");
         

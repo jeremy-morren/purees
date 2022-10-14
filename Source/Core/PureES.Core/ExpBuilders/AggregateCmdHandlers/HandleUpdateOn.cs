@@ -23,8 +23,8 @@ internal static class HandleUpdateOn
         var store = serviceProvider.GetRequiredService<IEventStore>();
         var expectedVersion = await serviceProvider.GetExpectedVersion(command, ct);
         var events = expectedVersion != null
-            ? store.Load(getStreamId(command), expectedVersion.Value, ct)
-            : store.Load(getStreamId(command), ct);
+            ? store.Read(getStreamId(command), expectedVersion.Value, ct)
+            : store.Read(getStreamId(command), ct);
         var current = await factory(@events, serviceProvider, ct);
         var response = handle(current.Aggregate, command, serviceProvider, ct);
         return await ProcessUpdateResponse(logger, serviceProvider, getStreamId, current.Version, command, response, ct);
@@ -43,8 +43,8 @@ internal static class HandleUpdateOn
         var store = serviceProvider.GetRequiredService<IEventStore>();
         var expectedVersion = await serviceProvider.GetExpectedVersion(@command, ct);
         var events = expectedVersion != null
-            ? store.Load(getStreamId(command), expectedVersion.Value, ct)
-            : store.Load(getStreamId(command), ct);
+            ? store.Read(getStreamId(command), expectedVersion.Value, ct)
+            : store.Read(getStreamId(command), ct);
         var current = await factory(@events, serviceProvider, ct);
         var response = await handle(current.Aggregate, command, serviceProvider, ct);
         return await ProcessUpdateResponse(logger, 
@@ -68,8 +68,8 @@ internal static class HandleUpdateOn
         var store = serviceProvider.GetRequiredService<IEventStore>();
         var expectedVersion = await serviceProvider.GetExpectedVersion(@command, ct);
         var events = expectedVersion != null
-            ? store.Load(getStreamId(command), expectedVersion.Value, ct)
-            : store.Load(getStreamId(command), ct);
+            ? store.Read(getStreamId(command), expectedVersion.Value, ct)
+            : store.Read(getStreamId(command), ct);
         var current = await factory(@events, serviceProvider, ct);
         var response = await handle(current.Aggregate, command, serviceProvider, ct);
         return await ProcessUpdateResponse(logger, 
@@ -94,8 +94,8 @@ internal static class HandleUpdateOn
         var store = serviceProvider.GetRequiredService<IEventStore>();
         var expectedVersion = await serviceProvider.GetExpectedVersion(command, ct);
         var events = expectedVersion != null
-            ? store.Load(getStreamId(command), expectedVersion.Value, ct)
-            : store.Load(getStreamId(command), ct);
+            ? store.Read(getStreamId(command), expectedVersion.Value, ct)
+            : store.Read(getStreamId(command), ct);
         var current = await factory(@events, serviceProvider, ct);
         var response = handle(current.Aggregate, command, serviceProvider, ct);
         await ProcessUpdateResponse(logger, serviceProvider, getStreamId, current.Version, command, response.Event, ct);
@@ -116,8 +116,8 @@ internal static class HandleUpdateOn
         var store = serviceProvider.GetRequiredService<IEventStore>();
         var expectedVersion = await serviceProvider.GetExpectedVersion(command, ct);
         var events = expectedVersion != null
-            ? store.Load(getStreamId(command), expectedVersion.Value, ct)
-            : store.Load(getStreamId(command), ct);
+            ? store.Read(getStreamId(command), expectedVersion.Value, ct)
+            : store.Read(getStreamId(command), ct);
         var current = await factory(@events, serviceProvider, ct);
         var response = await handle(current.Aggregate, command, serviceProvider, ct);
         await ProcessUpdateResponse(logger, serviceProvider, getStreamId, current.Version, command, response.Event, ct);
@@ -138,8 +138,8 @@ internal static class HandleUpdateOn
         var store = serviceProvider.GetRequiredService<IEventStore>();
         var expectedVersion = await serviceProvider.GetExpectedVersion(command, ct);
         var events = expectedVersion != null
-            ? store.Load(getStreamId(command), expectedVersion.Value, ct)
-            : store.Load(getStreamId(command), ct);
+            ? store.Read(getStreamId(command), expectedVersion.Value, ct)
+            : store.Read(getStreamId(command), ct);
         var current = await factory(@events, serviceProvider, ct);
         var response = await handle(current.Aggregate, command, serviceProvider, ct);
         await ProcessUpdateResponse(logger, serviceProvider, getStreamId, current.Version, command, response.Event, ct);

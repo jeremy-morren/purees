@@ -1,4 +1,5 @@
-﻿using System.Text.Json.Nodes;
+﻿using System.Text.Json;
+using System.Text.Json.Nodes;
 using PureES.Core;
 using PureES.Core.EventStore;
 
@@ -19,7 +20,7 @@ public abstract class EventStoreTestsBase
         var revision = (ulong) events.Count - 1;
         Assert.Equal(revision, await store.Create(stream, events, default));
         Assert.Equal(revision, await store.GetRevision(stream, default));
-        await AssertEqual(events, store.Load(stream, default));
+        await AssertEqual(events, store.Read(stream, default));
         Assert.Equal((ulong) events.Count - 1, await store.GetRevision(stream, default));
     }
     
@@ -44,7 +45,7 @@ public abstract class EventStoreTestsBase
             .ToList();
         Assert.Equal((ulong)4, await store.Create(stream, events.Take(5), default));
         Assert.Equal((ulong) 9, await store.Append(stream, 4, events.Skip(5), default));
-        await AssertEqual(events, store.Load(stream, default));
+        await AssertEqual(events, store.Read(stream, default));
         Assert.Equal((ulong) events.Count - 1, await store.GetRevision(stream, default));
     }
     
@@ -72,24 +73,24 @@ public abstract class EventStoreTestsBase
     }
     
     [Fact]
-    public async Task Load_Invalid_Stream_Should_Throw()
+    public async Task Read_Invalid_Stream_Should_Throw()
     {
         var store = CreateStore();
-        const string stream = nameof(Load_Invalid_Stream_Should_Throw);
+        const string stream = nameof(Read_Invalid_Stream_Should_Throw);
         Assert.False(await store.Exists(stream, default));
         await Assert.ThrowsAsync<StreamNotFoundException>(() => store.GetRevision(stream, default));
-        await Assert.ThrowsAsync<StreamNotFoundException>(async () => await store.Load(stream, default).FirstAsync());
+        await Assert.ThrowsAsync<StreamNotFoundException>(async () => await store.Read(stream, default).FirstAsync());
         await Assert.ThrowsAsync<StreamNotFoundException>(async () =>
-            await store.Load(stream, RandVersion(), default).FirstAsync());
+            await store.Read(stream, RandVersion(), default).FirstAsync());
         await Assert.ThrowsAsync<StreamNotFoundException>(async () =>
-            await store.LoadPartial(stream, RandVersion(), default).FirstAsync());
+            await store.ReadPartial(stream, RandVersion(), default).FirstAsync());
     }
     
     [Fact]
-    public async Task Load()
+    public async Task Read()
     {
         var store = CreateStore();
-        const string stream = nameof(Load);
+        const string stream = nameof(Read);
         var events = Enumerable.Range(0, 10)
             .Select(_ => NewEvent())
             .ToList();
@@ -97,40 +98,63 @@ public abstract class EventStoreTestsBase
         Assert.Equal(revision, await store.Create(stream, events, default));
         Assert.Equal(revision, await store.GetRevision(stream, default));
         
-        await AssertEqual(events, store.Load(stream, revision, default));
-        await AssertEqual(events.Take(5), store.LoadPartial(stream, 4, default));
+        await AssertEqual(events, store.Read(stream, revision, default));
+        await AssertEqual(events.Take(5), store.ReadPartial(stream, 4, default));
 
         async Task AssertWrongVersion(Func<IAsyncEnumerable<EventEnvelope>> getEvents)
         {
             var ex = await Assert.ThrowsAsync<WrongStreamRevisionException>(async () => await getEvents().CountAsync());
             Assert.Equal(revision, ex.ActualRevision);
         }
-        await AssertWrongVersion(() => store.Load(stream, RandVersion(events.Count + 1), default));
+        await AssertWrongVersion(() => store.Read(stream, RandVersion(events.Count + 1), default));
         
-        await AssertWrongVersion(() => store.Load(stream, 0, default));
+        await AssertWrongVersion(() => store.Read(stream, 0, default));
 
-        await AssertWrongVersion(() => store.LoadPartial(stream, RandVersion(events.Count + 1), default));
+        await AssertWrongVersion(() => store.ReadPartial(stream, RandVersion(events.Count + 1), default));
+    }
+    
+    [Fact]
+    public async Task ReadAll()
+    {
+        var store = CreateStore();
+        const string stream = nameof(ReadAll);
+        var events = Enumerable.Range(0, 10)
+            .Select(_ => NewEvent())
+            .ToList();
+        var revision = (ulong) events.Count - 1;
+        Assert.Equal(revision, await store.Create(stream, events, default));
+        Assert.Equal(revision, await store.GetRevision(stream, default));
+
+        var all = await store.ReadAll(default).ToListAsync();
+        Assert.NotEmpty(all);
+        Assert.Equal(all.OrderBy(e => e.OverallPosition), all);
+        Assert.Empty(all.GroupBy(a => a.OverallPosition).Where(g => g.Count() > 1));
+        Assert.Empty(all.GroupBy(a => new { a.StreamId, a.StreamPosition}).Where(g => g.Count() > 1));
     }
 
     [Fact]
-    public async Task LoadByEventType()
+    public async Task ReadByEventType()
     {
         var store = CreateStore();
         
-        Assert.Empty(await store.LoadByEventType(typeof(int), default).ToListAsync());
+        Assert.Empty(await store.ReadByEventType(typeof(int), default).ToListAsync());
     }
 
     private static async Task AssertEqual(IEnumerable<UncommittedEvent> source, IAsyncEnumerable<EventEnvelope> @events)
     {
-        Assert.Equal(source.Select(e => e.EventId), 
-            await @events.Select(e => e.EventId).ToListAsync());
+        Assert.Equal(source.Select(e => new { e.EventId, Event = (Event)e.Event}), 
+            await @events.Select(e => new { e.EventId, Event = (Event)e.Event} ).ToListAsync());
     }
 
     private static ulong RandVersion(long? min = null) => (ulong)Random.Shared.NextInt64(min ?? 0, long.MaxValue);
 
-    private static UncommittedEvent NewEvent()
+    protected static UncommittedEvent NewEvent()
     {
         var id = Guid.NewGuid();
-        return new UncommittedEvent(id, JsonNode.Parse($"{{ \"id\": \"{id}\" }}")!, null);
+        return new UncommittedEvent(id, new Event(id), new Metadata());
     }
+
+    public record Event(Guid Id);
+
+    private record Metadata;
 }

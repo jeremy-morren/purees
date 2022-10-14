@@ -2,24 +2,27 @@
 using EventStore.Client;
 using PureES.Core;
 using PureES.Core.EventStore;
+using PureES.Core.EventStore.Serialization;
 using PureES.EventStoreDB.Serialization;
-using StreamNotFoundException = EventStore.Client.StreamNotFoundException;
 
 namespace PureES.EventStoreDB;
 
-public class EventStoreDBClient : IEventStore
+internal class EventStoreDBClient : IEventStore
 {
     private readonly EventStoreClient _eventStoreClient;
     private readonly IEventStoreDBSerializer _serializer;
+    private readonly IEventTypeMap _typeMap;
 
     public EventStoreDBClient(EventStoreClient eventStoreClient,
-        IEventStoreDBSerializer serializer)
+        IEventStoreDBSerializer serializer,
+        IEventTypeMap typeMap)
     {
         _eventStoreClient = eventStoreClient;
         _serializer = serializer;
+        _typeMap = typeMap;
     }
 
-    /// <inheritdoc />
+
     public async Task<bool> Exists(string streamId, CancellationToken cancellationToken)
     {
         var result = _eventStoreClient.ReadStreamAsync(Direction.Forwards, 
@@ -30,7 +33,6 @@ public class EventStoreDBClient : IEventStore
         return await result.ReadState == ReadState.Ok;
     }
 
-    /// <inheritdoc />
     public async Task<ulong> GetRevision(string streamId, CancellationToken cancellationToken)
     {
         var records = _eventStoreClient.ReadStreamAsync(Direction.Backwards, 
@@ -44,7 +46,6 @@ public class EventStoreDBClient : IEventStore
         return record.Event.EventNumber.ToUInt64();
     }
 
-    /// <inheritdoc />
     public async Task<ulong> Create(string streamId, 
         IEnumerable<UncommittedEvent> events, 
         CancellationToken cancellationToken)
@@ -77,7 +78,6 @@ public class EventStoreDBClient : IEventStore
                 events.Select(_serializer.Serialize),
                 cancellationToken: cancellationToken);
             return result.NextExpectedStreamRevision.ToUInt64();
-
         }
         catch (WrongExpectedVersionException e)
         {
@@ -93,8 +93,18 @@ public class EventStoreDBClient : IEventStore
     public Task<ulong> Append(string streamId, ulong expectedVersion, UncommittedEvent @event, CancellationToken cancellationToken)
         => Append(streamId, expectedVersion, new[] {@event}, cancellationToken);
 
+    public async IAsyncEnumerable<EventEnvelope> ReadAll([EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var records = _eventStoreClient.ReadAllAsync(Direction.Forwards, 
+            position: Position.Start,
+            resolveLinkTos: true,
+            cancellationToken: cancellationToken);
+        await foreach (var record in records.WithCancellation(cancellationToken))
+            yield return _serializer.Deserialize(record.Event);
+    }
+
     /// <inheritdoc />
-    public async IAsyncEnumerable<EventEnvelope> Load(string streamId, [EnumeratorCancellation] CancellationToken cancellationToken)
+    public async IAsyncEnumerable<EventEnvelope> Read(string streamId, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var records = _eventStoreClient.ReadStreamAsync(Direction.Forwards, 
             streamId, 
@@ -107,7 +117,7 @@ public class EventStoreDBClient : IEventStore
             yield return _serializer.Deserialize(record.Event);
     }
 
-    public async IAsyncEnumerable<EventEnvelope> Load(string streamId,
+    public async IAsyncEnumerable<EventEnvelope> Read(string streamId,
         ulong expectedRevision, 
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
@@ -135,8 +145,7 @@ public class EventStoreDBClient : IEventStore
                 new StreamRevision(count));
     }
 
-    /// <inheritdoc />
-    public async IAsyncEnumerable<EventEnvelope> LoadPartial(string streamId, 
+    public async IAsyncEnumerable<EventEnvelope> ReadPartial(string streamId, 
         ulong requiredRevision, 
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
@@ -165,11 +174,10 @@ public class EventStoreDBClient : IEventStore
                 new StreamRevision(count));
     }
 
-    /// <inheritdoc />
-    public async IAsyncEnumerable<EventEnvelope> LoadByEventType(Type eventType, [EnumeratorCancellation] CancellationToken cancellationToken)
+    public async IAsyncEnumerable<EventEnvelope> ReadByEventType(Type eventType, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         //See https://developers.eventstore.com/server/v21.10/projections.html#by-event-type
-        var streamId = $"$et-{_serializer.GetTypeName(eventType)}";
+        var streamId = $"$et-{_typeMap.GetTypeName(eventType)}";
         var records = _eventStoreClient.ReadStreamAsync(Direction.Forwards, 
             streamId, 
             revision: StreamPosition.Start,

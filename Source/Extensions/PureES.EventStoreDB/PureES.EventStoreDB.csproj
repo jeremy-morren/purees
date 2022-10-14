@@ -18,7 +18,12 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\PureES.EventBus\PureES.EventBus.csproj" />
-      <ProjectReference Include="..\..\Core\PureES.Core\PureES.Core.csproj" />
+        <ProjectReference Include="..\PureES.EventBus\PureES.EventBus.csproj" />
+        <ProjectReference Include="..\..\Core\PureES.Core\PureES.Core.csproj" />
+        
+    </ItemGroup>
+    
+    <ItemGroup>
+        <InternalsVisibleTo Include="PureES.Extensions.Tests" />
     </ItemGroup>
 </Project>

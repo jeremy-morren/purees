@@ -1,5 +1,6 @@
 ﻿using PureES.Core.EventStore;
 using PureES.EventStoreDB;
+using PureES.EventStoreDB.Serialization;
 
 namespace PureES.Extensions.Tests.EventStore.EventStoreDB;
 
@@ -9,5 +10,6 @@ public class EventStoreDBClientTests  : EventStoreTestsBase, IClassFixture<Event
 
     public EventStoreDBClientTests(EventStoreTestHarness harness) => _harness = harness;
 
-    protected override IEventStore CreateStore() => new EventStoreDBClient(_harness.GetClient(), new TestSerializer());
+    protected override IEventStore CreateStore() => 
+        new EventStoreDBClient(_harness.Client, TestSerializer.EventStoreDBSerializer, TestSerializer.EventTypeMap);
 }

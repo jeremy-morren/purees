@@ -13,11 +13,12 @@ public static class EventStoreDBHealthCheckServiceCollectionExtensions
         IEnumerable<string>? tags = null,
         TimeSpan? timeout = null)
     {
-        builder.Services.AddSingleton<EventStoreDBHealthCheck>(_ =>
+        builder.Services.AddSingleton<EventStoreDBHealthCheck>(sp =>
         {
             var options = new EventStoreDBOptions();
             configureOptions(options);
-            return new EventStoreDBHealthCheck(new EventStoreClient(options.CreateSettings()));
+            var settings = options.CreateSettings(sp);
+            return new EventStoreDBHealthCheck(new EventStoreClient(settings));
         });
         return builder.Add(new HealthCheckRegistration(
             name,

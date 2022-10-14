@@ -46,6 +46,7 @@ public class FactoryExpBuilderTests
         EventEnvelope CreateEnvelope<TEvent>() where TEvent : notnull => new (Guid.NewGuid(),
             Guid.NewGuid().ToString(),
             Rand.NextULong(),
+            Rand.NextULong(),
             DateTime.UtcNow,
             TestAggregates.NewEvent<TEvent>(),
             new Metadata(Guid.NewGuid()));

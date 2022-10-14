@@ -14,7 +14,7 @@ public interface IEventStore
     /// <param name="streamId">Event stream to query</param>
     /// <param name="cancellationToken"></param>
     /// <returns></returns>
-    Task<bool> Exists(string streamId, CancellationToken cancellationToken);
+    public Task<bool> Exists(string streamId, CancellationToken cancellationToken);
 
     /// <summary>
     /// Gets the current revision that stream <paramref name="streamId"/> is at
@@ -23,7 +23,7 @@ public interface IEventStore
     /// <param name="cancellationToken"></param>
     /// <returns>The revision (0-index based) revision of <paramref name="streamId"/></returns>
     /// <exception cref="StreamNotFoundException">Stream <paramref name="streamId"/> not found</exception>
-    Task<ulong> GetRevision(string streamId, CancellationToken cancellationToken);
+    public Task<ulong> GetRevision(string streamId, CancellationToken cancellationToken);
     
     /// <summary>
     /// Creates a new stream with id <paramref name="streamId"/> using <paramref name="events"/>
@@ -33,7 +33,7 @@ public interface IEventStore
     /// <param name="cancellationToken"></param>
     /// <returns><c>Revision</c> of created stream</returns>
     /// <exception cref="StreamAlreadyExistsException">Stream <paramref name="streamId"/> already exists</exception>
-    Task<ulong> Create(string streamId,
+    public Task<ulong> Create(string streamId,
         IEnumerable<UncommittedEvent> events,
         CancellationToken cancellationToken);
     
@@ -45,7 +45,7 @@ public interface IEventStore
     /// <param name="cancellationToken"></param>
     /// <returns><c>Revision</c> of created stream</returns>
     /// <exception cref="StreamAlreadyExistsException">Stream <paramref name="streamId"/> already exists</exception>
-    Task<ulong> Create(string streamId,
+    public Task<ulong> Create(string streamId,
         UncommittedEvent @event,
         CancellationToken cancellationToken);
 
@@ -58,7 +58,7 @@ public interface IEventStore
     /// <param name="cancellationToken"></param>
     /// <returns><c>Revision</c> of stream after append</returns>
     /// <exception cref="StreamNotFoundException">Stream <paramref name="streamId"/> not found</exception>
-    Task<ulong> Append(string streamId,
+    public Task<ulong> Append(string streamId,
         ulong expectedVersion,
         IEnumerable<UncommittedEvent> events,
         CancellationToken cancellationToken);
@@ -72,13 +72,23 @@ public interface IEventStore
     /// <param name="cancellationToken"></param>
     /// <returns><c>Revision</c> of stream after append</returns>
     /// <exception cref="StreamNotFoundException">Stream <paramref name="streamId"/> not found</exception>
-    Task<ulong> Append(string streamId,
+    public Task<ulong> Append(string streamId,
         ulong expectedVersion,
         UncommittedEvent @event,
         CancellationToken cancellationToken);
 
     /// <summary>
-    /// Loads events from stream <paramref name="streamId"/>
+    /// Reads all events in chronological order
+    /// </summary>
+    /// <param name="cancellationToken"></param>
+    /// <returns>
+    /// An <see cref="IAsyncEnumerable{T}"/> of <see cref="EventEnvelope"/>
+    /// from all events in the order in which they were added
+    /// </returns>
+    public IAsyncEnumerable<EventEnvelope> ReadAll(CancellationToken cancellationToken);
+    
+    /// <summary>
+    /// Reads events from stream <paramref name="streamId"/>
     /// </summary>
     /// <param name="streamId">Id of stream to load events from</param>
     /// <param name="cancellationToken"></param>
@@ -87,12 +97,11 @@ public interface IEventStore
     /// from the events in the stream in the order in which they were added
     /// </returns>
     /// <exception cref="StreamNotFoundException">Stream <paramref name="streamId"/> not found</exception>
-    IAsyncEnumerable<EventEnvelope> Load(string streamId, 
-        CancellationToken cancellationToken);
+    public IAsyncEnumerable<EventEnvelope> Read(string streamId, CancellationToken cancellationToken);
     
     /// <summary>
-    /// Loads events from stream <paramref name="streamId"/>
-    /// at a particular revision
+    /// Reads events from stream <paramref name="streamId"/>,
+    /// ensuring stream is at <see cref="expectedRevision"/>
     /// </summary>
     /// <param name="streamId">Id of stream to load events from</param>
     /// <param name="expectedRevision"><c>Revision</c> that the stream is expected to be at</param>
@@ -105,13 +114,13 @@ public interface IEventStore
     /// <exception cref="WrongStreamRevisionException">
     /// Stream <paramref name="streamId"/> not at revision <paramref name="expectedRevision"/>
     /// </exception>
-    IAsyncEnumerable<EventEnvelope> Load(string streamId, 
+    public IAsyncEnumerable<EventEnvelope> Read(string streamId, 
         ulong expectedRevision, 
         CancellationToken cancellationToken);
     
     /// <summary>
     /// Loads events from stream <paramref name="streamId"/> up
-    /// to a particular revision
+    /// to and including <paramref name="requiredRevision"/>
     /// </summary>
     /// <param name="streamId">Id of stream to load events from</param>
     /// <param name="requiredRevision">Minimum revision that stream must be at</param>
@@ -125,7 +134,7 @@ public interface IEventStore
     /// <exception cref="WrongStreamRevisionException">
     /// Revision of stream <paramref name="streamId"/> less than <paramref name="requiredRevision"/>
     /// </exception>
-    IAsyncEnumerable<EventEnvelope> LoadPartial(string streamId, 
+    public IAsyncEnumerable<EventEnvelope> ReadPartial(string streamId, 
         ulong requiredRevision, 
         CancellationToken cancellationToken);
 
@@ -138,5 +147,5 @@ public interface IEventStore
     /// An <see cref="IAsyncEnumerable{T}"/> of <see cref="EventEnvelope"/>
     /// from the events in the stream in the order in which they were added
     /// </returns>
-    IAsyncEnumerable<EventEnvelope> LoadByEventType(Type eventType, CancellationToken cancellationToken);
+    public IAsyncEnumerable<EventEnvelope> ReadByEventType(Type eventType, CancellationToken cancellationToken);
 }

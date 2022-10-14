@@ -27,7 +27,7 @@ public interface IEventBus
     /// All registered event handlers for <typeparamref name="TEvent"/>,
     /// or empty array if no handlers registered
     /// </returns>
-    IEventHandler<TEvent, TMetadata>[] GetRegisteredEventHandlers<TEvent, TMetadata>()
+    Func<IServiceProvider, IEventHandler<TEvent, TMetadata>>[] GetRegisteredEventHandlers<TEvent, TMetadata>()
         where TEvent : notnull
         where TMetadata : notnull;
 }

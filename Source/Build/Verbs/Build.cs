@@ -24,7 +24,7 @@ public class Build
         Quiet = quiet;
     }
 
-    public const string Version = "0.9.7";
+    public const string Version = "0.9.7.6";
 
     private void WriteLine(string message)
     {

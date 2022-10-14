@@ -18,12 +18,11 @@ public static class EventStoreDBServiceCollectionExtensions
         Action<EventStoreDBOptions> configureOptions)
     {
         return services
-            .AddOptions()
-            .Configure<EventStoreDBOptions>(configureOptions)
             .AddSingleton<EventStoreClient>(sp =>
             {
-                var options = sp.GetRequiredService<IOptions<EventStoreDBOptions>>();
-                var settings = options.Value.CreateSettings(sp.GetRequiredService<ILoggerFactory>());
+                var options = new EventStoreDBOptions();
+                configureOptions(options);
+                var settings = options.CreateSettings(sp);
                 return new EventStoreClient(settings);
             })
             .AddTransient<IEventStore, EventStoreDBClient>();

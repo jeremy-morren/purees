@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PureES.Core;
+using System.Linq;
+using Microsoft.Extensions.DependencyInjection;
 
 // ReSharper disable ParameterTypeCanBeEnumerable.Local
 
@@ -10,40 +12,44 @@ internal class CompositeEventHandler<TEvent, TMetadata> : IEventHandler<TEvent, 
     where TEvent : notnull
     where TMetadata : notnull
 {
+    private readonly IServiceProvider _services;
+    private readonly EventHandlerCollection _handlers;
     private readonly IOptions<EventBusOptions> _options;
     private readonly ILogger _logger;
-    private readonly IEventHandler<TEvent, TMetadata>[]? _handlers;
 
-    public CompositeEventHandler(IServiceProvider provider,
+    public CompositeEventHandler(IServiceProvider services,
         EventHandlerCollection handlers,
         ILoggerFactory loggerFactory,
         IOptions<EventBusOptions> options)
     {
+        _services = services;
+        _handlers = handlers;
         _options = options;
         _logger = loggerFactory.CreateLogger($"PureES.EventBus.CompositeEventHandler<{typeof(TEvent)}>");
-        _handlers = handlers.Resolve<TEvent, TMetadata>(provider);
     }
 
     public Task Handle(EventEnvelope<TEvent, TMetadata> @event, CancellationToken ct)
     {
-        if (_handlers == null) return Task.CompletedTask;
-        var tasks = _handlers
-            .Select(async h =>
+        var factories = _handlers.Get<TEvent, TMetadata>();
+        if (factories == null) return Task.CompletedTask;
+        //Execute all handlers in separate scopes
+        //This avoids interference due to race conditions
+        return Task.WhenAll(factories.Select(async f =>
+        {
+            await using var scope = _services.CreateAsyncScope();
+            try
             {
-                try
-                {
-                    _logger.LogDebug("Handling projection for event {@Event}", typeof(TEvent));
-                    await h.Handle(@event, ct);
-                    _logger.LogInformation("Successfully handled projection for event {@Event}", typeof(TEvent));
-                }
-                catch (Exception e)
-                {
-                    _logger.LogError(e, "Error processing projection for event {@Event}", typeof(TEvent));
-                    if (_options.Value.PropagateEventHandlerExceptions)
-                        throw;
-                    //This allows suppressing exceptions if that is desired
-                }
-            });
-        return Task.WhenAll(tasks);
+                _logger.LogDebug("Handling projection for event {@Event}", typeof(TEvent));
+                await f(scope.ServiceProvider).Handle(@event, ct);
+                _logger.LogInformation("Successfully handled projection for event {@Event}", typeof(TEvent));
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Error processing projection for event {@Event}", typeof(TEvent));
+                if (_options.Value.PropagateEventHandlerExceptions)
+                    throw;
+                //This allows suppressing exceptions if that is desired
+            }
+        }));
     }
 }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Immutable;
 using System.Linq.Expressions;
+using PureES.Core.EventStore;
 using PureES.Core.ExpBuilders;
 using Xunit;
 

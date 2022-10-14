@@ -3,15 +3,30 @@
 // ReSharper disable ClassNeverInstantiated.Global
 // ReSharper disable ConditionIsAlwaysTrueOrFalse
 
+using PureES.Core.EventStore;
+
 namespace PureES.Core;
 
+/// <summary>
+/// Represents an event persisted to <see cref="IEventStore"/>
+/// </summary>
+/// <param name="EventId">The unique <see cref="Guid"/> of this event</param>
+/// <param name="StreamId">The id of the stream that the event belongs to</param>
+/// <param name="StreamPosition">The position of the event within the stream</param>
+/// <param name="OverallPosition">
+/// The overall position of this event among all events. 
+/// Not guaranteed to be contiguous (i.e. 0-1-2....)
+/// </param>
+/// <param name="Timestamp">The UTC timestamp that the event was persisted</param>
+/// <param name="Event">The underlying event</param>
+/// <param name="Metadata">The metadata pertaining to the event</param>
 public record EventEnvelope(Guid EventId,
     string StreamId,
     ulong StreamPosition,
+    ulong OverallPosition,
     DateTime Timestamp,
     object Event,
-    object? Metadata
-)
+    object? Metadata)
 {
     public bool Equals<TEvent, TMetadata>(EventEnvelope<TEvent, TMetadata>? other)
         where TEvent : notnull
@@ -21,6 +36,7 @@ public record EventEnvelope(Guid EventId,
         return EventId.Equals(other.EventId)
                && StreamId == other.StreamId
                && StreamPosition == other.StreamPosition
+               && OverallPosition == other.OverallPosition
                && Timestamp.Equals(other.Timestamp)
                && other.Event.Equals(Event)
                && MetadataEquals(other.Metadata);
@@ -36,11 +52,40 @@ public record EventEnvelope(Guid EventId,
 public record EventEnvelope<TEvent, TMetadata>
     where TEvent : notnull
 {
+    /// <summary>
+    /// The unique <see cref="Guid"/> of this event
+    /// </summary>
     public Guid EventId { get; }
+    
+    /// <summary>
+    /// The id of the stream that the event belongs to
+    /// </summary>
     public string StreamId { get; }
+    
+    /// <summary>
+    /// The position of the event within the stream
+    /// </summary>
     public ulong StreamPosition { get; }
+
+    /// <summary>
+    /// The overall position of this event among all events.
+    /// Not guaranteed to be contiguous (i.e. 0-1-2....)
+    /// </summary>
+    public ulong OverallPosition { get; }
+
+    /// <summary>
+    /// The UTC timestamp that the event was persisted
+    /// </summary>
     public DateTime Timestamp { get; }
+    
+    /// <summary>
+    /// The underlying event
+    /// </summary>
     public TEvent Event { get; }
+    
+    /// <summary>
+    /// The metadata pertaining to the event
+    /// </summary>
     public TMetadata Metadata { get; }
 
     public EventEnvelope(EventEnvelope source)
@@ -48,6 +93,7 @@ public record EventEnvelope<TEvent, TMetadata>
         EventId = source.EventId;
         StreamId = source.StreamId;
         StreamPosition = source.StreamPosition;
+        OverallPosition = source.OverallPosition;
         Timestamp = source.Timestamp;
         if (source.Event == null)
             throw new ArgumentException($"{nameof(source.Event)} is null");
@@ -66,6 +112,7 @@ public record EventEnvelope<TEvent, TMetadata>
         EventId = source.EventId;
         StreamId = source.StreamId;
         StreamPosition = source.StreamPosition;
+        OverallPosition = source.OverallPosition;
         Timestamp = source.Timestamp;
         Event = source.Event;
         Metadata = source.Metadata;
@@ -77,6 +124,7 @@ public record EventEnvelope<TEvent, TMetadata>
         return EventId.Equals(other.EventId)
                && StreamId == other.StreamId
                && StreamPosition == other.StreamPosition
+               && OverallPosition == other.OverallPosition
                && Timestamp.Equals(other.Timestamp)
                && Event.Equals(other.Event)
                && MetadataEquals(other.Metadata);

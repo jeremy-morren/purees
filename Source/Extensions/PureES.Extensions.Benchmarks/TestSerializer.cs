@@ -1,17 +1,16 @@
 ﻿using System.Text.Json;
 using System.Text.Json.Nodes;
-using PureES.Core.EventStore;
 using PureES.Core.EventStore.Serialization;
 using PureES.EventStore.InMemory.Serialization;
 using PureES.EventStoreDB.Serialization;
 
-namespace PureES.Extensions.Tests.EventStore;
+namespace PureES.Extensions.Benchmarks;
 
 internal static class TestSerializer
 {
     static TestSerializer()
     {
-        EventTypeMap.AddType(typeof(EventStoreTestsBase.Event));
+        EventTypeMap.AddType(typeof(JsonObject));
     }
 
     public static readonly BasicEventTypeMap EventTypeMap = new();
@@ -24,7 +23,4 @@ internal static class TestSerializer
 
     public static IInMemoryEventStoreSerializer InMemoryEventStoreSerializer =>
         new InMemoryEventStoreSerializer<object>(EventTypeMap, Serializer);
-    
-    public static IEventStoreDBSerializer EventStoreDBSerializer =>
-        new EventStoreDBSerializer<object>(EventTypeMap, Serializer);
 }

@@ -5,10 +5,12 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using PureES.Core.EventStore.Serialization;
 using PureES.Core.ExpBuilders.Services;
 using PureES.Core.Tests.ExpBuilders.AggregateCmdHandlers;
 using PureES.Core.Tests.Models;
 using PureES.EventStore.InMemory;
+using PureES.EventStore.InMemory.Serialization;
 using PureES.EventStoreDB.Serialization;
 using Xunit;
 
@@ -78,8 +80,9 @@ public class BuildCommandHandlerTests
     
         services
             .AddPureESCore()
+            .AddEventStoreSerializerCore(configureTypeMap: mapper => mapper.AddAssembly(typeof(BuildCommandHandlerTests).Assembly))
+            .AddInMemoryEventStoreSerializer<Metadata>()
             .AddInMemoryEventStore()
-            .AddEventStoreDBSerializer<Metadata>(configureTypeMapper: mapper => mapper.AddAssembly(typeof(BuildCommandHandlerTests).Assembly))
             .AddEventEnricher((c, _) =>
             {
                 switch (c)

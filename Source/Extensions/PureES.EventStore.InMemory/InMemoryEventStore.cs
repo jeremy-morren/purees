@@ -1,31 +1,33 @@
 ﻿using System.Collections.Immutable;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
-using System.Text.Json;
-using EventStore.Client;
 using Microsoft.Extensions.Internal;
+using ProtoBuf;
 using PureES.Core;
 using PureES.Core.EventStore;
-using PureES.EventStoreDB;
-using PureES.EventStoreDB.Serialization;
-using StreamNotFoundException = PureES.Core.EventStore.StreamNotFoundException;
+using PureES.Core.EventStore.Serialization;
+using PureES.EventStore.InMemory.Serialization;
 
 // ReSharper disable MemberCanBeProtected.Global
 
 namespace PureES.EventStore.InMemory;
 
-public class InMemoryEventStore : IEventStore
+internal class InMemoryEventStore : IInMemoryEventStore
 {
-    private readonly List<(string StreamId, int StreamIndex)> _all = new();
-    private readonly Dictionary<string, List<EventEntry>> _events = new();
+    private readonly List<(string StreamId, int StreamPosition)> _all = new();
+    private readonly Dictionary<string, List<EventRecord>> _events = new();
 
-    private readonly IEventStoreDBSerializer _serializer;
+    private readonly IInMemoryEventStoreSerializer _serializer;
     private readonly ISystemClock _systemClock;
+    private readonly IEventTypeMap _eventTypeMap;
 
-    public InMemoryEventStore(IEventStoreDBSerializer serializer,
-        ISystemClock systemClock)
+    public InMemoryEventStore(IInMemoryEventStoreSerializer serializer,
+        ISystemClock systemClock,
+        IEventTypeMap eventTypeMap)
     {
         _serializer = serializer;
         _systemClock = systemClock;
+        _eventTypeMap = eventTypeMap;
     }
 
     #region Implementation
@@ -49,7 +51,7 @@ public class InMemoryEventStore : IEventStore
     {
         if (_events.TryGetValue(streamId, out var current))
             throw new StreamAlreadyExistsException(streamId, (ulong) current.Count - 1);
-        _events.Add(streamId, new List<EventEntry>());
+        _events.Add(streamId, new List<EventRecord>());
         return Task.FromResult(AppendStream(streamId, events));
     }
 
@@ -73,12 +75,26 @@ public class InMemoryEventStore : IEventStore
         => Append(streamId, expectedVersion, ImmutableArray.Create(@event), _);
 
     [MethodImpl(MethodImplOptions.Synchronized)]
-    public IAsyncEnumerable<EventEnvelope> Load(string streamId, CancellationToken _)
+    public IReadOnlyList<EventEnvelope> ReadAll()
+    {
+        var list = new List<EventEnvelope>();
+        foreach (var (streamId, streamIndex) in _all)
+        {
+            var stream = _events[streamId];
+            list.Add(_serializer.Deserialize(stream[streamIndex]));
+        }
+        return list;
+    }
+    
+    public IAsyncEnumerable<EventEnvelope> ReadAll(CancellationToken cancellationToken) => ReadAll().ToAsyncEnumerable();
+
+    [MethodImpl(MethodImplOptions.Synchronized)]
+    public IAsyncEnumerable<EventEnvelope> Read(string streamId, CancellationToken _)
     {
         if (!_events.TryGetValue(streamId, out var events))
             throw new StreamNotFoundException(streamId);
         var list = Enumerable.Range(0, events.Count)
-            .Select(i => events[i].ToEventRecord(i))
+            .Select(i => events[i])
             .Select(_serializer.Deserialize)
             .ToList();
 
@@ -86,17 +102,17 @@ public class InMemoryEventStore : IEventStore
     }
 
     [MethodImpl(MethodImplOptions.Synchronized)]
-    public IAsyncEnumerable<EventEnvelope> Load(string streamId, ulong expectedRevision, CancellationToken _)
+    public IAsyncEnumerable<EventEnvelope> Read(string streamId, ulong expectedRevision, CancellationToken _)
     {
         if (!_events.TryGetValue(streamId, out var events))
             throw new StreamNotFoundException(streamId);
         var length = (ulong) events.Count - 1;
         if (length != expectedRevision)
             throw new WrongStreamRevisionException(streamId,
-                new StreamRevision(expectedRevision),
-                new StreamRevision(length));
+                expectedRevision,
+                length);
         var list = Enumerable.Range(0, events.Count)
-            .Select(i => events[i].ToEventRecord(i))
+            .Select(i => events[i])
             .Select(_serializer.Deserialize)
             .ToList();
 
@@ -104,7 +120,7 @@ public class InMemoryEventStore : IEventStore
     }
 
     [MethodImpl(MethodImplOptions.Synchronized)]
-    public IAsyncEnumerable<EventEnvelope> LoadPartial(string streamId, ulong requiredRevision, CancellationToken _)
+    public IAsyncEnumerable<EventEnvelope> ReadPartial(string streamId, ulong requiredRevision, CancellationToken _)
     {
         if (!_events.TryGetValue(streamId, out var events))
             throw new StreamNotFoundException(streamId);
@@ -114,7 +130,7 @@ public class InMemoryEventStore : IEventStore
                 requiredRevision,
                 length);
         var list = Enumerable.Range(0, (int) requiredRevision + 1)
-            .Select(i => events[i].ToEventRecord(i))
+            .Select(i => events[i])
             .Select(_serializer.Deserialize)
             .ToList();
 
@@ -122,16 +138,16 @@ public class InMemoryEventStore : IEventStore
     }
 
     [MethodImpl(MethodImplOptions.Synchronized)]
-    public IAsyncEnumerable<EventEnvelope> LoadByEventType(Type eventType, CancellationToken cancellationToken)
+    public IAsyncEnumerable<EventEnvelope> ReadByEventType(Type eventType, CancellationToken cancellationToken)
     {
-        var name = _serializer.GetTypeName(eventType);
+        var name = _eventTypeMap.GetTypeName(eventType);
         var list = new List<EventEnvelope>();
         foreach (var (streamId, streamIndex) in _all)
         {
-            var entry = _events[streamId][streamIndex];
-            if (entry.Type != name)
+            var record = _events[streamId][streamIndex];
+            if (record.EventType != name)
                 continue;
-            var env = _serializer.Deserialize(entry.ToEventRecord(streamIndex));
+            var env = _serializer.Deserialize(record);
             list.Add(env);
         }
         return list.ToAsyncEnumerable();
@@ -140,129 +156,63 @@ public class InMemoryEventStore : IEventStore
     private ulong AppendStream(string streamId, IEnumerable<UncommittedEvent> events)
     {
         var timestamp = _systemClock.UtcNow;
-        var values = events
-            .Select(e => EventEntry.FromEventData(streamId, timestamp, _serializer.Serialize(e)))
-            .ToList();
         var current = _events[streamId];
-        var startIndex = current.Count;
-        for (var i = 0; i < values.Count; i++)
+        foreach (var e in events)
         {
-            current.Add(values[i]);
-            _all.Add((streamId, i + startIndex));
+            var record = _serializer.Serialize(e, streamId, timestamp);
+            var streamPos = current.Count;
+            
+            record.StreamPosition = (uint) streamPos;
+            record.OverallPosition = (uint)_all.Count;
+            
+            current.Add(record);
+            _all.Add((streamId, streamPos));
         }
-        return (ulong) (startIndex + values.Count) - 1;
+        return (ulong) (current.Count - 1);
     }
 
     #endregion
 
-    #region Testing
+    #region Persistence
 
     //These methods are intended to facilitate unit tests
 
-    [MethodImpl(MethodImplOptions.Synchronized)]
-    public IReadOnlyList<EventEnvelope> GetAll()
-    {
-        var list = new List<EventEnvelope>();
-        foreach (var (streamId, streamIndex) in _all)
-        {
-            var stream = _events[streamId];
-            var record = stream[streamIndex].ToEventRecord(streamIndex);
-            list.Add(_serializer.Deserialize(record));
-        }
-        return list;
-    }
+    private const PrefixStyle PrefixStyle = ProtoBuf.PrefixStyle.Base128;
 
     [MethodImpl(MethodImplOptions.Synchronized)]
-    private void Save(Utf8JsonWriter writer, CancellationToken cancellationToken)
+    public void Save(Stream stream, CancellationToken cancellationToken = default)
     {
-        writer.WriteStartArray();
         foreach (var (streamId, streamIndex) in _all)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var record = _events[streamId][streamIndex];
-            JsonSerializer.Serialize(writer, record);
+            Serializer.SerializeWithLengthPrefix(stream, record, PrefixStyle, 1);
         }
-        writer.WriteEndArray();
+        stream.Flush();
     }
     
-    public void Save(Stream stream, CancellationToken cancellationToken = default)
+    private void Add(EventRecord record)
     {
-        using var writer = new Utf8JsonWriter(stream);
-        Save(writer, cancellationToken);
-    }
-    
-    public async Task SaveAsync(Stream stream, CancellationToken cancellationToken = default)
-    {
-        await using var writer = new Utf8JsonWriter(stream);
-        Save(writer, cancellationToken);
+        var streamId = record.StreamId;
+        if (!_events.TryGetValue(streamId, out var eventStream))
+        {
+            eventStream = new List<EventRecord>();
+            _events.Add(streamId, eventStream);
+        }
+        record.StreamPosition = (uint)eventStream.Count;
+        record.OverallPosition = (uint) _all.Count;
+        _all.Add((streamId, eventStream.Count));
+        eventStream.Add(record);
     }
     
     [MethodImpl(MethodImplOptions.Synchronized)]
-    private void Add(EventEntry @event)
-    {
-        var streamId = @event.StreamId;
-        if (!_events.TryGetValue(streamId, out var eventStream))
-        {
-            eventStream = new List<EventEntry>();
-            _events.Add(streamId, eventStream);
-        }
-        _all.Add((streamId, eventStream.Count));
-        eventStream.Add(@event);
-    }
-    
     public void Load(Stream stream, CancellationToken cancellationToken = default)
     {
-        var events = JsonSerializer.Deserialize<IEnumerable<EventEntry>>(stream) ?? Array.Empty<EventEntry>();
+        var events = Serializer.DeserializeItems<EventRecord>(stream, PrefixStyle, 1);
         foreach (var e in events)
             Add(e);
     }
     
-    public async Task LoadAsync(Stream stream, CancellationToken cancellationToken = default)
-    {
-        var events =
-            JsonSerializer.DeserializeAsyncEnumerable<EventEntry>(stream, cancellationToken: cancellationToken);
-        await foreach (var e in events.WithCancellation(cancellationToken))
-            if (e != null)
-                Add(e);
-    }
-
     #endregion
-    
-    
-    private record EventEntry(string StreamId, 
-        DateTime Created, 
-        Guid EventId,
-        string Type,
-        byte[] Data,
-        byte[] Metadata)
-    {
-        public static EventEntry FromEventData(string streamId, DateTimeOffset created, EventData eventData)
-            => new(streamId,
-                created.UtcDateTime,
-                eventData.EventId.ToGuid(),
-                eventData.Type,
-                eventData.Data.ToArray(),
-                eventData.Metadata.ToArray());
-        
-        public EventRecord ToEventRecord(int position)
-        {
-            //In EventRecord constructor
-            //EventType = metadata["type"];
-            //Created = Convert.ToInt64(metadata["created"]).FromTicksSinceEpoch();
-            //ContentType = metadata["content-type"];
-            var metadata = new Dictionary<string, string>
-            {
-                {"created", Created.Ticks.ToString()},
-                {"type", Type},
-                {"content-type", "application/json"}
-            };
-            return new EventRecord(StreamId,
-                Uuid.FromGuid(EventId),
-                (ulong)position,
-                new Position(ulong.MaxValue, ulong.MaxValue),
-                metadata,
-                Data, 
-                Metadata);
-        }
-    }
+
 }

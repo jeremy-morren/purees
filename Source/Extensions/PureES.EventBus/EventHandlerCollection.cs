@@ -23,18 +23,15 @@ internal class EventHandlerCollection
         }
     }
 
-    public IEventHandler<TEvent, TMetadata>[]? Resolve<TEvent, TMetadata>(IServiceProvider services)
+    public Func<IServiceProvider, IEventHandler<TEvent, TMetadata>>[]? Get<TEvent, TMetadata>()
         where TEvent : notnull
         where TMetadata : notnull
     {
         if (!_eventHandlers.TryGetValue(typeof(TEvent), out var factories))
             return null;
-        var handlers = new IEventHandler<TEvent, TMetadata>[factories.Length];
-        for (var i = 0; i < handlers.Length; i++)
-        {
-            var factory = (Func<IServiceProvider, IEventHandler<TEvent, TMetadata>>) factories[i];
-            handlers[i] = factory(services);
-        }
-        return handlers;
+        var r = new Func<IServiceProvider, IEventHandler<TEvent, TMetadata>>[factories.Length];
+        for (var i = 0; i < factories.Length; i++)
+            r[i] = (Func<IServiceProvider, IEventHandler<TEvent, TMetadata>>) factories[i];
+        return r;
     }
 }

@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Linq.Expressions;
+using PureES.Core.EventStore;
 
 // ReSharper disable MemberCanBeMadeStatic.Global
 

@@ -4,24 +4,26 @@ using System.Text.Json.Nodes;
 using Microsoft.Extensions.Internal;
 using PureES.Core;
 using PureES.Core.EventStore;
+using PureES.Core.EventStore.Serialization;
 using PureES.EventStore.InMemory;
 
 namespace PureES.Extensions.Tests.EventStore;
 
-public class InMemoryEventStoreTests : EventStoreTestsBase, IClassFixture<InMemoryEventStoreTests.TestInMemoryEventStore>
+public class InMemoryEventStoreTests : EventStoreTestsBase
 {
     private readonly TestInMemoryEventStore _store;
 
-    // ReSharper disable once SuggestBaseTypeForParameterInConstructor
-    public InMemoryEventStoreTests(TestInMemoryEventStore store) => _store = store;
+    public InMemoryEventStoreTests() => _store = new TestInMemoryEventStore();
 
     protected override IEventStore CreateStore() => _store;
 
     [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
-    public class TestInMemoryEventStore : InMemoryEventStore
+    private class TestInMemoryEventStore : InMemoryEventStore
     {
         public TestInMemoryEventStore() 
-            : base(new TestSerializer(), new SystemClock())
+            : base(TestSerializer.InMemoryEventStoreSerializer,
+                new SystemClock(),
+                TestSerializer.EventTypeMap)
         {
         }
     }
@@ -31,47 +33,26 @@ public class InMemoryEventStoreTests : EventStoreTestsBase, IClassFixture<InMemo
     {
         var source = new TestInMemoryEventStore();
         Setup(source).GetAwaiter().GetResult();
+        
         using var ms = new MemoryStream();
         source.Save(ms);
+        ms.Seek(0, SeekOrigin.Begin);
 
-        ms.Position = 0;
-        
         var destination = new TestInMemoryEventStore();
         destination.Load(ms);
 
-        Assert.Equal(source.GetAll().Count, destination.GetAll().Count);
-        Assert.Equal(source.GetAll().Select(e => new {e.StreamId, e.StreamPosition, e.EventId, e.Timestamp}),
-            destination.GetAll().Select(e => new {e.StreamId, e.StreamPosition, e.EventId, e.Timestamp}));
+        Assert.Equal(source.ReadAll().Count, destination.ReadAll().Count);
+        Assert.Equal(source.ReadAll().Select(e => new {e.StreamId, e.StreamPosition, e.EventId, e.Timestamp}),
+            destination.ReadAll().Select(e => new {e.StreamId, e.StreamPosition, e.EventId, e.Timestamp}));
     }
-    
-    [Fact]
-    public async Task SaveAndLoadAsync()
-    {
-        var source = new TestInMemoryEventStore();
-        await Setup(source);
-        using var ms = new MemoryStream();
-        await source.SaveAsync(ms);
 
-        ms.Position = 0;
-        
-        var destination = new TestInMemoryEventStore();
-        await destination.LoadAsync(ms);
-
-        Assert.Equal(source.GetAll().Count, destination.GetAll().Count);
-        Assert.Equal(source.GetAll().Select(e => new {e.StreamId, e.StreamPosition, e.EventId, e.Timestamp}),
-            destination.GetAll().Select(e => new {e.StreamId, e.StreamPosition, e.EventId, e.Timestamp}));
-    }
-    
     private static async Task Setup(IEventStore eventStore)
     {
         var data = Enumerable.Range(0, 10)
             .Select(i => $"stream-{i}")
             .SelectMany(stream => Enumerable.Range(0, 10)
-                .Select(_ => new UncommittedEvent(Guid.NewGuid(), 
-                    JsonNode.Parse("{}")!, 
-                    JsonNode.Parse("{}")!))
-                .Select(e => (stream, e)))
-            .OrderBy(p => p.e.EventId);
+                .Select(e => (stream, NewEvent())))
+            .OrderBy(p => p.Item2.EventId);
         foreach (var (stream, e) in data)
         {
             if (await eventStore.Exists(stream, default))

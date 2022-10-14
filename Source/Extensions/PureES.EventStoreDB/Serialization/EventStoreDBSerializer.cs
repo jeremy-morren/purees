@@ -1,53 +1,47 @@
 ﻿using System.Text.Json;
 using EventStore.Client;
 using PureES.Core;
+using PureES.Core.EventStore;
+using PureES.Core.EventStore.Serialization;
 
 namespace PureES.EventStoreDB.Serialization;
 
-public class EventStoreDBSerializer<TMetadata> : IEventStoreDBSerializer
+internal class EventStoreDBSerializer<TMetadata> : IEventStoreDBSerializer
     where TMetadata : notnull
 {
-    private readonly JsonSerializerOptions _options;
-    private readonly TypeMapper _typeMapper;
+    private readonly IEventTypeMap _typeMap;
+    private readonly IEventStoreSerializer _serializer;
 
-    public EventStoreDBSerializer(JsonSerializerOptions options,
-        TypeMapper typeMapper)
+    public EventStoreDBSerializer(IEventTypeMap typeMap,
+        IEventStoreSerializer serializer)
     {
-        _options = options;
-        _typeMapper = typeMapper;
+        _typeMap = typeMap;
+        _serializer = serializer;
     }
-
-    public string GetTypeName(Type eventType) => TypeMapper.GetString(eventType);
 
     public EventEnvelope Deserialize(EventRecord record)
     {
-        var metadata = Deserialize<TMetadata>(record.Metadata);
-        var @event = Deserialize(record.Data, record.EventType)
+        var metadata = record.Metadata.Length > 0 ? _serializer.Deserialize(record.Metadata.Span, typeof(TMetadata)) : null;
+        var @event = _serializer.Deserialize(record.Data.Span, 
+                _typeMap.TryGetType(record.EventType, out var eventType) ? eventType : null)
                      ?? throw new ArgumentException($"Event data is null for event {record.EventType}");
         return new EventEnvelope(record.EventId.ToGuid(),
             record.EventStreamId,
             record.EventNumber.ToUInt64(),
+            record.Position.CommitPosition,
             record.Created,
             @event,
             metadata);
     }
 
-    public EventData Serialize(UncommittedEvent @event) =>
-        new(Uuid.FromGuid(@event.EventId),
-            TypeMapper.GetString(@event.Event.GetType()),
-            JsonSerializer.SerializeToUtf8Bytes(@event.Event, _options),
-            JsonSerializer.SerializeToUtf8Bytes(@event.Metadata, _options));
-
-    public EventData Serialize<T>(T @event) =>
-        new(Uuid.NewUuid(),
-            TypeMapper.GetString(typeof(T)),
-            JsonSerializer.SerializeToUtf8Bytes(@event, _options));
-
-    public T Deserialize<T>(EventRecord record) =>
-        Deserialize<T>(record.Data) ?? throw new ArgumentException("Empty event");
-
-    private T? Deserialize<T>(ReadOnlyMemory<byte> input) => JsonSerializer.Deserialize<T>(input.Span, _options);
-
-    private object? Deserialize(ReadOnlyMemory<byte> input, string type) =>
-        JsonSerializer.Deserialize(input.Span, _typeMapper.GetType(type), _options);
+    public EventData Serialize(UncommittedEvent record)
+    {
+        var @event = _serializer.Serialize(record.Event, out var contentType);
+        var metadata = record.Metadata != null ? _serializer.Serialize(record.Metadata, out _) : null;
+        return new EventData(Uuid.FromGuid(record.EventId),
+            _typeMap.GetTypeName(record.Event.GetType()),
+            @event,
+            metadata,
+            contentType);
+    }
 }

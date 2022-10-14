@@ -1,15 +1,12 @@
 ﻿using EventStore.Client;
 using PureES.Core;
+using PureES.Core.EventStore;
 
 namespace PureES.EventStoreDB.Serialization;
 
-public interface IEventStoreDBSerializer
+internal interface IEventStoreDBSerializer
 {
-    string GetTypeName(Type eventType);
-    
     EventEnvelope Deserialize(EventRecord record);
-    EventData Serialize(UncommittedEvent @event);
 
-    EventData Serialize<T>(T @event);
-    T Deserialize<T>(EventRecord record);
+    EventData Serialize(UncommittedEvent record);
 }
