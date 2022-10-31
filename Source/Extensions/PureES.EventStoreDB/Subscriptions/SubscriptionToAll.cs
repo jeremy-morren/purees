@@ -1,3 +1,4 @@
+using System.Threading.Tasks.Dataflow;
 using EventStore.Client;
 using Grpc.Core;
 using Microsoft.Extensions.Hosting;
@@ -35,6 +36,8 @@ internal class SubscriptionToAll : BackgroundService, ISubscription
     }
     
     private string SubscriptionId => _options.SubscriptionId;
+
+    #region Subscription
 
     private CancellationTokenSource _droppedToken = new();
 
@@ -92,9 +95,19 @@ internal class SubscriptionToAll : BackgroundService, ISubscription
             ? FromAll.Start
             : FromAll.After(new Position(checkpoint.Value, checkpoint.Value));
 
+        //This will ensure that the events are published 1 at a time (in the order that they were received)
+        var block = new ActionBlock<EventEnvelope>(
+            e => _eventBus.Publish(e, stoppingToken),
+            new ExecutionDataflowBlockOptions()
+            {
+                CancellationToken = stoppingToken,
+                EnsureOrdered = true,
+                MaxDegreeOfParallelism = 1
+            });
+
         using var subscription = await _eventStoreClient.SubscribeToAllAsync(
             start,
-            HandleEvent,
+            (_, __, ___) => HandleEvent(block, _, __, ___),
             _options.ResolveLinkTos,
             HandleDrop,
             _options.FilterOptions,
@@ -127,8 +140,14 @@ internal class SubscriptionToAll : BackgroundService, ISubscription
 
         _droppedToken.Cancel();
     }
+    
+    #endregion
+    
+    #region Publish
 
-    private async Task HandleEvent(StreamSubscription subscription, ResolvedEvent resolvedEvent,
+    private async Task HandleEvent(ITargetBlock<EventEnvelope> eventHandler,
+        StreamSubscription subscription, 
+        ResolvedEvent resolvedEvent, 
         CancellationToken ct)
     {
         try
@@ -142,9 +161,9 @@ internal class SubscriptionToAll : BackgroundService, ISubscription
             }
 
             var envelope = _dbSerializer.Deserialize(resolvedEvent.Event);
-            
-            // publish event to internal event bus
-            await _eventBus.Publish(envelope, ct);
+
+            //Publish event to event bus
+            await eventHandler.SendAsync(envelope, ct);
 
             await _checkpointRepository.Store(SubscriptionId, resolvedEvent.Event.Position.CommitPosition, ct);
         }
@@ -161,4 +180,6 @@ internal class SubscriptionToAll : BackgroundService, ISubscription
         _logger.LogDebug("Event without data received");
         return true;
     }
+    
+    #endregion
 }

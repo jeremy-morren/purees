@@ -12,7 +12,6 @@ public static class EventBusServiceCollectionExtensions
         Action<EventBusOptions>? configureOptions)
     {
         services.TryAddSingleton(new EventHandlerCollection());
-        services.TryAddTransient(typeof(IEventHandler<,>), typeof(CompositeEventHandler<,>));
         services.Configure<EventBusOptions>(o => configureOptions?.Invoke(o));
     }
     
