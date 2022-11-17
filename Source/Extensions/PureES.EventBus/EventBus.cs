@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Threading.Tasks.Dataflow;
@@ -6,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PureES.Core;
+using PureES.EventBus.DataFlow;
 
 namespace PureES.EventBus;
 
@@ -55,32 +57,35 @@ internal class EventBus : IEventBus
         return Expression.Lambda<Func<EventBus, EventEnvelope, CancellationToken, Task>>(call, 
             busParam, envelopeParam, tokenParam).Compile();
     }
-    
-    #region Publish
 
     private static async Task PublishGeneric<TEvent, TMetadata>(EventBus bus, EventEnvelope envelope, CancellationToken ct) 
         where TEvent : notnull
         where TMetadata : notnull
     {
         var factories = bus.GetRegisteredEventHandlers<TEvent, TMetadata>();
-        foreach (var f in factories)
+        foreach (var factory in factories)
         {
             await using var scope = bus._services.CreateAsyncScope();
+            var eventProps = new {envelope.StreamId, envelope.StreamPosition, Type = typeof(TEvent)};
+            var start = Stopwatch.GetTimestamp();
             try
             {
-                bus._logger.LogDebug("Handling projection for event {@Event}", typeof(TEvent));
-                await f(scope.ServiceProvider).Handle(new EventEnvelope<TEvent, TMetadata>(envelope), ct);
-                bus._logger.LogInformation("Successfully handled projection for event {@Event}", typeof(TEvent));
+                bus._logger.LogDebug("Handling projection for event {@Event}", eventProps);
+                await factory(scope.ServiceProvider).Handle(new EventEnvelope<TEvent, TMetadata>(envelope), ct);
+                var elapsedMs = GetElapsedMilliseconds(start, Stopwatch.GetTimestamp());
+                bus._logger.LogInformation("Successfully handled projection for event {@Event}. Elapsed: {Elapsed:0.0000} ms", eventProps, elapsedMs);
             }
             catch (Exception e)
             {
-                bus._logger.LogError(e, "Error processing projection for event {@Event}", typeof(TEvent));
+                var elapsedMs = GetElapsedMilliseconds(start, Stopwatch.GetTimestamp());
+                bus._logger.LogError(e, "Error processing projection for event {@Event}. Elapsed: {Elapsed:0.0000} ms", eventProps, elapsedMs);
                 if (bus._options.Value.PropagateEventHandlerExceptions)
                     throw;
                 //This allows suppressing exceptions if that is desired
             }
-        }
+        };
     }
 
-    #endregion
+
+    private static double GetElapsedMilliseconds(long start, long stop) => (stop - start) * 1000 / (double)Stopwatch.Frequency;
 }

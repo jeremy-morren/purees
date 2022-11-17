@@ -30,16 +30,14 @@ public static class EventStoreDBServiceCollectionExtensions
 
     public static IServiceCollection AddEventStoreDBSubscriptionToAll(
         this IServiceCollection services,
-        Action<SubscriptionOptions>? configure = null,
-        bool checkpointToEventStoreDB = true)
+        Action<SubscriptionOptions>? configure = null)
     {
-        if (checkpointToEventStoreDB)
-            services.AddTransient<ISubscriptionCheckpointRepository, EventStoreSubscriptionCheckpointRepository>();
-        else
-            services.AddSingleton<ISubscriptionCheckpointRepository, InMemorySubscriptionCheckpointRepository>();
-
         return services
-            .Configure<SubscriptionOptions>(o => configure?.Invoke(o))
+            .Configure<SubscriptionOptions>(nameof(SubscriptionToAll), o =>
+            {
+                o.SubscriptionId = "$all";
+                configure?.Invoke(o);
+            })
             .AddHostedService<SubscriptionToAll>();
     }
 }
