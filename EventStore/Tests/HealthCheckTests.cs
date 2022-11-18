@@ -2,8 +2,9 @@
 using EventStore.Client;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Moq;
+using PureES.Extensions.Tests.EventStore.EventStoreDB;
 
-namespace PureES.Extensions.Tests.EventStore.EventStoreDB;
+namespace Tests;
 
 public class HealthCheckTests : IClassFixture<EventStoreTestHarness>
 {
