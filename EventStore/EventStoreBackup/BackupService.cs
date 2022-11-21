@@ -7,6 +7,9 @@ using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
 using ContentDispositionHeaderValue = Microsoft.Net.Http.Headers.ContentDispositionHeaderValue;
 
+// ReSharper disable CommentTypo
+// ReSharper disable StringLiteralTypo
+
 namespace EventStoreBackup;
 
 public class BackupService
@@ -138,6 +141,9 @@ public class BackupService
         CompressionType? compressionType,
         CancellationToken ct)
     {
+        //Change ownership to eventstore:eventstore
+        await ExecHelper.RunCommand(baseDir, "chown", new[] {"eventstore:eventstore", "-R", baseDir.FullName}, ct);
+        
         //Make files readonly
         await ExecHelper.RunCommand(baseDir, "chmod", new [] { "-R", "644", baseDir.FullName }, ct);
         
