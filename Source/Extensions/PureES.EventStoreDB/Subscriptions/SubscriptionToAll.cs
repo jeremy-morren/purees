@@ -1,10 +1,6 @@
-using System.Threading.Tasks.Dataflow;
 using EventStore.Client;
-using Grpc.Core;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using PureES.Core;
 using PureES.EventBus;
 using PureES.EventStoreDB.Serialization;
 
@@ -18,7 +14,9 @@ internal class SubscriptionToAll : SubscriptionService
         IEventStoreDBSerializer serializer,
         ILoggerFactory loggerFactory,
         IOptionsFactory<SubscriptionOptions> optionsFactory)
-        : base(eventStoreClient, eventBus, serializer, loggerFactory, optionsFactory) {}
+        : base(eventStoreClient, eventBus, serializer, loggerFactory, optionsFactory)
+    {
+    }
 
     protected override Task<StreamSubscription> Subscribe(EventStoreClient client,
         FromAll start,
@@ -27,5 +25,6 @@ internal class SubscriptionToAll : SubscriptionService
         Action<StreamSubscription, SubscriptionDroppedReason, Exception?>? subscriptionDropped,
         SubscriptionFilterOptions? filterOptions,
         CancellationToken cancellationToken) =>
-        client.SubscribeToAllAsync(start, eventAppeared, resolveLinkTos, subscriptionDropped, filterOptions, null, cancellationToken);
+        client.SubscribeToAllAsync(start, eventAppeared, resolveLinkTos, subscriptionDropped, filterOptions, null,
+            cancellationToken);
 }

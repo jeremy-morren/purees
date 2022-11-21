@@ -8,7 +8,7 @@ namespace PureES.Core.ExpBuilders.Services;
 public class CommandHandlerOptions
 {
     private readonly List<Assembly> _assemblies = new();
-        
+
     public CommandHandlerBuilderOptions BuilderOptions { get; set; } = new();
 
     public IReadOnlyCollection<Assembly> Assemblies => _assemblies.AsReadOnly();

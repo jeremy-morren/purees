@@ -10,7 +10,7 @@ namespace PureES.Core;
 public static class ServiceCollectionExtensions
 {
     /// <summary>
-    /// Adds core PureES services
+    ///     Adds core PureES services
     /// </summary>
     /// <param name="services"></param>
     /// <returns></returns>
@@ -21,9 +21,9 @@ public static class ServiceCollectionExtensions
         services.TryAddTransient(typeof(IAggregateStore<>), typeof(AggregateStore<>));
         return services;
     }
-    
+
     /// <summary>
-    /// Adds PureES services from for <paramref name="assemblies"/>
+    ///     Adds PureES services from for <paramref name="assemblies" />
     /// </summary>
     /// <param name="services"></param>
     /// <param name="assemblies"></param>
@@ -42,9 +42,9 @@ public static class ServiceCollectionExtensions
         });
         return services;
     }
-    
+
     /// <summary>
-    /// Adds PureES services from assembly
+    ///     Adds PureES services from assembly
     /// </summary>
     /// <param name="services"></param>
     /// <param name="options"></param>

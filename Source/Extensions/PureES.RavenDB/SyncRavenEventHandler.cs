@@ -5,15 +5,14 @@ using Raven.Client.Documents.Session;
 
 namespace PureES.RavenDB;
 
-
 internal class SyncRavenEventHandler<TEvent, TMetadata> : IEventHandler<TEvent, TMetadata>
     where TEvent : notnull
     where TMetadata : notnull
 {
-    private readonly IDocumentStore _store;
-    private readonly RavenDBOptions _options;
     private readonly Action<IServiceProvider, IAsyncDocumentSession, EventEnvelope<TEvent, TMetadata>> _delegate;
+    private readonly RavenDBOptions _options;
     private readonly IServiceProvider _services;
+    private readonly IDocumentStore _store;
 
     public SyncRavenEventHandler(IDocumentStore store,
         RavenDBOptions options,
@@ -28,7 +27,7 @@ internal class SyncRavenEventHandler<TEvent, TMetadata> : IEventHandler<TEvent, 
 
     public async Task Handle(EventEnvelope<TEvent, TMetadata> @event, CancellationToken ct)
     {
-        using var session = _store.OpenAsyncSession(database: _options.Database);
+        using var session = _store.OpenAsyncSession(_options.Database);
         _delegate(_services, session, @event);
         await session.SaveChangesAsync(ct);
     }

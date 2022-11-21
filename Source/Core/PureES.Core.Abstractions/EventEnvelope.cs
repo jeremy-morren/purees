@@ -8,14 +8,14 @@ using PureES.Core.EventStore;
 namespace PureES.Core;
 
 /// <summary>
-/// Represents an event persisted to <see cref="IEventStore"/>
+///     Represents an event persisted to <see cref="IEventStore" />
 /// </summary>
-/// <param name="EventId">The unique <see cref="Guid"/> of this event</param>
+/// <param name="EventId">The unique <see cref="Guid" /> of this event</param>
 /// <param name="StreamId">The id of the stream that the event belongs to</param>
 /// <param name="StreamPosition">The position of the event within the stream</param>
 /// <param name="OverallPosition">
-/// The overall position of this event among all events. 
-/// Not guaranteed to be contiguous (i.e. 0-1-2....)
+///     The overall position of this event among all events.
+///     Not guaranteed to be contiguous (i.e. 0-1-2....)
 /// </param>
 /// <param name="Timestamp">The UTC timestamp that the event was persisted</param>
 /// <param name="Event">The underlying event</param>
@@ -43,8 +43,8 @@ public record EventEnvelope(Guid EventId,
     }
 
     private bool MetadataEquals<TMetadata>(TMetadata other) =>
-        ReferenceEquals(Metadata, other) 
-        || ReferenceEquals(Metadata, null) 
+        ReferenceEquals(Metadata, other)
+        || ReferenceEquals(Metadata, null)
         || ReferenceEquals(other, null)
         || other.Equals(Metadata);
 }
@@ -52,42 +52,6 @@ public record EventEnvelope(Guid EventId,
 public record EventEnvelope<TEvent, TMetadata>
     where TEvent : notnull
 {
-    /// <summary>
-    /// The unique <see cref="Guid"/> of this event
-    /// </summary>
-    public Guid EventId { get; }
-    
-    /// <summary>
-    /// The id of the stream that the event belongs to
-    /// </summary>
-    public string StreamId { get; }
-    
-    /// <summary>
-    /// The position of the event within the stream
-    /// </summary>
-    public ulong StreamPosition { get; }
-
-    /// <summary>
-    /// The overall position of this event among all events.
-    /// Not guaranteed to be contiguous (i.e. 0-1-2....)
-    /// </summary>
-    public ulong OverallPosition { get; }
-
-    /// <summary>
-    /// The UTC timestamp that the event was persisted
-    /// </summary>
-    public DateTime Timestamp { get; }
-    
-    /// <summary>
-    /// The underlying event
-    /// </summary>
-    public TEvent Event { get; }
-    
-    /// <summary>
-    /// The metadata pertaining to the event
-    /// </summary>
-    public TMetadata Metadata { get; }
-
     public EventEnvelope(EventEnvelope source)
     {
         EventId = source.EventId;
@@ -106,7 +70,7 @@ public record EventEnvelope<TEvent, TMetadata>
             throw new ArgumentException($"Could not convert {source.Metadata.GetType()} to {typeof(TMetadata)}");
         Metadata = m;
     }
-    
+
     public EventEnvelope(EventEnvelope<TEvent, TMetadata> source)
     {
         EventId = source.EventId;
@@ -117,6 +81,42 @@ public record EventEnvelope<TEvent, TMetadata>
         Event = source.Event;
         Metadata = source.Metadata;
     }
+
+    /// <summary>
+    ///     The unique <see cref="Guid" /> of this event
+    /// </summary>
+    public Guid EventId { get; }
+
+    /// <summary>
+    ///     The id of the stream that the event belongs to
+    /// </summary>
+    public string StreamId { get; }
+
+    /// <summary>
+    ///     The position of the event within the stream
+    /// </summary>
+    public ulong StreamPosition { get; }
+
+    /// <summary>
+    ///     The overall position of this event among all events.
+    ///     Not guaranteed to be contiguous (i.e. 0-1-2....)
+    /// </summary>
+    public ulong OverallPosition { get; }
+
+    /// <summary>
+    ///     The UTC timestamp that the event was persisted
+    /// </summary>
+    public DateTime Timestamp { get; }
+
+    /// <summary>
+    ///     The underlying event
+    /// </summary>
+    public TEvent Event { get; }
+
+    /// <summary>
+    ///     The metadata pertaining to the event
+    /// </summary>
+    public TMetadata Metadata { get; }
 
     public bool Equals(EventEnvelope? other)
     {
@@ -131,14 +131,14 @@ public record EventEnvelope<TEvent, TMetadata>
     }
 
     private bool MetadataEquals(object? other) =>
-        ReferenceEquals(Metadata, other) 
-        || ReferenceEquals(Metadata, null) 
+        ReferenceEquals(Metadata, other)
+        || ReferenceEquals(Metadata, null)
         || ReferenceEquals(other, null)
         || Metadata.Equals(other);
 
-    public static bool operator ==(EventEnvelope<TEvent, TMetadata>? left, EventEnvelope? right) 
+    public static bool operator ==(EventEnvelope<TEvent, TMetadata>? left, EventEnvelope? right)
         => left?.Equals(right) ?? ReferenceEquals(right, null);
 
-    public static bool operator !=(EventEnvelope<TEvent, TMetadata>? left, EventEnvelope? right) 
+    public static bool operator !=(EventEnvelope<TEvent, TMetadata>? left, EventEnvelope? right)
         => !(left == right);
 }

@@ -1,7 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Internal;
-using PureES.Core.EventStore;
 using PureES.Core.EventStore.Serialization;
 
 namespace PureES.EventStore.InMemory.Serialization;

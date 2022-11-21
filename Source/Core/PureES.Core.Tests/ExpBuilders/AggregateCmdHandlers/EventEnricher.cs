@@ -10,8 +10,8 @@ public class EventEnricher : IEventEnricher
     private readonly Func<object, object, object?> _getMetadata;
 
     public EventEnricher(Func<object, object, object?> getMetadata) => _getMetadata = getMetadata;
-    
-    public ValueTask<object?> GetMetadata(object command, object @event, CancellationToken ct) => 
+
+    public ValueTask<object?> GetMetadata(object command, object @event, CancellationToken ct) =>
         ValueTask.FromResult(_getMetadata(command, @event));
 }
 

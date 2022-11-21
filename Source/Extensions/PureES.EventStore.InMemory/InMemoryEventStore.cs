@@ -1,5 +1,4 @@
 ﻿using System.Collections.Immutable;
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Internal;
 using ProtoBuf;
@@ -16,10 +15,10 @@ internal class InMemoryEventStore : IInMemoryEventStore
 {
     private readonly List<(string StreamId, int StreamPosition)> _all = new();
     private readonly Dictionary<string, List<EventRecord>> _events = new();
+    private readonly IEventTypeMap _eventTypeMap;
 
     private readonly IInMemoryEventStoreSerializer _serializer;
     private readonly ISystemClock _systemClock;
-    private readonly IEventTypeMap _eventTypeMap;
 
     public InMemoryEventStore(IInMemoryEventStoreSerializer serializer,
         ISystemClock systemClock,
@@ -83,10 +82,12 @@ internal class InMemoryEventStore : IInMemoryEventStore
             var stream = _events[streamId];
             list.Add(_serializer.Deserialize(stream[streamIndex]));
         }
+
         return list;
     }
-    
-    public IAsyncEnumerable<EventEnvelope> ReadAll(CancellationToken cancellationToken) => ReadAll().ToAsyncEnumerable();
+
+    public IAsyncEnumerable<EventEnvelope> ReadAll(CancellationToken cancellationToken) =>
+        ReadAll().ToAsyncEnumerable();
 
     [MethodImpl(MethodImplOptions.Synchronized)]
     public IAsyncEnumerable<EventEnvelope> Read(string streamId, CancellationToken _)
@@ -150,6 +151,7 @@ internal class InMemoryEventStore : IInMemoryEventStore
             var env = _serializer.Deserialize(record);
             list.Add(env);
         }
+
         return list.ToAsyncEnumerable();
     }
 
@@ -161,13 +163,14 @@ internal class InMemoryEventStore : IInMemoryEventStore
         {
             var record = _serializer.Serialize(e, streamId, timestamp);
             var streamPos = current.Count;
-            
+
             record.StreamPosition = (uint) streamPos;
-            record.OverallPosition = (uint)_all.Count;
-            
+            record.OverallPosition = (uint) _all.Count;
+
             current.Add(record);
             _all.Add((streamId, streamPos));
         }
+
         return (ulong) (current.Count - 1);
     }
 
@@ -188,9 +191,10 @@ internal class InMemoryEventStore : IInMemoryEventStore
             var record = _events[streamId][streamIndex];
             Serializer.SerializeWithLengthPrefix(stream, record, PrefixStyle, 1);
         }
+
         stream.Flush();
     }
-    
+
     private void Add(EventRecord record)
     {
         var streamId = record.StreamId;
@@ -199,12 +203,13 @@ internal class InMemoryEventStore : IInMemoryEventStore
             eventStream = new List<EventRecord>();
             _events.Add(streamId, eventStream);
         }
-        record.StreamPosition = (uint)eventStream.Count;
+
+        record.StreamPosition = (uint) eventStream.Count;
         record.OverallPosition = (uint) _all.Count;
         _all.Add((streamId, eventStream.Count));
         eventStream.Add(record);
     }
-    
+
     [MethodImpl(MethodImplOptions.Synchronized)]
     public void Load(Stream stream, CancellationToken cancellationToken = default)
     {
@@ -212,7 +217,6 @@ internal class InMemoryEventStore : IInMemoryEventStore
         foreach (var e in events)
             Add(e);
     }
-    
-    #endregion
 
+    #endregion
 }

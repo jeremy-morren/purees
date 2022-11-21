@@ -15,7 +15,7 @@ public class GetServiceBuilderExpTests
         using var provider = Services.Build(s => s.AddSingleton(svc));
         Assert.Same(svc, func(provider));
     }
-    
+
     [Fact]
     public void Get_Transient_Service()
     {
@@ -25,5 +25,7 @@ public class GetServiceBuilderExpTests
         func(provider); //As long as it succeeds
     }
 
-    private class Service {};
+    private class Service
+    {
+    }
 }

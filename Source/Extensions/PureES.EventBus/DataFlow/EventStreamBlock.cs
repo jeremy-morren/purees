@@ -5,8 +5,8 @@ using PureES.Core;
 namespace PureES.EventBus.DataFlow;
 
 /// <summary>
-/// Dataflow block that processes event streams
-/// in order (i.e. events in each stream are processed sequentially)
+///     Dataflow block that processes event streams
+///     in order (i.e. events in each stream are processed sequentially)
 /// </summary>
 public sealed class EventStreamBlock : ITargetBlock<EventEnvelope>
 {
@@ -28,22 +28,23 @@ public sealed class EventStreamBlock : ITargetBlock<EventEnvelope>
                 //Get or create queue
                 if (!_queues.TryGetValue(e.StreamId, out var queue))
                 {
-                    queue = new EventQueue(e.StreamId, 
-                        new SemaphoreSlim(1, 1), 
+                    queue = new EventQueue(e.StreamId,
+                        new SemaphoreSlim(1, 1),
                         new ConcurrentQueue<EventEnvelope>());
                     _queues[e.StreamId] = queue;
                 }
+
                 queue.Queue.Enqueue(e);
                 return queue;
             }
-        }, new ExecutionDataflowBlockOptions()
+        }, new ExecutionDataflowBlockOptions
         {
             CancellationToken = ct,
-            
+
             //Queue in the order we received, 1 at a time
             EnsureOrdered = true,
             MaxDegreeOfParallelism = 1,
-            
+
             //This creates backpressure
             BoundedCapacity = options.BoundedCapacity
         });
@@ -55,10 +56,10 @@ public sealed class EventStreamBlock : ITargetBlock<EventEnvelope>
             //Therefore we drop work here
             lock (queue)
             {
-                if (queue.Mutex.CurrentCount == 0) 
+                if (queue.Mutex.CurrentCount == 0)
                     return queue.StreamId; //Another worker is operating below, we can skip to the end
             }
-            
+
             //No-one waiting, so this should be very fast
             //We will save by skipping the async
             queue.Mutex.Wait(ct);
@@ -66,10 +67,10 @@ public sealed class EventStreamBlock : ITargetBlock<EventEnvelope>
             {
                 //Note that there is a subtle race condition here: If we are already processing here,
                 //we will grab the next event when it is enqueued above
-                
+
                 //As a result, we may get here to discover that all events have already
                 //been processed by the previous queue (i.e. the queue is empty)
-                
+
                 //Not actually a problem, just something to note
                 while (queue.Queue.TryDequeue(out var envelope))
                 {
@@ -81,16 +82,17 @@ public sealed class EventStreamBlock : ITargetBlock<EventEnvelope>
             {
                 queue.Mutex.Release();
             }
+
             return queue.StreamId;
-        }, new ExecutionDataflowBlockOptions()
+        }, new ExecutionDataflowBlockOptions
         {
             BoundedCapacity = options.MaxDegreeOfParallelism,
             CancellationToken = ct,
-            
+
             //The worker process in parallel
             //Access to the streams is synchronized via the Semaphore
             MaxDegreeOfParallelism = options.MaxDegreeOfParallelism,
-            
+
             //Event streams are processed in no particular order
             EnsureOrdered = false
         });
@@ -106,26 +108,26 @@ public sealed class EventStreamBlock : ITargetBlock<EventEnvelope>
                 if (queue.Queue.IsEmpty)
                     _queues.Remove(streamId);
             }
-        }, new ExecutionDataflowBlockOptions()
+        }, new ExecutionDataflowBlockOptions
         {
             CancellationToken = ct,
 
             //Order is unimportant, since we are locking on _queues anyway
             EnsureOrdered = false,
-            MaxDegreeOfParallelism = 1, //We are synchronizing anyway
+            MaxDegreeOfParallelism = 1 //We are synchronizing anyway
         });
 
-        producer.LinkTo(worker, new DataflowLinkOptions()
+        producer.LinkTo(worker, new DataflowLinkOptions
         {
             PropagateCompletion = true
         });
-        worker.LinkTo(cleanup, new DataflowLinkOptions()
+        worker.LinkTo(cleanup, new DataflowLinkOptions
         {
             PropagateCompletion = true
         });
 
         _target = producer;
-        
+
         //We don't actually need to wait on cleanup to complete
         //It will all be Garbage Collected anyway
         Completion = worker.Completion;

@@ -1,13 +1,12 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using PureES.Core.ExpBuilders.AggregateCmdHandlers;
 
 namespace PureES.Core.ExpBuilders.Services;
 
 internal class CommandHandler<TCommand> : ICommandHandler<TCommand>
 {
-    private readonly IServiceProvider _serviceProvider;
     private readonly ILogger _logger;
+    private readonly IServiceProvider _serviceProvider;
     private readonly PureESServices _services;
 
     public CommandHandler(IServiceProvider serviceProvider,
@@ -41,7 +40,8 @@ internal class CommandHandler<TCommand> : ICommandHandler<TCommand>
         {
             _logger.LogInformation("Handling command {@Command}", typeof(TCommand));
             var @delegate = _services.GetService<Func<TCommand, IServiceProvider, CancellationToken, Task<TResult>>>()
-                            ?? throw new Exception($"No command handler found for command type {typeof(TCommand)} returning result {typeof(TResult)}");
+                            ?? throw new Exception(
+                                $"No command handler found for command type {typeof(TCommand)} returning result {typeof(TResult)}");
             return await @delegate(command, _serviceProvider, cancellationToken);
         }
         catch (Exception e)

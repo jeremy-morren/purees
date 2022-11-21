@@ -24,12 +24,12 @@ internal class UpdatedWhenExpBuilder
             throw new ArgumentException("Invalid service provider expression");
         if (cancellationToken.Type != typeof(CancellationToken))
             throw new ArgumentException("Invalid CancellationToken expression");
-        
+
         var updateMethods = aggregateType.GetMethods(BindingFlags.Public | BindingFlags.Static)
             .Where(m => IsUpdatedWhen(aggregateType, m))
             .ToList();
         //TODO: validate multiple methods with identical parameters
-        
+
         //We need an expression along the lines of
         //if (envelope.Event is EventType) return When(NewGenericEnvelope(envelope))
         var eventProperty =
@@ -38,7 +38,7 @@ internal class UpdatedWhenExpBuilder
         var @event = Expression.Variable(typeof(object));
         var envelopeVar = Expression.Variable(typeof(EventEnvelope));
         var currentVar = Expression.Variable(aggregateType);
-        var expressions = new List<Expression>()
+        var expressions = new List<Expression>
         {
             //Assign to local variables
             Expression.Assign(envelopeVar, envelope),
@@ -50,12 +50,13 @@ internal class UpdatedWhenExpBuilder
         {
             ValidateUpdatedWhen(aggregateType, m);
             var envelopeType = m.GetParameters()[1].ParameterType;
-            var eventType =  _options.GetEventType?.Invoke(envelopeType) ?? envelopeType.GetGenericArguments()[0];
-            var check = Expression.TypeIs(@event, @eventType);
+            var eventType = _options.GetEventType?.Invoke(envelopeType) ?? envelopeType.GetGenericArguments()[0];
+            var check = Expression.TypeIs(@event, eventType);
             var call = BuildUpdatedWhen(aggregateType, m, currentVar, envelopeVar, serviceProvider, cancellationToken);
             var whole = Expression.IfThen(check, Expression.Return(returnTarget, call));
             expressions.Add(whole);
         }
+
         var @base = Expression.Call(ExceptionHelpers.ThrowUpdatedWhenBaseMethod,
             Expression.Constant(aggregateType), @event);
         expressions.Add(@base);
@@ -64,7 +65,7 @@ internal class UpdatedWhenExpBuilder
         expressions.Add(Expression.Label(returnTarget, Expression.Call(@default)));
         return Expression.Block(new[] {envelopeVar, @event, currentVar}, expressions);
     }
-    
+
     public Expression BuildUpdatedWhen(Type aggregateType,
         MethodInfo method,
         Expression current,
@@ -98,22 +99,22 @@ internal class UpdatedWhenExpBuilder
             wrapper = ValueTaskHelpers.FromTaskMethod.MakeGenericMethod(aggregateType);
             return Expression.Call(wrapper, invoke);
         }
+
         if (method.ReturnType.IsValueTask(out _))
-        {
             //We don't need a wrapper
             return invoke;
-        }
         wrapper = ValueTaskHelpers.FromResultMethod.MakeGenericMethod(aggregateType);
         return Expression.Call(wrapper, invoke);
     }
-    
+
     /// <summary>
-    /// Returns parameters that are not CancellationTokens or have [FromServices] attribute
+    ///     Returns parameters that are not CancellationTokens or have [FromServices] attribute
     /// </summary>
     private static List<ParameterInfo> GetEnvelopeParams(MethodBase method) => method.GetParameters()
-        .Where(p => p.ParameterType != typeof(CancellationToken) && p.GetCustomAttribute(typeof(FromServicesAttribute)) == null)
+        .Where(p => p.ParameterType != typeof(CancellationToken) &&
+                    p.GetCustomAttribute(typeof(FromServicesAttribute)) == null)
         .ToList();
-    
+
     public void ValidateUpdatedWhen(Type aggregateType, MethodInfo method)
     {
         //We are expecting a T When(T current, EventEnvelope<TAny, TAny> @event) method
@@ -126,17 +127,18 @@ internal class UpdatedWhenExpBuilder
             case > 2:
                 throw new InvalidOperationException($"UpdateWhen method {method} has too many parameters");
         }
+
         //Must be 2 parameters: 1 Aggregate, 1 Event
         if (parameters[0].ParameterType != aggregateType || parameters[0].IsNullable())
             throw new InvalidOperationException(
                 "UpdateWhen method must take non-nullable aggregate as 1st parameter");
         new FactoryExpBuilder(_options).ValidateEnvelope(parameters[1]);
     }
-    
+
     public bool IsUpdatedWhen(Type aggregateType, MethodInfo method)
     {
         var parameters = GetEnvelopeParams(method);
-        
+
         //We are expecting a T When(T current, EventEnvelope<TAny, TAny> @event) method
         //Check if return type is aggregateType, takes 2 parameters
         //Parameter 1 should be aggregateType
@@ -152,18 +154,18 @@ internal class UpdatedWhenExpBuilder
             if (returnType != aggregateType)
                 return false;
         }
-        else 
+        else
         {
             if (method.ReturnType != aggregateType)
                 return false;
         }
 
-        return parameters.Count == 2 
-               && parameters[0].ParameterType == aggregateType 
+        return parameters.Count == 2
+               && parameters[0].ParameterType == aggregateType
                && IsEnvelope(parameters[1]);
     }
-    
-    private bool IsEnvelope(ParameterInfo parameter) => 
-        _options.IsEventEnvelope?.Invoke(parameter.ParameterType) 
+
+    private bool IsEnvelope(ParameterInfo parameter) =>
+        _options.IsEventEnvelope?.Invoke(parameter.ParameterType)
         ?? new FactoryExpBuilder(_options).IsEnvelope(parameter.ParameterType);
 }

@@ -6,8 +6,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace PureES.Core.ExpBuilders;
 
 /// <summary>
-/// Builds expressions to resolve
-/// services from <see cref="IServiceProvider"/>
+///     Builds expressions to resolve
+///     services from <see cref="IServiceProvider" />
 /// </summary>
 internal class GetServiceExpBuilder
 {
@@ -21,7 +21,7 @@ internal class GetServiceExpBuilder
         var exp = GetRequiredService(param, typeof(T));
         return Expression.Lambda<Func<IServiceProvider, T>>(exp, param).Compile();
     }
-    
+
     public Expression GetRequiredService(Expression provider, Type serviceType)
     {
         if (!typeof(IServiceProvider).IsAssignableFrom(provider.Type))
@@ -33,7 +33,7 @@ internal class GetServiceExpBuilder
         //As (T)sp.GetRequiredService(serviceType)
         var method = typeof(ServiceProviderServiceExtensions)
                          .GetMethods()
-                         .SingleOrDefault(m => 
+                         .SingleOrDefault(m =>
                              m.Name == nameof(ServiceProviderServiceExtensions.GetRequiredService)
                              && m.GetGenericArguments().Length == 1)
                      ?? throw new InvalidOperationException(

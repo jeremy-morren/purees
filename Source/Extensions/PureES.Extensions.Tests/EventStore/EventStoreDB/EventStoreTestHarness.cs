@@ -12,10 +12,9 @@ namespace PureES.Extensions.Tests.EventStore.EventStoreDB;
 [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
 public sealed class EventStoreTestHarness : IDisposable
 {
-    public readonly int Port = Random.Shared.Next(2048, 60000);
-    public readonly string ContainerId;
-
     public readonly EventStoreClient Client;
+    public readonly string ContainerId;
+    public readonly int Port = Random.Shared.Next(2048, 60000);
 
     public readonly EventStoreClientSettings Settings;
 
@@ -31,7 +30,7 @@ public sealed class EventStoreTestHarness : IDisposable
         Client.Dispose();
         DisposeContainer().GetAwaiter().GetResult();
     }
-    
+
     #region Docker
 
     private async Task<string> CreateContainer()
@@ -41,7 +40,7 @@ public sealed class EventStoreTestHarness : IDisposable
         await WaitReady(id, ct);
         return id;
     }
-    
+
     private async Task DisposeContainer()
     {
         var ct = new CancellationTokenSource(TimeSpan.FromMinutes(1)).Token;
@@ -52,32 +51,33 @@ public sealed class EventStoreTestHarness : IDisposable
 
     private async Task<string> Start(CancellationToken ct)
     {
-        var response = await DockerClient.Containers.CreateContainerAsync(new CreateContainerParameters()
+        var response = await DockerClient.Containers.CreateContainerAsync(new CreateContainerParameters
         {
-            Env = new List<string>()
+            Env = new List<string>
             {
                 "EVENTSTORE_CLUSTER_SIZE=1",
                 "EVENTSTORE_INSECURE=true",
-                "EVENTSTORE_MEM_DB=true",
+                "EVENTSTORE_MEM_DB=true"
             },
             Image = "eventstore/eventstore:21.10.8-buster-slim",
             Platform = "linux",
-            HostConfig = new HostConfig()
+            HostConfig = new HostConfig
             {
                 AutoRemove = true,
-                PortBindings = new Dictionary<string, IList<PortBinding>>()
+                PortBindings = new Dictionary<string, IList<PortBinding>>
                 {
                     {
-                        "2113/tcp", new List<PortBinding>()
+                        "2113/tcp", new List<PortBinding>
                         {
-                            {new () { HostPort = Port.ToString(), HostIP = "0.0.0.0"}}
+                            new() {HostPort = Port.ToString(), HostIP = "0.0.0.0"}
                         }
                     }
                 }
-            },
+            }
         }, ct);
         if (response.Warnings.Count > 0)
-            Debug.WriteLine($"Warnings creating container: {Environment.NewLine}{string.Join(Environment.NewLine, response.Warnings)}");
+            Debug.WriteLine(
+                $"Warnings creating container: {Environment.NewLine}{string.Join(Environment.NewLine, response.Warnings)}");
         if (!await DockerClient.Containers.StartContainerAsync(response.ID, new ContainerStartParameters(), ct))
             throw new Exception($"Error starting container {response.ID}");
         return response.ID;
@@ -90,7 +90,7 @@ public sealed class EventStoreTestHarness : IDisposable
             ct.ThrowIfCancellationRequested();
             if (await GetContainerHealthStatus(id, ct) == "healthy")
                 break;
-            await Task.Delay(millisecondsDelay: 25, ct);
+            await Task.Delay(25, ct);
         }
     }
 
@@ -99,6 +99,6 @@ public sealed class EventStoreTestHarness : IDisposable
         var response = await DockerClient.Containers.InspectContainerAsync(id, ct);
         return response.State.Health.Status;
     }
-    
+
     #endregion
 }

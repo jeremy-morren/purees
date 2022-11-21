@@ -3,11 +3,12 @@
 namespace PureES.Core.EventStore.Serialization;
 
 /// <summary>
-/// A basic implementation o f <see cref="IEventTypeMap"/>
-/// which maps via <see cref="Type.Name"/>
+///     A basic implementation o f <see cref="IEventTypeMap" />
+///     which maps via <see cref="Type.Name" />
 /// </summary>
 public class BasicEventTypeMap : IEventTypeMap
 {
+    private readonly Dictionary<string, Type> _types = new();
     public bool TryGetType(string typeName, out Type clrType) => _types.TryGetValue(typeName, out clrType!);
 
     public string GetTypeName(Type type)
@@ -18,11 +19,9 @@ public class BasicEventTypeMap : IEventTypeMap
             : type.FullName?[(type.Namespace.Length + 1)..];
         return name ?? throw new InvalidOperationException($"Unable to get name for type {type}");
     }
-    
-    private readonly Dictionary<string, Type> _types = new();
 
     /// <summary>
-    /// Adds all public types in an assembly to the map
+    ///     Adds all public types in an assembly to the map
     /// </summary>
     /// <param name="assembly">Assembly to add types for</param>
     public void AddAssembly(Assembly assembly)
@@ -34,11 +33,11 @@ public class BasicEventTypeMap : IEventTypeMap
     }
 
     /// <summary>
-    /// Adds a type to the map
+    ///     Adds a type to the map
     /// </summary>
     /// <param name="type">Type to add</param>
     /// <exception cref="InvalidOperationException">
-    /// Type with identical name already added
+    ///     Type with identical name already added
     /// </exception>
     public void AddType(Type type)
     {

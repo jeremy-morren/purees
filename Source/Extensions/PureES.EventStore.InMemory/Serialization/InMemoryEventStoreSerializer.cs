@@ -7,8 +7,8 @@ namespace PureES.EventStore.InMemory.Serialization;
 internal class InMemoryEventStoreSerializer<TMetadata> : IInMemoryEventStoreSerializer
     where TMetadata : notnull
 {
-    private readonly IEventTypeMap _typeMap;
     private readonly IEventStoreSerializer _serializer;
+    private readonly IEventTypeMap _typeMap;
 
     public InMemoryEventStoreSerializer(IEventTypeMap typeMap,
         IEventStoreSerializer serializer)
@@ -20,8 +20,8 @@ internal class InMemoryEventStoreSerializer<TMetadata> : IInMemoryEventStoreSeri
     public EventEnvelope Deserialize(EventRecord record)
     {
         var metadata = record.Metadata != null ? _serializer.Deserialize(record.Metadata, typeof(TMetadata)) : null;
-        var @event = _serializer.Deserialize(record.Data, 
-                _typeMap.TryGetType(record.EventType, out var eventType) ? eventType : null)
+        var @event = _serializer.Deserialize(record.Data,
+                         _typeMap.TryGetType(record.EventType, out var eventType) ? eventType : null)
                      ?? throw new ArgumentException($"Event data is null for event {record.EventType}");
         return new EventEnvelope(record.EventId,
             record.StreamId,
@@ -36,7 +36,7 @@ internal class InMemoryEventStoreSerializer<TMetadata> : IInMemoryEventStoreSeri
     {
         var @event = _serializer.Serialize(record.Event, out var contentType);
         var metadata = record.Metadata != null ? _serializer.Serialize(record.Metadata, out _) : null;
-        return new EventRecord()
+        return new EventRecord
         {
             StreamId = streamId,
             EventId = record.EventId,

@@ -4,8 +4,8 @@ namespace PureES.Core.ExpBuilders.AggregateCmdHandlers;
 
 internal static class ServiceExtensions
 {
-    public static async ValueTask<object?> GetMetadata(this IServiceProvider provider, 
-        object command, 
+    public static async ValueTask<object?> GetMetadata(this IServiceProvider provider,
+        object command,
         object @event,
         CancellationToken ct)
     {

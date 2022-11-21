@@ -18,16 +18,16 @@ public class UpdateOnTests
         Assert.True(HandlerHelpers.IsCommandHandler(typeof(TestAggregate), TestAggregate.UpdateMethod));
         Assert.False(HandlerHelpers.IsCreateHandler(typeof(TestAggregate), TestAggregate.UpdateMethod));
         Assert.True(HandlerHelpers.IsUpdateHandler(typeof(TestAggregate), TestAggregate.UpdateMethod));
-        
+
         Assert.True(HandlerHelpers.IsCommandHandler(typeof(TestAggregate), TestAggregate.UpdateWithSvcMethod));
         Assert.False(HandlerHelpers.IsCreateHandler(typeof(TestAggregate), TestAggregate.UpdateWithSvcMethod));
         Assert.True(HandlerHelpers.IsUpdateHandler(typeof(TestAggregate), TestAggregate.UpdateWithSvcMethod));
-        
+
         Assert.True(HandlerHelpers.IsCommandHandler(typeof(TestAggregate), TestAggregate.UpdateAsyncMethod));
         Assert.False(HandlerHelpers.IsCreateHandler(typeof(TestAggregate), TestAggregate.UpdateAsyncMethod));
         Assert.True(HandlerHelpers.IsUpdateHandler(typeof(TestAggregate), TestAggregate.UpdateAsyncMethod));
     }
-    
+
     [Fact]
     public void Invoke_Update_Command()
     {
@@ -35,7 +35,7 @@ public class UpdateOnTests
         var agg = new TestAggregate();
         var cmd = Rand.NextInt();
         var ct = new CancellationTokenSource().Token;
-        
+
         var builder = new UpdateExpBuilder(new CommandHandlerBuilderOptions());
         var exp = builder.InvokeUpdateHandler(typeof(TestAggregate),
             TestAggregate.UpdateMethod,
@@ -44,10 +44,10 @@ public class UpdateOnTests
             Expression.Constant(services, typeof(IServiceProvider)),
             Expression.Constant(ct));
         var func = Expression.Lambda<Func<(TestAggregate, string, CancellationToken)>>(exp).Compile();
-        
+
         Assert.Equal((agg, cmd.ToString(), ct), func());
     }
-    
+
     [Fact]
     public void Invoke_UpdateWithSvc_Command()
     {
@@ -56,7 +56,7 @@ public class UpdateOnTests
         var agg = new TestAggregate();
         var cmd = Rand.NextInt();
         var ct = new CancellationTokenSource().Token;
-        
+
         var builder = new UpdateExpBuilder(new CommandHandlerBuilderOptions());
         var exp = builder.InvokeUpdateHandler(typeof(TestAggregate),
             TestAggregate.UpdateWithSvcMethod,
@@ -65,10 +65,10 @@ public class UpdateOnTests
             Expression.Constant(services, typeof(IServiceProvider)),
             Expression.Constant(ct));
         var func = Expression.Lambda<Func<Service>>(exp).Compile();
-        
+
         Assert.Equal(svc, func());
     }
-    
+
     [Fact]
     public void Invoke_UpdateAsync_Command()
     {
@@ -76,7 +76,7 @@ public class UpdateOnTests
         var agg = new TestAggregate();
         var cmd = Rand.NextInt();
         var ct = new CancellationTokenSource().Token;
-        
+
         var builder = new UpdateExpBuilder(new CommandHandlerBuilderOptions());
         var exp = builder.InvokeUpdateHandler(typeof(TestAggregate),
             TestAggregate.UpdateAsyncMethod,
@@ -85,25 +85,27 @@ public class UpdateOnTests
             Expression.Constant(services, typeof(IServiceProvider)),
             Expression.Constant(ct));
         var func = Expression.Lambda<Func<Task<string>>>(exp).Compile();
-        
+
         Assert.Equal(cmd.ToString(), func().GetAwaiter().GetResult());
     }
 
     private record TestAggregate
     {
-        public static (TestAggregate, string, CancellationToken) Update(TestAggregate current, [Command] int cmd, CancellationToken ct) => (current, cmd.ToString(), ct);
-        
+        public static readonly MethodInfo UpdateMethod = typeof(TestAggregate).GetMethod(nameof(Update))!;
+        public static readonly MethodInfo UpdateWithSvcMethod = typeof(TestAggregate).GetMethod(nameof(UpdateSvc))!;
+        public static readonly MethodInfo UpdateAsyncMethod = typeof(TestAggregate).GetMethod(nameof(UpdateAsync))!;
+
+        public static (TestAggregate, string, CancellationToken) Update(TestAggregate current, [Command] int cmd,
+            CancellationToken ct) => (current, cmd.ToString(), ct);
+
         public static Service UpdateSvc(TestAggregate current, [Command] int cmd, [FromServices] Service svc)
         {
             svc.Value = cmd;
             return svc;
         }
-        
-        public static Task<string> UpdateAsync(TestAggregate current, [Command] int cmd, CancellationToken _) => Task.FromResult(cmd.ToString());
-        
-        public static readonly MethodInfo UpdateMethod = typeof(TestAggregate).GetMethod(nameof(Update))!;
-        public static readonly MethodInfo UpdateWithSvcMethod = typeof(TestAggregate).GetMethod(nameof(UpdateSvc))!;
-        public static readonly MethodInfo UpdateAsyncMethod = typeof(TestAggregate).GetMethod(nameof(UpdateAsync))!;
+
+        public static Task<string> UpdateAsync(TestAggregate current, [Command] int cmd, CancellationToken _) =>
+            Task.FromResult(cmd.ToString());
     }
 
     private class Service

@@ -2,9 +2,9 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EventStoreBackup", "EventStoreBackup\EventStoreBackup.csproj", "{EE7ED5ED-2978-48FA-8A70-BE6B2B6FE86C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AspNetCore.HealthChecks.EventStoreDB", "HealthChecks\AspNetCore.HealthChecks.EventStoreDB.csproj", "{D979E624-ACFB-4DAF-BCBB-E1219CD0E00E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HealthChecks.EventStoreDB.Grpc", "HealthChecks\HealthChecks.EventStoreDB.Grpc.csproj", "{D979E624-ACFB-4DAF-BCBB-E1219CD0E00E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tests", "Tests\Tests.csproj", "{A0FCC04B-563E-42AD-8941-292EC42E9836}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HealthChecks.EventStoreDB.Grpc.Tests", "HealthChecks.EventStoreDB.Grpc.Tests\HealthChecks.EventStoreDB.Grpc.Tests.csproj", "{A0FCC04B-563E-42AD-8941-292EC42E9836}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

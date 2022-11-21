@@ -21,32 +21,7 @@ namespace PureES.Core.Tests.ExpBuilders.WhenHandlers;
 
 public static class TestAggregates
 {
-    public static IEnumerable<Type> GetAggregateTypes() =>
-        new[]
-        {
-            typeof(Aggregate),
-            typeof(AggregateAsync),
-            typeof(AggregateValueTaskAsync),
-            typeof(AggregateCustomEnvelope),
-            typeof(AggregateAsyncCustomEnvelope),
-            typeof(AggregateValueTaskAsyncCustomEnvelope),
-        };
-
-    public static IEnumerable<object[]> GetAggregateAndCreatedEventTypes() => GetAggregateTypes()
-        .SelectMany(t => new []
-        {
-            new object[] {t, typeof(Created1)},
-            new object[] {t, typeof(Created2)}
-        });
-    
-    public static IEnumerable<object[]> GetAggregateAndUpdatedEventTypes() => GetAggregateTypes()
-        .SelectMany(t => new []
-        {
-            new object[] {t, typeof(Updated1)},
-            new object[] {t, typeof(Updated2)}
-        });
-    
-    public static CommandHandlerBuilderOptions Options => new ()
+    public static CommandHandlerBuilderOptions Options => new()
     {
         IsEventEnvelope = type =>
         {
@@ -59,7 +34,32 @@ public static class TestAggregates
         },
         GetEventType = envelope => envelope.GetGenericArguments()[0]
     };
-    
+
+    public static IEnumerable<Type> GetAggregateTypes() =>
+        new[]
+        {
+            typeof(Aggregate),
+            typeof(AggregateAsync),
+            typeof(AggregateValueTaskAsync),
+            typeof(AggregateCustomEnvelope),
+            typeof(AggregateAsyncCustomEnvelope),
+            typeof(AggregateValueTaskAsyncCustomEnvelope)
+        };
+
+    public static IEnumerable<object[]> GetAggregateAndCreatedEventTypes() => GetAggregateTypes()
+        .SelectMany(t => new[]
+        {
+            new object[] {t, typeof(Created1)},
+            new object[] {t, typeof(Created2)}
+        });
+
+    public static IEnumerable<object[]> GetAggregateAndUpdatedEventTypes() => GetAggregateTypes()
+        .SelectMany(t => new[]
+        {
+            new object[] {t, typeof(Updated1)},
+            new object[] {t, typeof(Updated2)}
+        });
+
     public static MethodInfo GetMethod(Type aggregateType, Type eventType) => aggregateType
         .GetMethods(BindingFlags.Public | BindingFlags.Static)
         .Single(m => m.Name == "When"
@@ -78,7 +78,7 @@ public static class TestAggregates
             .GetValue(aggregate);
         return env != (EventEnvelope?) null ? new EventEnvelope<TEvent, Metadata>(env) : null;
     }
-    
+
     public static void AssertEqual<TEvent>(object aggregate, EventEnvelope envelope)
         where TEvent : notnull
     {
@@ -98,11 +98,11 @@ public static class TestAggregates
     {
         var constructor = typeof(T).GetConstructors(BindingFlags.Public | BindingFlags.Instance).First();
         //Null for all parameters
-        return (T)constructor.Invoke(constructor.GetParameters().Select(_ => (object?) null).ToArray());
+        return (T) constructor.Invoke(constructor.GetParameters().Select(_ => (object?) null).ToArray());
     }
 }
 
-public record Aggregate(EventEnvelope<Created1, Metadata>? Created1, 
+public record Aggregate(EventEnvelope<Created1, Metadata>? Created1,
     EventEnvelope<Created2, Metadata>? Created2,
     EventEnvelope<Updated1, Metadata>? Updated1,
     EventEnvelope<Updated2, Metadata>? Updated2)
@@ -121,9 +121,9 @@ public record Aggregate(EventEnvelope<Created1, Metadata>? Created1,
 
     public static Aggregate When(Aggregate current, EventEnvelope<Updated1, Metadata> envelope, CancellationToken _)
         => current with {Updated1 = envelope};
-    
-    public static Aggregate When(Aggregate current, 
-        EventEnvelope<Updated2, Metadata> envelope, 
+
+    public static Aggregate When(Aggregate current,
+        EventEnvelope<Updated2, Metadata> envelope,
         [FromServices] AggregateService svc,
         CancellationToken _)
     {
@@ -133,7 +133,7 @@ public record Aggregate(EventEnvelope<Created1, Metadata>? Created1,
     }
 }
 
-public  record AggregateAsync(EventEnvelope<Created1, Metadata>? Created1, 
+public record AggregateAsync(EventEnvelope<Created1, Metadata>? Created1,
     EventEnvelope<Created2, Metadata>? Created2,
     EventEnvelope<Updated1, Metadata>? Updated1,
     EventEnvelope<Updated2, Metadata>? Updated2)
@@ -149,13 +149,13 @@ public  record AggregateAsync(EventEnvelope<Created1, Metadata>? Created1,
         return Task.FromResult(new AggregateAsync(null, envelope, null, null));
     }
 
-    public static Task<AggregateAsync> When(AggregateAsync current, 
+    public static Task<AggregateAsync> When(AggregateAsync current,
         EventEnvelope<Updated1, Metadata> envelope,
         CancellationToken _)
         => Task.FromResult(current with {Updated1 = envelope});
-    
-    public static Task<AggregateAsync> When(AggregateAsync current, 
-        EventEnvelope<Updated2, Metadata> envelope, 
+
+    public static Task<AggregateAsync> When(AggregateAsync current,
+        EventEnvelope<Updated2, Metadata> envelope,
         [FromServices] AggregateService svc,
         CancellationToken _)
     {
@@ -165,12 +165,13 @@ public  record AggregateAsync(EventEnvelope<Created1, Metadata>? Created1,
     }
 }
 
-public record AggregateValueTaskAsync(EventEnvelope<Created1, Metadata>? Created1, 
+public record AggregateValueTaskAsync(EventEnvelope<Created1, Metadata>? Created1,
     EventEnvelope<Created2, Metadata>? Created2,
     EventEnvelope<Updated1, Metadata>? Updated1,
     EventEnvelope<Updated2, Metadata>? Updated2)
 {
-    public static ValueTask<AggregateValueTaskAsync> When(EventEnvelope<Created1, Metadata> envelope, CancellationToken _) =>
+    public static ValueTask<AggregateValueTaskAsync> When(EventEnvelope<Created1, Metadata> envelope,
+        CancellationToken _) =>
         ValueTask.FromResult(new AggregateValueTaskAsync(envelope, null, null, null));
 
     public static ValueTask<AggregateValueTaskAsync> When(EventEnvelope<Created2, Metadata> envelope,
@@ -181,13 +182,13 @@ public record AggregateValueTaskAsync(EventEnvelope<Created1, Metadata>? Created
         return ValueTask.FromResult(new AggregateValueTaskAsync(null, envelope, null, null));
     }
 
-    public static ValueTask<AggregateValueTaskAsync> When(AggregateValueTaskAsync current, 
+    public static ValueTask<AggregateValueTaskAsync> When(AggregateValueTaskAsync current,
         EventEnvelope<Updated1, Metadata> envelope,
         CancellationToken _)
         => ValueTask.FromResult(current with {Updated1 = envelope});
-    
-    public static ValueTask<AggregateValueTaskAsync> When(AggregateValueTaskAsync current, 
-        EventEnvelope<Updated2, Metadata> envelope, 
+
+    public static ValueTask<AggregateValueTaskAsync> When(AggregateValueTaskAsync current,
+        EventEnvelope<Updated2, Metadata> envelope,
         [FromServices] AggregateService svc,
         CancellationToken _)
     {
@@ -214,12 +215,12 @@ public record AggregateCustomEnvelope(EventEnvelope<Created1>? Created1,
     }
 
     public static AggregateCustomEnvelope When(AggregateCustomEnvelope current,
-        EventEnvelope<Updated1> envelope, 
+        EventEnvelope<Updated1> envelope,
         CancellationToken _)
         => current with {Updated1 = envelope};
-    
-    public static AggregateCustomEnvelope When(AggregateCustomEnvelope current, 
-        EventEnvelope<Updated2> envelope, 
+
+    public static AggregateCustomEnvelope When(AggregateCustomEnvelope current,
+        EventEnvelope<Updated2> envelope,
         [FromServices] AggregateService svc,
         CancellationToken _)
     {
@@ -245,13 +246,13 @@ public record AggregateAsyncCustomEnvelope(EventEnvelope<Created1>? Created1,
         return Task.FromResult(new AggregateAsyncCustomEnvelope(null, envelope, null, null));
     }
 
-    public static Task<AggregateAsyncCustomEnvelope> When(AggregateAsyncCustomEnvelope current, 
+    public static Task<AggregateAsyncCustomEnvelope> When(AggregateAsyncCustomEnvelope current,
         EventEnvelope<Updated1> envelope,
         CancellationToken _)
         => Task.FromResult(current with {Updated1 = envelope});
-    
-    public static Task<AggregateAsyncCustomEnvelope> When(AggregateAsyncCustomEnvelope current, 
-        EventEnvelope<Updated2> envelope, 
+
+    public static Task<AggregateAsyncCustomEnvelope> When(AggregateAsyncCustomEnvelope current,
+        EventEnvelope<Updated2> envelope,
         [FromServices] AggregateService svc,
         CancellationToken _)
     {
@@ -266,10 +267,11 @@ public record AggregateValueTaskAsyncCustomEnvelope(EventEnvelope<Created1>? Cre
     EventEnvelope<Updated1>? Updated1,
     EventEnvelope<Updated2>? Updated2)
 {
-    public static ValueTask<AggregateValueTaskAsyncCustomEnvelope> When(EventEnvelope<Created1> envelope, CancellationToken _) =>
+    public static ValueTask<AggregateValueTaskAsyncCustomEnvelope> When(EventEnvelope<Created1> envelope,
+        CancellationToken _) =>
         ValueTask.FromResult(new AggregateValueTaskAsyncCustomEnvelope(envelope, null, null, null));
-    
-    public static ValueTask<AggregateValueTaskAsyncCustomEnvelope> When(EventEnvelope<Created2> envelope, 
+
+    public static ValueTask<AggregateValueTaskAsyncCustomEnvelope> When(EventEnvelope<Created2> envelope,
         [FromServices] AggregateService svc)
     {
         if (svc.Event != null)
@@ -277,13 +279,13 @@ public record AggregateValueTaskAsyncCustomEnvelope(EventEnvelope<Created1>? Cre
         return ValueTask.FromResult(new AggregateValueTaskAsyncCustomEnvelope(null, envelope, null, null));
     }
 
-    public static ValueTask<AggregateValueTaskAsyncCustomEnvelope> When(AggregateValueTaskAsyncCustomEnvelope current, 
+    public static ValueTask<AggregateValueTaskAsyncCustomEnvelope> When(AggregateValueTaskAsyncCustomEnvelope current,
         EventEnvelope<Updated1> envelope,
         CancellationToken _)
         => ValueTask.FromResult(current with {Updated1 = envelope});
-    
-    public static ValueTask<AggregateValueTaskAsyncCustomEnvelope> When(AggregateValueTaskAsyncCustomEnvelope current, 
-        EventEnvelope<Updated2> envelope, 
+
+    public static ValueTask<AggregateValueTaskAsyncCustomEnvelope> When(AggregateValueTaskAsyncCustomEnvelope current,
+        EventEnvelope<Updated2> envelope,
         [FromServices] AggregateService svc,
         CancellationToken _)
     {
@@ -294,9 +296,11 @@ public record AggregateValueTaskAsyncCustomEnvelope(EventEnvelope<Created1>? Cre
 }
 
 public record Created1(Guid Id);
+
 public record Created2(Guid Id);
 
 public record Updated1(Guid Id);
+
 public record Updated2(Guid Id);
 
 public record Metadata(Guid Id);
@@ -306,8 +310,10 @@ public record EventEnvelope<T> : EventEnvelope<T, Metadata> where T : notnull
     public EventEnvelope(EventEnvelope source) : base(source)
     {
     }
-    
-    public EventEnvelope(EventEnvelope<T> source) : base(source) {}
+
+    public EventEnvelope(EventEnvelope<T> source) : base(source)
+    {
+    }
 
     public static implicit operator EventEnvelope<T>(EventEnvelope e) => new(e);
 }

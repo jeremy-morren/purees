@@ -2,7 +2,7 @@
 using Grpc.Core;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
-namespace AspNetCore.HealthChecks.EventStoreDB;
+namespace HealthChecks.EventStoreDB.Grpc;
 
 public sealed class EventStoreDBHealthCheck : IHealthCheck, IAsyncDisposable
 {

@@ -16,7 +16,7 @@ public static class EventStoreSerializationServiceCollectionExtensions
             configureJsonOptions?.Invoke(options);
             return new JsonEventStoreSerializer(options);
         });
-        
+
         services.TryAddSingleton<IEventTypeMap>(_ =>
         {
             var map = new BasicEventTypeMap();

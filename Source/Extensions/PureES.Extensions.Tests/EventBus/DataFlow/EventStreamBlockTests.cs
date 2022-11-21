@@ -19,7 +19,7 @@ public class EventStreamBlockTests
             .Select(i => new EventEnvelope(Guid.NewGuid(),
                 $"{i / streamSize}",
                 (ulong) (i % streamSize),
-                (ulong)i,
+                (ulong) i,
                 DateTime.Now,
                 new object(),
                 null))
@@ -35,32 +35,32 @@ public class EventStreamBlockTests
             lock (result)
             {
                 result.TryAdd(e.StreamId, new List<int>());
-                result[e.StreamId].Add((int)e.StreamPosition);
+                result[e.StreamId].Add((int) e.StreamPosition);
             }
-        }, new EventStreamBlockOptions()
+        }, new EventStreamBlockOptions
         {
             MaxDegreeOfParallelism = -1
         });
-        
+
         foreach (var e in envelopes)
             block.Post(e);
 
         var streamIds = completions.Keys
             .OrderBy(_ => Guid.NewGuid())
             .ToList(); //Enumerate it
-        
+
         //Complete waits in random order
         foreach (var id in streamIds)
             completions[id].SetResult();
-        
+
         block.Complete();
         await block.Completion;
-        
+
         //Ensure all streams were processed
         Assert.All(completions.Keys, s => Assert.Contains(s, result.Keys));
 
         //Ensure the events were processed in order
-        Assert.All(result.Values, l => 
+        Assert.All(result.Values, l =>
             Assert.Equal(Enumerable.Range(0, l.Count), l));
     }
 }

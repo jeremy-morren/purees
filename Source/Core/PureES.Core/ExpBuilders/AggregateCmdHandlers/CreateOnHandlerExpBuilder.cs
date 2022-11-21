@@ -20,7 +20,7 @@ internal class CreateOnHandlerExpBuilder
             throw new ArgumentException("Invalid create handler method");
         var commandType = HandlerHelpers.GetCommandType(handlerMethod);
         MethodInfo method;
-        
+
         if (handlerMethod.ReturnType.IsValueTask(out var returnType))
         {
             if (returnType == null)
@@ -54,6 +54,7 @@ internal class CreateOnHandlerExpBuilder
                 method = HandleCreateOn.CreateOnSyncMethod
                     .MakeGenericMethod(commandType, handlerMethod.ReturnType);
         }
+
         if (serviceProvider.Type != typeof(IServiceProvider))
             throw new ArgumentException("Invalid ServiceProvider expression");
         if (cancellationToken.Type != typeof(CancellationToken))
@@ -74,12 +75,11 @@ internal class CreateOnHandlerExpBuilder
             .InvokeCreateHandler(aggregateType, handlerMethod, cmd, sp, ct);
         //Desired Func<TCommand, IServiceProvider, TEvent>
         //where TEvent is return type
-        var type = typeof(Func<,,,>).MakeGenericType(cmdType, 
-            typeof(IServiceProvider), 
-            typeof(CancellationToken), 
+        var type = typeof(Func<,,,>).MakeGenericType(cmdType,
+            typeof(IServiceProvider),
+            typeof(CancellationToken),
             handlerMethod.ReturnType);
         var lambda = Expression.Lambda(type, exp, "CreateOn", true, new[] {cmd, sp, ct});
         return Expression.Constant(lambda.Compile(), type);
     }
-    
 }

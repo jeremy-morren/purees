@@ -23,10 +23,10 @@ public class GetStreamIdBuilderTests
     [Fact]
     public void Custom_AggregateId()
     {
-        var builder = new GetStreamIdExpBuilder(new CommandHandlerBuilderOptions()
+        var builder = new GetStreamIdExpBuilder(new CommandHandlerBuilderOptions
         {
             GetAggregateIdProperty = t =>
-                t == typeof(Command) ? t.GetProperty(nameof(Command.OtherId)) : null,
+                t == typeof(Command) ? t.GetProperty(nameof(Command.OtherId)) : null
         });
         var cmd = Command.New();
         var exp = builder.GetStreamId(Expression.Constant(cmd));
@@ -36,11 +36,11 @@ public class GetStreamIdBuilderTests
         Assert.Equal(cmd.OtherId.StreamId, func());
         Assert.NotEqual(cmd.OtherId.OtherStream, func());
     }
-    
+
     [Fact]
     public void Custom_StreamId()
     {
-        var builder = new GetStreamIdExpBuilder(new CommandHandlerBuilderOptions()
+        var builder = new GetStreamIdExpBuilder(new CommandHandlerBuilderOptions
         {
             GetStreamIdProperty = t =>
                 t == typeof(AggId) ? t.GetProperty(nameof(AggId.OtherStream)) : null
@@ -57,8 +57,7 @@ public class GetStreamIdBuilderTests
     [Fact]
     public void Custom_AggregateId_And_StreamId()
     {
-        
-        var builder = new GetStreamIdExpBuilder(new CommandHandlerBuilderOptions()
+        var builder = new GetStreamIdExpBuilder(new CommandHandlerBuilderOptions
         {
             GetAggregateIdProperty = t =>
                 t == typeof(Command) ? t.GetProperty(nameof(Command.OtherId)) : null,

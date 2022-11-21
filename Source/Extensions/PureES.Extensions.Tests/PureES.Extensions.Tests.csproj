@@ -1,10 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net6.0</TargetFramework>
+        <TargetFrameworks>net6.0;net7.0;</TargetFrameworks>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <IsPackable>false</IsPackable>
+        <LangVersion>10</LangVersion>
     </PropertyGroup>
 
     <ItemGroup>
@@ -24,8 +25,8 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\PureES.EventStore.InMemory\PureES.EventStore.InMemory.csproj" />
-      <ProjectReference Include="..\PureES.EventStoreDB\PureES.EventStoreDB.csproj" />
+        <ProjectReference Include="..\PureES.EventStore.InMemory\PureES.EventStore.InMemory.csproj" />
+        <ProjectReference Include="..\PureES.EventStoreDB\PureES.EventStoreDB.csproj" />
     </ItemGroup>
 
 </Project>

@@ -20,7 +20,7 @@ public static class Services
         configure?.Invoke(services);
         return services.BuildServiceProvider();
     }
-    
+
     [Pure]
     public static ICommandHandler<T> GetCommandHandler<T>(Action<IServiceCollection> configure)
     {

@@ -28,7 +28,7 @@ public class CreateOnHandlerTests
         eventStore.Setup(s => s.Create(cmd.Id.StreamId,
                 It.Is<UncommittedEvent>(e =>
                     e.Event is Events.Created && ((Events.Created) e.Event).Equals(cmd)
-                    && ReferenceEquals(metadata, e.Metadata)),
+                                              && ReferenceEquals(metadata, e.Metadata)),
                 ct))
             .Returns(Task.FromResult(version))
             .Verifiable("EventStore.Create not called");
@@ -53,7 +53,7 @@ public class CreateOnHandlerTests
         Assert.Equal(version, func().GetAwaiter().GetResult());
         eventStore.Verify();
     }
-    
+
     [Theory]
     [InlineData(nameof(TestAggregate.CreateWithResult))]
     [InlineData(nameof(TestAggregate.CreateWithResultAsync))]
@@ -70,7 +70,7 @@ public class CreateOnHandlerTests
         eventStore.Setup(s => s.Create(cmd.Id.StreamId,
                 It.Is<UncommittedEvent>(e =>
                     e.Event is Events.Created && ((Events.Created) e.Event).Equals(cmd)
-                    && ReferenceEquals(metadata, e.Metadata)),
+                                              && ReferenceEquals(metadata, e.Metadata)),
                 ct))
             .Returns(Task.FromResult(version))
             .Verifiable("EventStore.Create not called");
@@ -95,30 +95,32 @@ public class CreateOnHandlerTests
         Assert.Equal(cmd.Id, func().GetAwaiter().GetResult().Id);
         eventStore.Verify();
     }
-    
+
     private record TestAggregate
     {
-        public static Events.Created Create([Command] Commands.Create cmd) => new (cmd.Id, cmd.Value);
+        public static Events.Created Create([Command] Commands.Create cmd) => new(cmd.Id, cmd.Value);
 
         public static Task<Events.Created> CreateAsync([Command] Commands.Create cmd) => Task.FromResult(Create(cmd));
-        
-        public static ValueTask<Events.Created> CreateValueTaskAsync([Command] Commands.Create cmd) => ValueTask.FromResult(Create(cmd));
-        
+
+        public static ValueTask<Events.Created> CreateValueTaskAsync([Command] Commands.Create cmd) =>
+            ValueTask.FromResult(Create(cmd));
+
         public static CommandResult<Events.Created, Result> CreateWithResult([Command] Commands.Create cmd)
-            => new (new Events.Created(cmd.Id, cmd.Value), new Result(cmd.Id));
+            => new(new Events.Created(cmd.Id, cmd.Value), new Result(cmd.Id));
 
         public static Task<CommandResult<Events.Created, Result>> CreateWithResultAsync([Command] Commands.Create cmd)
             => Task.FromResult(CreateWithResult(cmd));
-        
-        public static ValueTask<CommandResult<Events.Created, Result>> CreateWithResultValueTaskAsync([Command] Commands.Create cmd)
+
+        public static ValueTask<CommandResult<Events.Created, Result>> CreateWithResultValueTaskAsync(
+            [Command] Commands.Create cmd)
             => ValueTask.FromResult(CreateWithResult(cmd));
-        
+
         public static CommandResult CreateWithDerivedResult([Command] Commands.Create cmd)
-            => new (new Events.Created(cmd.Id, cmd.Value), new Result(cmd.Id));
+            => new(new Events.Created(cmd.Id, cmd.Value), new Result(cmd.Id));
 
         public static Task<CommandResult> CreateWithDerivedResultAsync([Command] Commands.Create cmd)
             => Task.FromResult(CreateWithDerivedResult(cmd));
-        
+
         public static ValueTask<CommandResult> CreateWithDerivedResultValueTaskAsync([Command] Commands.Create cmd)
             => ValueTask.FromResult(CreateWithDerivedResult(cmd));
     }

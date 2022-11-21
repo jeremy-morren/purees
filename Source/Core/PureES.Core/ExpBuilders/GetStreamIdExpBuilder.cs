@@ -6,13 +6,15 @@ using System.Reflection;
 namespace PureES.Core.ExpBuilders;
 
 /// <summary>
-/// Builds expressions to
-/// get stream id from command
+///     Builds expressions to
+///     get stream id from command
 /// </summary>
 internal class GetStreamIdExpBuilder
 {
-    private static readonly NullabilityInfoContext NullContext = new ();
-    
+    public const string AggregateIdProperty = "Id";
+    public const string StreamIdProperty = "StreamId";
+    private static readonly NullabilityInfoContext NullContext = new();
+
     private readonly CommandHandlerBuilderOptions _options;
 
     public GetStreamIdExpBuilder(CommandHandlerBuilderOptions options) => _options = options;
@@ -36,12 +38,13 @@ internal class GetStreamIdExpBuilder
         return props.SingleOrDefault(p => p.Name == AggregateIdProperty)
                ?? throw new InvalidOperationException($"AggregateId property not found on command type {commandType}");
     }
-    
+
     private static void ValidAggregateIdProperty(Type commandType, PropertyInfo prop)
     {
         //Ensure type is class/struct
         if (!prop.PropertyType.IsClass && !(prop.PropertyType.IsValueType && !prop.PropertyType.IsPrimitive))
-            throw new InvalidOperationException($"AggregateId must be strongly-typed with StreamId property for command {commandType}");
+            throw new InvalidOperationException(
+                $"AggregateId must be strongly-typed with StreamId property for command {commandType}");
         //Check nullability
         if ((prop.PropertyType.IsClass && NullContext.Create(prop).ReadState == NullabilityState.Nullable)
             || Nullable.GetUnderlyingType(prop.PropertyType) != null)
@@ -70,7 +73,4 @@ internal class GetStreamIdExpBuilder
         if (!prop.GetGetMethod()!.IsPublic)
             throw new InvalidOperationException($"Getter not public for property {prop} on {idType}");
     }
-
-    public const string AggregateIdProperty = "Id";
-    public const string StreamIdProperty = "StreamId";
 }

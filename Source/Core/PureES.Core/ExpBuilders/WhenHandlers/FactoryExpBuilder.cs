@@ -4,36 +4,37 @@ using System.Reflection;
 namespace PureES.Core.ExpBuilders.WhenHandlers;
 
 /// <summary>
-/// Builds an expression which
-/// left folds over an Array of Events
+///     Builds an expression which
+///     left folds over an Array of Events
 /// </summary>
 /// <remarks>
-/// Works with 2 methods : CreateWhen(event) and UpdateWhen(Agg, event)
-/// (depending on if this is the first event)
+///     Works with 2 methods : CreateWhen(event) and UpdateWhen(Agg, event)
+///     (depending on if this is the first event)
 /// </remarks>
 internal class FactoryExpBuilder
 {
+    public const string MethodName = "When";
     private readonly CommandHandlerBuilderOptions _options;
 
     public FactoryExpBuilder(CommandHandlerBuilderOptions options) => _options = options;
 
     public Expression BuildExpression(Type aggregateType,
-        Expression @events,
+        Expression events,
         Expression serviceProvider,
         Expression cancellationToken)
     {
-        if (!typeof(IAsyncEnumerable<EventEnvelope>).IsAssignableFrom(@events.Type))
+        if (!typeof(IAsyncEnumerable<EventEnvelope>).IsAssignableFrom(events.Type))
             throw new InvalidOperationException("Invalid events expression");
         if (cancellationToken.Type != typeof(CancellationToken))
             throw new InvalidOperationException("Invalid CancellationToken expression");
         var method = typeof(FactoryExpBuilder).GetStaticMethod(nameof(Load)).MakeGenericMethod(aggregateType);
         var createdWhen = BuildCreatedWhen(aggregateType);
         var updatedWhen = BuildUpdatedWhen(aggregateType);
-        return Expression.Call(method, @events, createdWhen, updatedWhen, serviceProvider, cancellationToken);
+        return Expression.Call(method, events, createdWhen, updatedWhen, serviceProvider, cancellationToken);
     }
 
     private static async ValueTask<LoadedAggregate<T>> Load<T>(IAsyncEnumerable<EventEnvelope> events,
-        Func<EventEnvelope, IServiceProvider, CancellationToken, ValueTask<T>> createWhen, 
+        Func<EventEnvelope, IServiceProvider, CancellationToken, ValueTask<T>> createWhen,
         Func<T, EventEnvelope, IServiceProvider, CancellationToken, ValueTask<T>> updateWhen,
         IServiceProvider serviceProvider,
         CancellationToken ct)
@@ -43,13 +44,14 @@ internal class FactoryExpBuilder
             throw new ArgumentException("Provided events list is empty");
         //TODO: handle exceptions in when methods
         var current = await createWhen(enumerator.Current, serviceProvider, ct);
-        var revision = (ulong)1; //After createWhen version is 1
+        var revision = (ulong) 1; //After createWhen version is 1
         while (await enumerator.MoveNextAsync())
         {
             ct.ThrowIfCancellationRequested();
             current = await updateWhen(current, enumerator.Current, serviceProvider, ct);
             ++revision;
         }
+
         return new LoadedAggregate<T>(current, revision);
     }
 
@@ -61,15 +63,15 @@ internal class FactoryExpBuilder
         var builder = new CreatedWhenExpBuilder(_options);
         var exp = builder.BuildCreateExpression(aggregateType, envelope, serviceProvider, token);
         //Results in Func<EventEnvelope, IServiceProvider, CancellationToken, ValueTask<T>>
-        var type = typeof(Func<,,,>).MakeGenericType(typeof(EventEnvelope), 
+        var type = typeof(Func<,,,>).MakeGenericType(typeof(EventEnvelope),
             typeof(IServiceProvider),
             typeof(CancellationToken),
             typeof(ValueTask<>).MakeGenericType(aggregateType));
-        var lambda = Expression.Lambda(type, exp, "CreatedWhen", true, 
+        var lambda = Expression.Lambda(type, exp, "CreatedWhen", true,
             new[] {envelope, serviceProvider, token});
         return Expression.Constant(lambda.Compile(), type);
     }
-    
+
     private ConstantExpression BuildUpdatedWhen(Type aggregateType)
     {
         var current = Expression.Parameter(aggregateType);
@@ -79,17 +81,15 @@ internal class FactoryExpBuilder
         var builder = new UpdatedWhenExpBuilder(_options);
         var exp = builder.BuildUpdateExpression(aggregateType, current, @event, serviceProvider, token);
         //Results in Func<T, EventEnvelope, IServiceProvider, CancellationToken, ValueTask<T>>
-        var type = typeof(Func<,,,,>).MakeGenericType(aggregateType, 
-            typeof(EventEnvelope),  
+        var type = typeof(Func<,,,,>).MakeGenericType(aggregateType,
+            typeof(EventEnvelope),
             typeof(IServiceProvider),
             typeof(CancellationToken),
             typeof(ValueTask<>).MakeGenericType(aggregateType));
-        var lambda = Expression.Lambda(type, exp, "UpdatedWhen", true, 
-            new []{current, @event, serviceProvider, token});
+        var lambda = Expression.Lambda(type, exp, "UpdatedWhen", true,
+            new[] {current, @event, serviceProvider, token});
         return Expression.Constant(lambda.Compile(), type);
     }
-
-    public const string MethodName = "When";
 
     public static void ValidateWhen(Type aggregateType, MethodInfo method)
     {
@@ -101,13 +101,16 @@ internal class FactoryExpBuilder
         if (method.ReturnType.IsTask(out var rt) || method.ReturnType.IsValueTask(out rt))
         {
             if (rt != aggregateType || rt.IsNullable())
-                throw new InvalidOperationException($"When method does not return {methodName} non-nullable aggregate type");
+                throw new InvalidOperationException(
+                    $"When method does not return {methodName} non-nullable aggregate type");
         }
         else
         {
             if (method.ReturnType != aggregateType || method.ReturnType.IsNullable())
-                throw new InvalidOperationException($"When method does not return {methodName} non-nullable aggregate type");
+                throw new InvalidOperationException(
+                    $"When method does not return {methodName} non-nullable aggregate type");
         }
+
         if (!method.IsStatic)
             throw new InvalidOperationException($"When method {methodName} is not static static");
     }
@@ -124,6 +127,7 @@ internal class FactoryExpBuilder
                 throw ex;
             return;
         }
+
         var args = parameter.ParameterType.GetGenericArguments();
         if (args.Length != 2) throw ex;
         if (typeof(EventEnvelope<,>).MakeGenericType(args) != parameter.ParameterType) throw ex;

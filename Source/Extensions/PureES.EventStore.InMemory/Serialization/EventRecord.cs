@@ -8,19 +8,21 @@ using ProtoBuf;
 
 namespace PureES.EventStore.InMemory.Serialization;
 
-[JsonSerializable(typeof(EventRecord)), ProtoContract]
+[JsonSerializable(typeof(EventRecord))]
+[ProtoContract]
 internal class EventRecord
 {
+    [ProtoMember(8)] [JsonInclude] public string ContentType;
+    [ProtoMember(3)] [JsonInclude] public DateTime Created;
+    [ProtoMember(6)] [JsonInclude] public byte[] Data;
+    [ProtoMember(4)] [JsonInclude] public Guid EventId;
+    [ProtoMember(5)] [JsonInclude] public string EventType;
+    [ProtoMember(7)] [JsonInclude] public byte[]? Metadata;
+
+    [JsonIgnore] [ProtoIgnore] public uint OverallPosition;
     //ProtoMember(1) is reserved for length
 
-    [ProtoMember(2), JsonInclude] public string StreamId;
-    [ProtoMember(3), JsonInclude] public DateTime Created;
-    [ProtoMember(4), JsonInclude] public Guid EventId;
-    [ProtoMember(5), JsonInclude] public string EventType;
-    [ProtoMember(6), JsonInclude] public byte[] Data;
-    [ProtoMember(7), JsonInclude] public byte[]? Metadata;
-    [ProtoMember(8), JsonInclude] public string ContentType;
+    [ProtoMember(2)] [JsonInclude] public string StreamId;
 
-    [JsonIgnore, ProtoIgnore] public uint StreamPosition;
-    [JsonIgnore, ProtoIgnore] public uint OverallPosition;
+    [JsonIgnore] [ProtoIgnore] public uint StreamPosition;
 }

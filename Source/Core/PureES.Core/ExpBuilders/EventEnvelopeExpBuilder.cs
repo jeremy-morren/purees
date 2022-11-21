@@ -14,7 +14,7 @@ internal class NewEventEnvelopeExpBuilder
         if (sourceEnvelope.Type != typeof(EventEnvelope))
             throw new ArgumentException("Invalid source envelope expression");
         var constructor = envelopeType.GetConstructors()
-                              .SingleOrDefault(c => 
+                              .SingleOrDefault(c =>
                                   c.GetParameters().Length == 1
                                   && c.GetParameters()[0].ParameterType == typeof(EventEnvelope))
                           ?? throw new InvalidOperationException(Resources.InvalidEnvelopeType);
@@ -30,6 +30,7 @@ internal class NewEventEnvelopeExpBuilder
                 throw ex;
             return;
         }
+
         var args = envelopeType.GetGenericArguments();
         if (args.Length != 2) throw ex;
         if (typeof(EventEnvelope<,>).MakeGenericType(args) != envelopeType) throw ex;

@@ -1,10 +1,9 @@
-﻿using AspNetCore.HealthChecks.EventStoreDB;
-using EventStore.Client;
+﻿using EventStore.Client;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Moq;
 using PureES.Extensions.Tests.EventStore.EventStoreDB;
 
-namespace Tests;
+namespace HealthChecks.EventStoreDB.Grpc.Tests;
 
 public class HealthCheckTests : IClassFixture<EventStoreTestHarness>
 {

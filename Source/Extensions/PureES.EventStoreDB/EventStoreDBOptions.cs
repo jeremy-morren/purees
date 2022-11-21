@@ -11,13 +11,13 @@ public class EventStoreDBOptions
     public string ConnectionString { get; set; } = null!;
 
     /// <summary>
-    /// Whether the server certificate should be validated
-    /// i.e. disable self-signed certificate chains
+    ///     Whether the server certificate should be validated
+    ///     i.e. disable self-signed certificate chains
     /// </summary>
     public bool ValidateCertificate { get; set; } = true;
-    
+
     /// <summary>
-    /// Configure logging
+    ///     Configure logging
     /// </summary>
     public bool EnableLogging { get; set; } = false;
 

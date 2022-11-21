@@ -1,12 +1,7 @@
 using EventStore.Client;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using PureES.Core;
 using PureES.Core.EventStore;
 using PureES.EventStoreDB.Subscriptions;
-using Timeout = System.Threading.Timeout;
 
 // ReSharper disable ClassNeverInstantiated.Global
 
@@ -14,11 +9,11 @@ namespace PureES.EventStoreDB;
 
 public static class EventStoreDBServiceCollectionExtensions
 {
-    public static IServiceCollection AddEventStoreDB(this IServiceCollection services, 
+    public static IServiceCollection AddEventStoreDB(this IServiceCollection services,
         Action<EventStoreDBOptions> configureOptions)
     {
         return services
-            .AddSingleton<EventStoreClient>(sp =>
+            .AddSingleton(sp =>
             {
                 var options = new EventStoreDBOptions();
                 configureOptions(options);

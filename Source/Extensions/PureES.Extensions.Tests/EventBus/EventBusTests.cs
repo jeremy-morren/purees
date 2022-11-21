@@ -19,7 +19,7 @@ public class EventBusTests
             .AddEventHandler(_ => handler2.Object)
             .BuildServiceProvider();
 
-        var envelope = CompositeEventHandlerTests.NewEnvelope();
+        var envelope = NewEnvelope();
         var ct = new CancellationTokenSource().Token;
         await services.GetRequiredService<IEventBus>().Publish(envelope, ct);
 
@@ -28,7 +28,7 @@ public class EventBusTests
         handler2.Verify(h => h.Handle(
             It.Is<EventEnvelope<object, object>>(e => e == envelope), ct), Times.Once);
     }
-    
+
     [Fact]
     public async Task Handle_With_No_Event_Handlers()
     {
@@ -37,8 +37,17 @@ public class EventBusTests
             .AddEventBus()
             .BuildServiceProvider();
 
-        var envelope = CompositeEventHandlerTests.NewEnvelope();
+        var envelope = NewEnvelope();
         var ct = new CancellationTokenSource().Token;
         await services.GetRequiredService<IEventBus>().Publish(envelope, ct);
     }
+
+    public static EventEnvelope NewEnvelope() => new(
+        Guid.NewGuid(),
+        Guid.NewGuid().ToString(),
+        0,
+        0,
+        DateTime.UtcNow,
+        new object(),
+        new object());
 }

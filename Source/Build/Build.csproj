@@ -10,9 +10,9 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Bullseye" Version="4.0.0" />
-      <PackageReference Include="CommandLineParser" Version="2.9.1" />
-      <PackageReference Include="SimpleExec" Version="11.0.0" />
+        <PackageReference Include="Bullseye" Version="4.0.0"/>
+        <PackageReference Include="CommandLineParser" Version="2.9.1"/>
+        <PackageReference Include="SimpleExec" Version="11.0.0"/>
     </ItemGroup>
 
 </Project>

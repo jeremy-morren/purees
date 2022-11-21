@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Options;
 
 // ReSharper disable MemberCanBePrivate.Global
 
@@ -14,28 +13,28 @@ public static class EventBusServiceCollectionExtensions
         services.TryAddSingleton(new EventHandlerCollection());
         services.Configure<EventBusOptions>(o => configureOptions?.Invoke(o));
     }
-    
+
     /// <summary>
-    /// Adds an <see cref="IEventBus"/> to the service collection
+    ///     Adds an <see cref="IEventBus" /> to the service collection
     /// </summary>
     /// <returns>
-    /// The service collection so that additional calls can be chained
+    ///     The service collection so that additional calls can be chained
     /// </returns>
-    public static IServiceCollection AddEventBus(this IServiceCollection services, 
+    public static IServiceCollection AddEventBus(this IServiceCollection services,
         Action<EventBusOptions>? configureOptions = null)
     {
         services.AddEventHandlersCore(configureOptions);
-        
+
         services.TryAddSingleton<IEventBus, EventBus>();
-        
+
         return services;
     }
 
     /// <summary>
-    /// Adds an event handler for event <typeparamref name="TEvent"/>
+    ///     Adds an event handler for event <typeparamref name="TEvent" />
     /// </summary>
     /// <returns>
-    /// The service collection so that additional calls can be chained
+    ///     The service collection so that additional calls can be chained
     /// </returns>
     public static IServiceCollection AddEventHandler<TEvent, TMetadata>(this IServiceCollection services,
         Func<IServiceProvider, IEventHandler<TEvent, TMetadata>> factory)

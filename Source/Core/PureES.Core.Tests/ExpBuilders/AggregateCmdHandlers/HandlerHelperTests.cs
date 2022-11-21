@@ -28,12 +28,10 @@ public class HandlerHelperTests
     private record OtherResult(int Event, string Result)
         : OtherResult<int>(Event, Result)
     {
-        
     }
-    
+
     private record OtherResult<TEvent>(TEvent Event, string Result)
         : CommandResult<TEvent, string>(Event, Result)
     {
-        
     }
 }

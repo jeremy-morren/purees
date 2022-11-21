@@ -9,11 +9,28 @@ namespace PureES.Core.ExpBuilders.AggregateCmdHandlers;
 
 internal static class HandleCreateOn
 {
+    public static readonly MethodInfo CreateOnSyncMethod = typeof(HandleCreateOn).GetStaticMethod(nameof(CreateOnSync));
+
+    public static readonly MethodInfo CreateOnAsyncMethod =
+        typeof(HandleCreateOn).GetStaticMethod(nameof(CreateOnAsync));
+
+    public static readonly MethodInfo CreateOnValueTaskAsyncMethod =
+        typeof(HandleCreateOn).GetStaticMethod(nameof(CreateOnValueTaskAsync));
+
+    public static readonly MethodInfo CreateOnSyncResultMethod =
+        typeof(HandleCreateOn).GetStaticMethod(nameof(CreateOnSyncResult));
+
+    public static readonly MethodInfo CreateOnAsyncResultMethod =
+        typeof(HandleCreateOn).GetStaticMethod(nameof(CreateOnAsyncResult));
+
+    public static readonly MethodInfo CreateOnValueTaskAsyncResultMethod =
+        typeof(HandleCreateOn).GetStaticMethod(nameof(CreateOnValueTaskAsyncResult));
+
     public static async Task<ulong> CreateOnSync<TCommand, TResponse>(TCommand command,
         Func<TCommand, string> getStreamId,
         Func<TCommand, IServiceProvider, CancellationToken, TResponse> handle,
         IServiceProvider serviceProvider,
-        CancellationToken ct) 
+        CancellationToken ct)
         where TCommand : notnull
         where TResponse : notnull
     {
@@ -31,12 +48,12 @@ internal static class HandleCreateOn
             throw;
         }
     }
-    
+
     public static async Task<TResult> CreateOnSyncResult<TCommand, TResponse, TEvent, TResult>(TCommand command,
         Func<TCommand, string> getStreamId,
         Func<TCommand, IServiceProvider, CancellationToken, TResponse> handle,
         IServiceProvider serviceProvider,
-        CancellationToken ct) 
+        CancellationToken ct)
         where TCommand : notnull
         where TResponse : CommandResult<TEvent, TResult>
     {
@@ -46,12 +63,12 @@ internal static class HandleCreateOn
         await ProcessCreateResponse(logger, serviceProvider, getStreamId, command, response.Event, ct);
         return response.Result;
     }
-    
+
     public static async Task<ulong> CreateOnAsync<TCommand, TResponse>(TCommand command,
         Func<TCommand, string> getStreamId,
         Func<TCommand, IServiceProvider, CancellationToken, Task<TResponse>> handle,
         IServiceProvider serviceProvider,
-        CancellationToken ct) 
+        CancellationToken ct)
         where TCommand : notnull
     {
         var logger = serviceProvider.GetRequiredService<ILoggerFactory>()
@@ -59,12 +76,12 @@ internal static class HandleCreateOn
         var response = await handle(command, serviceProvider, ct);
         return await ProcessCreateResponse(logger, serviceProvider, getStreamId, command, response, ct);
     }
-    
+
     public static async Task<ulong> CreateOnValueTaskAsync<TCommand, TResponse>(TCommand command,
         Func<TCommand, string> getStreamId,
         Func<TCommand, IServiceProvider, CancellationToken, ValueTask<TResponse>> handle,
         IServiceProvider serviceProvider,
-        CancellationToken ct) 
+        CancellationToken ct)
         where TCommand : notnull
     {
         var logger = serviceProvider.GetRequiredService<ILoggerFactory>()
@@ -72,12 +89,12 @@ internal static class HandleCreateOn
         var response = await handle(command, serviceProvider, ct);
         return await ProcessCreateResponse(logger, serviceProvider, getStreamId, command, response, ct);
     }
-    
+
     public static async Task<TResult> CreateOnAsyncResult<TCommand, TResponse, TEvent, TResult>(TCommand command,
         Func<TCommand, string> getStreamId,
         Func<TCommand, IServiceProvider, CancellationToken, Task<TResponse>> handle,
         IServiceProvider serviceProvider,
-        CancellationToken ct) 
+        CancellationToken ct)
         where TCommand : notnull
         where TResponse : CommandResult<TEvent, TResult>
     {
@@ -87,12 +104,13 @@ internal static class HandleCreateOn
         await ProcessCreateResponse(logger, serviceProvider, getStreamId, command, response.Event, ct);
         return response.Result;
     }
-    
-    public static async Task<TResult> CreateOnValueTaskAsyncResult<TCommand, TResponse, TEvent, TResult>(TCommand command,
+
+    public static async Task<TResult> CreateOnValueTaskAsyncResult<TCommand, TResponse, TEvent, TResult>(
+        TCommand command,
         Func<TCommand, string> getStreamId,
         Func<TCommand, IServiceProvider, CancellationToken, ValueTask<TResponse>> handle,
         IServiceProvider serviceProvider,
-        CancellationToken ct) 
+        CancellationToken ct)
         where TCommand : notnull
         where TResponse : CommandResult<TEvent, TResult>
     {
@@ -102,17 +120,17 @@ internal static class HandleCreateOn
         await ProcessCreateResponse(logger, serviceProvider, getStreamId, command, response.Event, ct);
         return response.Result;
     }
-    
-    
+
+
     /// <summary>
-    /// Persists a create command handler response to <see cref="IEventStore"/>
+    ///     Persists a create command handler response to <see cref="IEventStore" />
     /// </summary>
     /// <returns></returns>
     private static async Task<ulong> ProcessCreateResponse<TCommand, TResponse>(ILogger logger,
         IServiceProvider serviceProvider,
         Func<TCommand, string> getStreamId,
         TCommand command,
-        TResponse? response, 
+        TResponse? response,
         CancellationToken ct)
         where TCommand : notnull
     {
@@ -131,6 +149,7 @@ internal static class HandleCreateOn
                 metadata = await enricher.GetMetadata(command, e, ct);
                 events.Add(new UncommittedEvent(Guid.NewGuid(), e, metadata));
             }
+
             revision = await store.Create(streamId, events, ct);
         }
         else
@@ -139,15 +158,9 @@ internal static class HandleCreateOn
             var @event = new UncommittedEvent(Guid.NewGuid(), response, metadata);
             revision = await store.Create(streamId, @event, ct);
         }
+
         logger.LogInformation("Successfully handled {@Command}. Stream {StreamId} now at revision {Revision}",
             typeof(TCommand), streamId, revision);
         return revision;
     }
-
-    public static readonly MethodInfo CreateOnSyncMethod = typeof(HandleCreateOn).GetStaticMethod(nameof(CreateOnSync));
-    public static readonly MethodInfo CreateOnAsyncMethod = typeof(HandleCreateOn).GetStaticMethod(nameof(CreateOnAsync));
-    public static readonly MethodInfo CreateOnValueTaskAsyncMethod = typeof(HandleCreateOn).GetStaticMethod(nameof(CreateOnValueTaskAsync));
-    public static readonly MethodInfo CreateOnSyncResultMethod = typeof(HandleCreateOn).GetStaticMethod(nameof(CreateOnSyncResult));
-    public static readonly MethodInfo CreateOnAsyncResultMethod = typeof(HandleCreateOn).GetStaticMethod(nameof(CreateOnAsyncResult));
-    public static readonly MethodInfo CreateOnValueTaskAsyncResultMethod = typeof(HandleCreateOn).GetStaticMethod(nameof(CreateOnValueTaskAsyncResult));
 }

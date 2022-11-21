@@ -34,7 +34,6 @@ internal class CreateExpBuilder
         var parameters = new List<Expression>();
         var commandParamFound = false;
         foreach (var p in methodInfo.GetParameters())
-        {
             if (p.GetCustomAttribute(typeof(CommandAttribute)) != null)
             {
                 if (commandParamFound)
@@ -60,7 +59,7 @@ internal class CreateExpBuilder
                     .Replace("{Parameter}", p.Name);
                 throw new InvalidOperationException(message);
             }
-        }
+
         return Expression.Call(methodInfo, parameters.ToArray());
     }
 }

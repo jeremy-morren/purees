@@ -1,5 +1,4 @@
-﻿using System.Text.Json;
-using EventStore.Client;
+﻿using EventStore.Client;
 using PureES.Core;
 using PureES.Core.EventStore;
 using PureES.Core.EventStore.Serialization;
@@ -9,8 +8,8 @@ namespace PureES.EventStoreDB.Serialization;
 internal class EventStoreDBSerializer<TMetadata> : IEventStoreDBSerializer
     where TMetadata : notnull
 {
-    private readonly IEventTypeMap _typeMap;
     private readonly IEventStoreSerializer _serializer;
+    private readonly IEventTypeMap _typeMap;
 
     public EventStoreDBSerializer(IEventTypeMap typeMap,
         IEventStoreSerializer serializer)
@@ -21,9 +20,11 @@ internal class EventStoreDBSerializer<TMetadata> : IEventStoreDBSerializer
 
     public EventEnvelope Deserialize(EventRecord record)
     {
-        var metadata = record.Metadata.Length > 0 ? _serializer.Deserialize(record.Metadata.Span, typeof(TMetadata)) : null;
-        var @event = _serializer.Deserialize(record.Data.Span, 
-                _typeMap.TryGetType(record.EventType, out var eventType) ? eventType : null)
+        var metadata = record.Metadata.Length > 0
+            ? _serializer.Deserialize(record.Metadata.Span, typeof(TMetadata))
+            : null;
+        var @event = _serializer.Deserialize(record.Data.Span,
+                         _typeMap.TryGetType(record.EventType, out var eventType) ? eventType : null)
                      ?? throw new ArgumentException($"Event data is null for event {record.EventType}");
         return new EventEnvelope(record.EventId.ToGuid(),
             record.EventStreamId,

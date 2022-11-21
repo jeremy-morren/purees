@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Immutable;
 using System.Linq.Expressions;
 using PureES.Core.EventStore;
 using PureES.Core.ExpBuilders;
@@ -23,7 +22,7 @@ public class NewUncommittedEventExpBuilderTests
         Assert.Same(@event.Value, @new.Event);
         Assert.Same(metadata.Value, @new.Metadata);
     }
-    
+
     [Fact]
     public void CreateUncommittedEvent_WithComplexTypes()
     {

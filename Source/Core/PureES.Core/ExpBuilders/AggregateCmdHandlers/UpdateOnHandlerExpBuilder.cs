@@ -1,9 +1,5 @@
-﻿using System.Collections;
-using System.Linq.Expressions;
+﻿using System.Linq.Expressions;
 using System.Reflection;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using PureES.Core.EventStore;
 using PureES.Core.ExpBuilders.Services;
 
 namespace PureES.Core.ExpBuilders.AggregateCmdHandlers;
@@ -57,6 +53,7 @@ internal class UpdateOnHandlerExpBuilder
                 method = HandleUpdateOn.UpdateOnSyncMethod
                     .MakeGenericMethod(aggregateType, commandType, handlerMethod.ReturnType);
         }
+
         if (serviceProvider.Type != typeof(IServiceProvider))
             throw new ArgumentException("Invalid ServiceProvider expression");
         if (cancellationToken.Type != typeof(CancellationToken))
@@ -73,7 +70,7 @@ internal class UpdateOnHandlerExpBuilder
             serviceProvider,
             cancellationToken);
     }
-    
+
     private ConstantExpression BuildUpdateHandler(Type aggregateType, MethodInfo handlerMethod)
     {
         var cmdType = HandlerHelpers.GetCommandType(handlerMethod);
@@ -87,13 +84,13 @@ internal class UpdateOnHandlerExpBuilder
         //where TEvent is return type
         var type = typeof(Func<,,,,>).MakeGenericType(
             aggregateType,
-            cmdType, 
-            typeof(IServiceProvider), 
-            typeof(CancellationToken), 
+            cmdType,
+            typeof(IServiceProvider),
+            typeof(CancellationToken),
             handlerMethod.ReturnType);
         var lambda = Expression.Lambda(type, exp, "UpdateOn", true, new[] {current, cmd, sp, ct});
         return Expression.Constant(lambda.Compile(), type);
     }
-    
+
     //TODO: Log matched method + aggregate
 }

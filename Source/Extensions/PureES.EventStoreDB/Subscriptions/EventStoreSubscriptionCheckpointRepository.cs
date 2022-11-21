@@ -1,5 +1,4 @@
-﻿using System.Text;
-using System.Text.Json;
+﻿using System.Text.Json;
 using EventStore.Client;
 
 namespace PureES.EventStoreDB.Subscriptions;
@@ -8,15 +7,16 @@ internal class EventStoreSubscriptionCheckpointRepository : ISubscriptionCheckpo
 {
     private readonly EventStoreClient _eventStoreClient;
 
-    public EventStoreSubscriptionCheckpointRepository(EventStoreClient eventStoreClient) => _eventStoreClient = eventStoreClient;
+    public EventStoreSubscriptionCheckpointRepository(EventStoreClient eventStoreClient) =>
+        _eventStoreClient = eventStoreClient;
 
     public async ValueTask<ulong?> Load(string subscriptionId, CancellationToken ct)
     {
         var streamName = GetCheckpointStreamName(subscriptionId);
 
-        var result = _eventStoreClient.ReadStreamAsync(Direction.Backwards, 
-            streamName, 
-            StreamPosition.End, 
+        var result = _eventStoreClient.ReadStreamAsync(Direction.Backwards,
+            streamName,
+            StreamPosition.End,
             1,
             cancellationToken: ct);
 
@@ -68,6 +68,8 @@ internal class EventStoreSubscriptionCheckpointRepository : ISubscriptionCheckpo
 
     private static string GetCheckpointStreamName(string subscriptionId) => $"checkpoint_{subscriptionId}";
 
+    public static bool IsCheckpointEvent(EventRecord record) => record.EventType == nameof(CheckpointStored);
+
     public record CheckpointStored(string SubscriptionId, ulong? Position, DateTime CheckPointedAt)
     {
         public EventData CreateEvent() => new(Uuid.NewUuid(),
@@ -77,6 +79,4 @@ internal class EventStoreSubscriptionCheckpointRepository : ISubscriptionCheckpo
         public static CheckpointStored? DeSerialize(EventRecord source) =>
             JsonSerializer.Deserialize<CheckpointStored>(source.Data.Span);
     }
-
-    public static bool IsCheckpointEvent(EventRecord record) => record.EventType == nameof(CheckpointStored);
 }

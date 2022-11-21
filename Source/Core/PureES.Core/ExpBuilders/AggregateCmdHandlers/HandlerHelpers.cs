@@ -1,5 +1,4 @@
-﻿using System.Collections;
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 using System.Reflection;
 
@@ -62,7 +61,7 @@ public static class HandlerHelpers
     {
         //Check if method has any parameters that match aggregateType
         return IsCommandHandler(aggregateType, method)
-            && method.GetParameters().All(p => p.ParameterType != aggregateType);
+               && method.GetParameters().All(p => p.ParameterType != aggregateType);
     }
 
     public static bool IsUpdateHandler(Type aggregateType, MethodInfo method)
@@ -88,8 +87,8 @@ public static class HandlerHelpers
             $"Handler methods must have at least 1 parameter decorated with {typeof(CommandAttribute)}");
 
     /// <summary>
-    /// Checks that a type is <see cref="CommandResult{TEvent,TResult}"/>
-    /// of a deriving type
+    ///     Checks that a type is <see cref="CommandResult{TEvent,TResult}" />
+    ///     of a deriving type
     /// </summary>
     /// <param name="type">Type to check</param>
     /// <param name="event">Type of response (i.e. <c>TEvent</c>)</param>
@@ -120,6 +119,7 @@ public static class HandlerHelpers
                     $"Method {method.DeclaringType?.FullName}+{method.Name} returns non-generic Task");
             return IsCommandResult(returnType, out _, out result);
         }
+
         if (method.ReturnType.IsValueTask(out returnType))
         {
             if (returnType == null)
@@ -127,6 +127,7 @@ public static class HandlerHelpers
                     $"Method {method.DeclaringType?.FullName}+{method.Name} returns non-generic ValueTask");
             return IsCommandResult(returnType, out _, out result);
         }
+
         return IsCommandResult(method.ReturnType, out _, out result);
     }
 }

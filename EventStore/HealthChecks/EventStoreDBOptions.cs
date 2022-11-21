@@ -3,18 +3,12 @@ using EventStore.Client;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace AspNetCore.HealthChecks.EventStoreDB;
+namespace HealthChecks.EventStoreDB.Grpc;
 
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public class EventStoreDBOptions
 {
     public string ConnectionString { get; set; } = null!;
-
-    /// <summary>
-    /// Whether the server certificate should be validated
-    /// i.e. disable self-signed certificate chains
-    /// </summary>
-    public bool ValidateCertificate { get; set; } = true;
     
     /// <summary>
     /// Configure logging
@@ -31,8 +25,6 @@ public class EventStoreDBOptions
             var handler = new SocketsHttpHandler();
             if (EnableLogging)
                 settings.LoggerFactory = services.GetRequiredService<ILoggerFactory>();
-            if (!ValidateCertificate)
-                handler.SslOptions.RemoteCertificateValidationCallback = (_, _, _, _) => true;
             return handler;
         };
         return settings;

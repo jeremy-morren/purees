@@ -1,6 +1,4 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using PureES.Core;
 using PureES.EventBus;
 using Raven.Client.Documents;
@@ -13,7 +11,8 @@ namespace PureES.RavenDB;
 public static class ProjectionServiceExtensions
 {
     public static IServiceCollection On<TEvent, TMetadata>(this IServiceCollection services,
-        Func<IServiceProvider, IAsyncDocumentSession, EventEnvelope<TEvent, TMetadata>, CancellationToken, Task> @delegate)
+        Func<IServiceProvider, IAsyncDocumentSession, EventEnvelope<TEvent, TMetadata>, CancellationToken, Task>
+            @delegate)
         where TEvent : notnull
         where TMetadata : notnull
         => services.AddEventHandler(sp => new AsyncRavenEventHandler<TEvent, TMetadata>(

@@ -11,7 +11,6 @@ using PureES.Core.Tests.ExpBuilders.AggregateCmdHandlers;
 using PureES.Core.Tests.Models;
 using PureES.EventStore.InMemory;
 using PureES.EventStore.InMemory.Serialization;
-using PureES.EventStoreDB.Serialization;
 using Xunit;
 
 // ReSharper disable UnusedMember.Local
@@ -29,7 +28,7 @@ public class BuildCommandHandlerTests
     [InlineData(typeof(AggregateValueTaskAsync))]
     public async Task BuildNoResult(Type aggregateType)
     {
-        await using var sp = BuildServices(aggregateType, out var create, out var update);
+        using var sp = BuildServices(aggregateType, out var create, out var update);
 
         var createHandler = sp.GetRequiredService<ICommandHandler<Commands.Create>>();
         var updateHandler = sp.GetRequiredService<ICommandHandler<Commands.Update>>();
@@ -37,19 +36,19 @@ public class BuildCommandHandlerTests
         Assert.Equal((ulong) 0, await createHandler.Handle(create, default));
 
         await Verify(aggregateType, sp, create, null);
-        
+
         Assert.Equal((ulong) 1, await updateHandler.Handle(update, default));
 
         await Verify(aggregateType, sp, create, update);
     }
-    
+
     [Theory]
     [InlineData(typeof(AggregateResult))]
     [InlineData(typeof(AggregateAsyncResult))]
     [InlineData(typeof(AggregateValueTaskAsyncResult))]
     public async Task BuildResult(Type aggregateType)
     {
-        await using var sp = BuildServices(aggregateType, out var create, out var update);
+        using var sp = BuildServices(aggregateType, out var create, out var update);
 
         var createHandler = sp.GetRequiredService<ICommandHandler<Commands.Create>>();
         var updateHandler = sp.GetRequiredService<ICommandHandler<Commands.Update>>();
@@ -57,19 +56,20 @@ public class BuildCommandHandlerTests
         Assert.Equal(create.Id, (await createHandler.Handle<Result>(create, default)).Id);
 
         await Verify(aggregateType, sp, create, null);
-        
+
         Assert.Equal(create.Id, (await updateHandler.Handle<Result>(update, default)).Id);
 
         await Verify(aggregateType, sp, create, update);
     }
 
-    private static ServiceProvider BuildServices(Type aggregateType, out Commands.Create create, out Commands.Update update)
+    private static ServiceProvider BuildServices(Type aggregateType, out Commands.Create create,
+        out Commands.Update update)
     {
         create = Commands.Create.New();
         update = Commands.Update.New(create.Id);
 
         var createCmd = create;
-        
+
         var updateCmd = update;
         var services = new ServiceCollection();
         services.AddLogging(builder =>
@@ -77,10 +77,11 @@ public class BuildCommandHandlerTests
             builder.ClearProviders();
             builder.AddProvider(NullLoggerProvider.Instance);
         });
-    
+
         services
             .AddPureESCore()
-            .AddEventStoreSerializerCore(configureTypeMap: mapper => mapper.AddAssembly(typeof(BuildCommandHandlerTests).Assembly))
+            .AddEventStoreSerializerCore(configureTypeMap: mapper =>
+                mapper.AddAssembly(typeof(BuildCommandHandlerTests).Assembly))
             .AddInMemoryEventStoreSerializer<Metadata>()
             .AddInMemoryEventStore()
             .AddEventEnricher((c, _) =>
@@ -88,14 +89,15 @@ public class BuildCommandHandlerTests
                 switch (c)
                 {
                     case Commands.Create:
-                        Assert.Equal<object>(createCmd, c);
+                        Assert.Equal(createCmd, c);
                         break;
                     case Commands.Update:
-                        Assert.Equal<object>(updateCmd, c);
+                        Assert.Equal(updateCmd, c);
                         break;
                     default:
                         throw new Exception($"Unknown command {c.GetType()}");
                 }
+
                 return new Metadata();
             })
             .AddOptimisticConcurrency(c =>
@@ -109,7 +111,7 @@ public class BuildCommandHandlerTests
                         throw new Exception($"Unknown command {c.GetType()}");
                 }
             });
-        
+
         services.AddSingleton(PureESServices.Build(aggregateType, new CommandHandlerBuilderOptions()));
 
         return services.BuildServiceProvider();
@@ -124,7 +126,7 @@ public class BuildCommandHandlerTests
                                 .GetMethod(nameof(VerifyGeneric), BindingFlags.Static | BindingFlags.NonPublic)
                             ?? throw new Exception("Unable to get generic verify method");
         genericMethod = genericMethod.MakeGenericMethod(aggregateType);
-        return (Task)genericMethod.Invoke(null, new object?[]
+        return (Task) genericMethod.Invoke(null, new object?[]
         {
             services,
             create,
@@ -132,12 +134,12 @@ public class BuildCommandHandlerTests
         })!;
     }
 
-    private static async Task VerifyGeneric<TAggregate>(IServiceProvider services, 
+    private static async Task VerifyGeneric<TAggregate>(IServiceProvider services,
         Commands.Create create,
         Commands.Update? update)
         where TAggregate : notnull
     {
-        var revision = update != null ? (ulong)1 : 0;
+        var revision = update != null ? (ulong) 1 : 0;
         var store = services.GetRequiredService<IAggregateStore<TAggregate>>();
         var aggregate = await store.Load(create.Id.StreamId, revision, default);
         Assert.Equal(revision + 1, aggregate.Version);
@@ -146,14 +148,14 @@ public class BuildCommandHandlerTests
         {
             var prop = typeof(TAggregate)
                            .GetProperties(BindingFlags.Instance | BindingFlags.Public)
-                           .SingleOrDefault(p => p.PropertyType == typeof(TValue)) 
+                           .SingleOrDefault(p => p.PropertyType == typeof(TValue))
                        ?? throw new Exception($"Unable to get property of type {typeof(TValue)}");
             return (TValue?) prop.GetValue(aggregate.Aggregate);
         }
 
         var created = GetProperty<EventEnvelope<Events.Created, Metadata>>();
         var updated = GetProperty<EventEnvelope<Events.Updated, Metadata>>();
-        
+
         Assert.NotNull(created);
         Assert.Equal(create.Value, created?.Event.Value);
 
@@ -166,9 +168,9 @@ public class BuildCommandHandlerTests
 
     private record Result(TestAggregateId Id);
 
-    
+
     #region Aggregates
-    
+
     [Aggregate]
     private record Aggregate(EventEnvelope<Events.Created, Metadata> Created,
         EventEnvelope<Events.Updated, Metadata>? Updated)
@@ -177,8 +179,8 @@ public class BuildCommandHandlerTests
 
         public static Aggregate When(Aggregate current, EventEnvelope<Events.Updated, Metadata> e)
             => current with {Updated = e};
-        
-        public static Events.Created Create([Command] Commands.Create cmd) => new (cmd.Id, cmd.Value);
+
+        public static Events.Created Create([Command] Commands.Create cmd) => new(cmd.Id, cmd.Value);
 
         public static Events.Updated UpdateOn(Aggregate current, [Command] Commands.Update cmd)
         {
@@ -187,7 +189,7 @@ public class BuildCommandHandlerTests
             return new Events.Updated(cmd.Id, cmd.Value);
         }
     }
-    
+
     [Aggregate]
     private record AggregateAsync(EventEnvelope<Events.Created, Metadata> Created,
         EventEnvelope<Events.Updated, Metadata>? Updated)
@@ -196,7 +198,7 @@ public class BuildCommandHandlerTests
 
         public static AggregateAsync When(AggregateAsync current, EventEnvelope<Events.Updated, Metadata> e)
             => current with {Updated = e};
-        
+
         public static Task<Events.Created> CreateAsync([Command] Commands.Create cmd)
             => Task.FromResult(new Events.Created(cmd.Id, cmd.Value));
 
@@ -207,27 +209,29 @@ public class BuildCommandHandlerTests
             return Task.FromResult(new Events.Updated(cmd.Id, cmd.Value));
         }
     }
-    
+
     [Aggregate]
     private record AggregateValueTaskAsync(EventEnvelope<Events.Created, Metadata> Created,
         EventEnvelope<Events.Updated, Metadata>? Updated)
     {
         public static AggregateValueTaskAsync When(EventEnvelope<Events.Created, Metadata> e) => new(e, null);
 
-        public static AggregateValueTaskAsync When(AggregateValueTaskAsync current, EventEnvelope<Events.Updated, Metadata> e)
+        public static AggregateValueTaskAsync When(AggregateValueTaskAsync current,
+            EventEnvelope<Events.Updated, Metadata> e)
             => current with {Updated = e};
-        
+
         public static ValueTask<Events.Created> CreateAsync([Command] Commands.Create cmd)
             => ValueTask.FromResult(new Events.Created(cmd.Id, cmd.Value));
 
-        public static ValueTask<Events.Updated> UpdateOnAsync(AggregateValueTaskAsync current, [Command] Commands.Update cmd)
+        public static ValueTask<Events.Updated> UpdateOnAsync(AggregateValueTaskAsync current,
+            [Command] Commands.Update cmd)
         {
             Assert.NotNull(current);
             Assert.NotNull(current.Created);
             return ValueTask.FromResult(new Events.Updated(cmd.Id, cmd.Value));
         }
     }
-    
+
     [Aggregate]
     private record AggregateResult(EventEnvelope<Events.Created, Metadata> Created,
         EventEnvelope<Events.Updated, Metadata>? Updated)
@@ -236,11 +240,11 @@ public class BuildCommandHandlerTests
 
         public static AggregateResult When(AggregateResult current, EventEnvelope<Events.Updated, Metadata> e)
             => current with {Updated = e};
-        
+
         public static CommandResult<Events.Created, Result> CreateWithResult([Command] Commands.Create cmd)
-            => new (new Events.Created(cmd.Id, cmd.Value), new Result(cmd.Id));
-        
-        public static CommandResult<Events.Updated, Result> UpdateWithResult(AggregateResult current, 
+            => new(new Events.Created(cmd.Id, cmd.Value), new Result(cmd.Id));
+
+        public static CommandResult<Events.Updated, Result> UpdateWithResult(AggregateResult current,
             [Command] Commands.Update cmd)
         {
             Assert.NotNull(current);
@@ -248,7 +252,7 @@ public class BuildCommandHandlerTests
             return new CommandResult<Events.Updated, Result>(new Events.Updated(cmd.Id, cmd.Value), new Result(cmd.Id));
         }
     }
-    
+
     [Aggregate]
     private record AggregateAsyncResult(EventEnvelope<Events.Created, Metadata> Created,
         EventEnvelope<Events.Updated, Metadata>? Updated)
@@ -261,12 +265,12 @@ public class BuildCommandHandlerTests
         public static Task<CommandResult<Events.Created, Result>> CreateAsyncResult([Command] Commands.Create cmd)
         {
             var result = new CommandResult<Events.Created, Result>(
-                new Events.Created(cmd.Id, cmd.Value), 
+                new Events.Created(cmd.Id, cmd.Value),
                 new Result(cmd.Id));
             return Task.FromResult(result);
         }
 
-        public static Task<CommandResult<Events.Updated, Result>> UpdateAsyncResult(AggregateAsyncResult current, 
+        public static Task<CommandResult<Events.Updated, Result>> UpdateAsyncResult(AggregateAsyncResult current,
             [Command] Commands.Update cmd)
         {
             Assert.NotNull(current);
@@ -277,26 +281,28 @@ public class BuildCommandHandlerTests
             return Task.FromResult(result);
         }
     }
-    
-    
+
+
     [Aggregate]
     private record AggregateValueTaskAsyncResult(EventEnvelope<Events.Created, Metadata> Created,
         EventEnvelope<Events.Updated, Metadata>? Updated)
     {
         public static AggregateValueTaskAsyncResult When(EventEnvelope<Events.Created, Metadata> e) => new(e, null);
 
-        public static AggregateValueTaskAsyncResult When(AggregateValueTaskAsyncResult current, EventEnvelope<Events.Updated, Metadata> e)
+        public static AggregateValueTaskAsyncResult When(AggregateValueTaskAsyncResult current,
+            EventEnvelope<Events.Updated, Metadata> e)
             => current with {Updated = e};
 
         public static ValueTask<CommandResult<Events.Created, Result>> CreateAsyncResult([Command] Commands.Create cmd)
         {
             var result = new CommandResult<Events.Created, Result>(
-                new Events.Created(cmd.Id, cmd.Value), 
+                new Events.Created(cmd.Id, cmd.Value),
                 new Result(cmd.Id));
             return ValueTask.FromResult(result);
         }
 
-        public static ValueTask<CommandResult<Events.Updated, Result>> UpdateAsyncResult(AggregateValueTaskAsyncResult current, 
+        public static ValueTask<CommandResult<Events.Updated, Result>> UpdateAsyncResult(
+            AggregateValueTaskAsyncResult current,
             [Command] Commands.Update cmd)
         {
             Assert.NotNull(current);
@@ -307,6 +313,6 @@ public class BuildCommandHandlerTests
             return ValueTask.FromResult(result);
         }
     }
-    
+
     #endregion
 }

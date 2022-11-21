@@ -18,11 +18,11 @@ public class CreateOnTests
         Assert.True(HandlerHelpers.IsCommandHandler(typeof(TestAggregate), TestAggregate.CreateMethod));
         Assert.True(HandlerHelpers.IsCreateHandler(typeof(TestAggregate), TestAggregate.CreateMethod));
         Assert.False(HandlerHelpers.IsUpdateHandler(typeof(TestAggregate), TestAggregate.CreateMethod));
-        
+
         Assert.True(HandlerHelpers.IsCommandHandler(typeof(TestAggregate), TestAggregate.CreateWithSvcMethod));
         Assert.True(HandlerHelpers.IsCreateHandler(typeof(TestAggregate), TestAggregate.CreateWithSvcMethod));
         Assert.False(HandlerHelpers.IsUpdateHandler(typeof(TestAggregate), TestAggregate.CreateWithSvcMethod));
-        
+
         Assert.True(HandlerHelpers.IsCommandHandler(typeof(TestAggregate), TestAggregate.CreateAsyncMethod));
         Assert.True(HandlerHelpers.IsCreateHandler(typeof(TestAggregate), TestAggregate.CreateAsyncMethod));
         Assert.False(HandlerHelpers.IsUpdateHandler(typeof(TestAggregate), TestAggregate.CreateAsyncMethod));
@@ -34,7 +34,7 @@ public class CreateOnTests
         using var services = Services.Build();
         var cmd = Rand.NextInt();
         var ct = new CancellationTokenSource().Token;
-        
+
         var builder = new CreateExpBuilder(new CommandHandlerBuilderOptions());
         var exp = builder.InvokeCreateHandler(typeof(TestAggregate),
             TestAggregate.CreateMethod,
@@ -42,17 +42,17 @@ public class CreateOnTests
             Expression.Constant(services, typeof(IServiceProvider)),
             Expression.Constant(ct));
         var func = Expression.Lambda<Func<(string, CancellationToken)>>(exp).Compile();
-        
+
         Assert.Equal((cmd.ToString(), ct), func());
     }
-    
+
     [Fact]
     public void Invoke_CreateAsync_Command()
     {
         using var services = Services.Build();
         var cmd = Rand.NextInt();
         var ct = new CancellationTokenSource().Token;
-        
+
         var builder = new CreateExpBuilder(new CommandHandlerBuilderOptions());
         var exp = builder.InvokeCreateHandler(typeof(TestAggregate),
             TestAggregate.CreateAsyncMethod,
@@ -63,7 +63,7 @@ public class CreateOnTests
 
         Assert.Equal(cmd.ToString(), func().GetAwaiter().GetResult());
     }
-    
+
     [Fact]
     public void Invoke_Create_Command_With_Service()
     {
@@ -71,7 +71,7 @@ public class CreateOnTests
         using var services = Services.Build(s => s.AddSingleton(svc));
         var cmd = Rand.NextInt();
         var ct = new CancellationTokenSource().Token;
-        
+
         var builder = new CreateExpBuilder(new CommandHandlerBuilderOptions());
         var exp = builder.InvokeCreateHandler(typeof(TestAggregate),
             TestAggregate.CreateWithSvcMethod,
@@ -86,19 +86,21 @@ public class CreateOnTests
 
     private record TestAggregate
     {
-        public static (string, CancellationToken) Create([Command] int cmd, CancellationToken ct) => (cmd.ToString(), ct);
-        
+        public static readonly MethodInfo CreateMethod = typeof(TestAggregate).GetMethod(nameof(Create))!;
+        public static readonly MethodInfo CreateWithSvcMethod = typeof(TestAggregate).GetMethod(nameof(CreateSvc))!;
+        public static readonly MethodInfo CreateAsyncMethod = typeof(TestAggregate).GetMethod(nameof(CreateAsync))!;
+
+        public static (string, CancellationToken) Create([Command] int cmd, CancellationToken ct) =>
+            (cmd.ToString(), ct);
+
         public static string CreateSvc([Command] int cmd, [FromServices] Service svc)
         {
             svc.Value = cmd;
             return cmd.ToString();
         }
-        
-        public static Task<string> CreateAsync([Command] int cmd, CancellationToken _) => Task.FromResult(cmd.ToString());
 
-        public static readonly MethodInfo CreateMethod = typeof(TestAggregate).GetMethod(nameof(Create))!;
-        public static readonly MethodInfo CreateWithSvcMethod = typeof(TestAggregate).GetMethod(nameof(CreateSvc))!;
-        public static readonly MethodInfo CreateAsyncMethod = typeof(TestAggregate).GetMethod(nameof(CreateAsync))!;
+        public static Task<string> CreateAsync([Command] int cmd, CancellationToken _) =>
+            Task.FromResult(cmd.ToString());
     }
 
     private class Service

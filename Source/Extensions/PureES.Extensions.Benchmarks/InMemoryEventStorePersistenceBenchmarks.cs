@@ -1,8 +1,6 @@
 ﻿using System.Text.Json.Nodes;
 using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Jobs;
 using Microsoft.Extensions.Internal;
-using PureES.Core;
 using PureES.Core.EventStore;
 using PureES.EventStore.InMemory;
 
@@ -12,6 +10,8 @@ namespace PureES.Extensions.Benchmarks;
 
 public class InMemoryEventStorePersistenceBenchmarks
 {
+    private readonly InMemoryEventStore _store = new TestInMemoryEventStore();
+
     [Params(10, 100, 1000, 10_000, 100_000)]
     public int N;
 
@@ -24,12 +24,10 @@ public class InMemoryEventStorePersistenceBenchmarks
         new TestInMemoryEventStore().Load(ms);
     }
 
-    private readonly InMemoryEventStore _store = new TestInMemoryEventStore();
-
     [GlobalSetup]
     public async Task SetupAsync()
     {
-        var @events = Enumerable.Range(0, N / 10)
+        var events = Enumerable.Range(0, N / 10)
             .Select(i => $"stream-{i}")
             .SelectMany(stream => Enumerable.Range(0, 10)
                 .Select(_ => new UncommittedEvent(Guid.NewGuid(),
@@ -38,8 +36,7 @@ public class InMemoryEventStorePersistenceBenchmarks
                 .Select(e => (stream, e)))
             .OrderBy(p => p.e.EventId)
             .ToList();
-        foreach (var (stream, e) in @events)
-        {
+        foreach (var (stream, e) in events)
             if (await _store.Exists(stream, default))
             {
                 var revision = await _store.GetRevision(stream, default);
@@ -49,12 +46,11 @@ public class InMemoryEventStorePersistenceBenchmarks
             {
                 await _store.Create(stream, e, default);
             }
-        }
     }
-    
+
     private class TestInMemoryEventStore : InMemoryEventStore
     {
-        public TestInMemoryEventStore() 
+        public TestInMemoryEventStore()
             : base(TestSerializer.InMemoryEventStoreSerializer, new SystemClock(), TestSerializer.EventTypeMap)
         {
         }

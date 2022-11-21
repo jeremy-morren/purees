@@ -14,7 +14,7 @@ internal static class TypeExtensions
         if (IsNullable(parameter.ParameterType)) return true;
         return Nullability.Create(parameter).WriteState == NullabilityState.Nullable;
     }
-    
+
     [MethodImpl(MethodImplOptions.Synchronized)] //This is necessary for some reason
     public static bool IsNullable(this PropertyInfo property)
     {
@@ -42,7 +42,7 @@ internal static class TypeExtensions
                 return false;
         }
     }
-    
+
     public static bool IsValueTask(this Type type, out Type? valueType)
     {
         switch (type.GetGenericArguments().Length)

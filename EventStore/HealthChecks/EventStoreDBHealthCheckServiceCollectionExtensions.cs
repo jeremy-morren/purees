@@ -2,7 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
-namespace AspNetCore.HealthChecks.EventStoreDB;
+namespace HealthChecks.EventStoreDB.Grpc;
 
 public static class EventStoreDBHealthCheckServiceCollectionExtensions
 {

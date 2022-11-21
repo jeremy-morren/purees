@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Linq;
 using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,12 +7,14 @@ using Microsoft.Extensions.DependencyInjection;
 using PureES.Core.ExpBuilders;
 using PureES.Core.ExpBuilders.WhenHandlers;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace PureES.Core.Tests.ExpBuilders.WhenHandlers;
 
 public class FactoryExpBuilderTests
 {
+    public static IEnumerable<object[]> GetAggregateAndCreatedEventTypes =>
+        TestAggregates.GetAggregateAndCreatedEventTypes();
+
     [Theory]
     [MemberData(nameof(GetAggregateAndCreatedEventTypes))]
     public async Task BuildFactory(Type aggregateType, Type eventType)
@@ -23,27 +23,27 @@ public class FactoryExpBuilderTests
         var task = method.MakeGenericMethod(aggregateType, eventType).Invoke(null, Array.Empty<object>());
         await (Task) task!;
     }
-    
-    private static async Task InvokeFactoryGeneric<TAggregate, TCreated>() 
+
+    private static async Task InvokeFactoryGeneric<TAggregate, TCreated>()
         where TAggregate : notnull
         where TCreated : notnull
     {
         var svc = new AggregateService();
-        await using var sp = new ServiceCollection()
+        using var sp = new ServiceCollection()
             .AddSingleton(svc)
             .BuildServiceProvider();
-        
+
         var param = Expression.Parameter(typeof(IAsyncEnumerable<EventEnvelope>));
         var builder = new FactoryExpBuilder(TestAggregates.Options);
         var exp = builder.BuildExpression(typeof(TAggregate),
             param,
             Expression.Constant(sp, typeof(IServiceProvider)),
             Expression.Constant(default(CancellationToken)));
-        
-        var func = Expression.Lambda<Func<IAsyncEnumerable<EventEnvelope>, 
+
+        var func = Expression.Lambda<Func<IAsyncEnumerable<EventEnvelope>,
             ValueTask<LoadedAggregate<TAggregate>>>>(exp, param).Compile();
-    
-        EventEnvelope CreateEnvelope<TEvent>() where TEvent : notnull => new (Guid.NewGuid(),
+
+        EventEnvelope CreateEnvelope<TEvent>() where TEvent : notnull => new(Guid.NewGuid(),
             Guid.NewGuid().ToString(),
             Rand.NextULong(),
             Rand.NextULong(),
@@ -58,13 +58,10 @@ public class FactoryExpBuilderTests
         var agg = await func(new[] {created, updated1, updated2}.AsAsyncEnumerable());
 
         Assert.NotNull(agg);
-        Assert.Equal((ulong)3, agg.Version);
+        Assert.Equal((ulong) 3, agg.Version);
 
         TestAggregates.AssertEqual<TCreated>(agg.Aggregate, created);
         TestAggregates.AssertEqual<Updated1>(agg.Aggregate, updated1);
         TestAggregates.AssertEqual<Updated2>(agg.Aggregate, updated2);
     }
-
-    public static IEnumerable<object[]> GetAggregateAndCreatedEventTypes =>
-        TestAggregates.GetAggregateAndCreatedEventTypes();
 }

@@ -1,10 +1,6 @@
 ﻿using System.Diagnostics.CodeAnalysis;
-using System.Text.Json;
-using System.Text.Json.Nodes;
 using Microsoft.Extensions.Internal;
-using PureES.Core;
 using PureES.Core.EventStore;
-using PureES.Core.EventStore.Serialization;
 using PureES.EventStore.InMemory;
 
 namespace PureES.Extensions.Tests.EventStore;
@@ -17,23 +13,12 @@ public class InMemoryEventStoreTests : EventStoreTestsBase
 
     protected override IEventStore CreateStore() => _store;
 
-    [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
-    private class TestInMemoryEventStore : InMemoryEventStore
-    {
-        public TestInMemoryEventStore() 
-            : base(TestSerializer.InMemoryEventStoreSerializer,
-                new SystemClock(),
-                TestSerializer.EventTypeMap)
-        {
-        }
-    }
-
     [Fact]
     public void SaveAndLoad()
     {
         var source = new TestInMemoryEventStore();
         Setup(source).GetAwaiter().GetResult();
-        
+
         using var ms = new MemoryStream();
         source.Save(ms);
         ms.Seek(0, SeekOrigin.Begin);
@@ -54,7 +39,6 @@ public class InMemoryEventStoreTests : EventStoreTestsBase
                 .Select(e => (stream, NewEvent())))
             .OrderBy(p => p.Item2.EventId);
         foreach (var (stream, e) in data)
-        {
             if (await eventStore.Exists(stream, default))
             {
                 var revision = await eventStore.GetRevision(stream, default);
@@ -64,6 +48,16 @@ public class InMemoryEventStoreTests : EventStoreTestsBase
             {
                 await eventStore.Create(stream, e, default);
             }
+    }
+
+    [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
+    private class TestInMemoryEventStore : InMemoryEventStore
+    {
+        public TestInMemoryEventStore()
+            : base(TestSerializer.InMemoryEventStoreSerializer,
+                new SystemClock(),
+                TestSerializer.EventTypeMap)
+        {
         }
     }
 }

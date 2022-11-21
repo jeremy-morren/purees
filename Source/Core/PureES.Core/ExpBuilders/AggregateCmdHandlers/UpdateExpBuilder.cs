@@ -29,7 +29,6 @@ internal class UpdateExpBuilder
             throw new InvalidOperationException("Command handler methods must have parameters");
         var commandParamFound = false;
         foreach (var p in methodInfo.GetParameters())
-        {
             if (p.ParameterType == aggregateType)
             {
                 parameters.Add(aggregate);
@@ -55,7 +54,7 @@ internal class UpdateExpBuilder
             {
                 throw new InvalidOperationException(Resources.UndecoratedHandlerParameter);
             }
-        }
+
         return Expression.Call(methodInfo, parameters.ToArray());
     }
 }

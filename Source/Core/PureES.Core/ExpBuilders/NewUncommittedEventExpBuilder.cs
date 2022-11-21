@@ -1,5 +1,4 @@
-﻿using System.Collections;
-using System.Linq.Expressions;
+﻿using System.Linq.Expressions;
 using PureES.Core.EventStore;
 
 // ReSharper disable MemberCanBeMadeStatic.Global
@@ -19,7 +18,7 @@ internal class NewUncommittedEventExpBuilder
                      throw new InvalidOperationException("Could not get Guid.NewGuid() method");
         return New(Expression.Call(method), @event, metadata);
     }
-    
+
     public Expression New(Expression eventId, Expression @event, Expression metadata)
     {
         //Looks like new UncommittedEvent(eventId, streamId, @event, metadata)
