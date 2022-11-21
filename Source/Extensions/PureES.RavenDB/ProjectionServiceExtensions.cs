@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using PureES.Core;
 using PureES.EventBus;
 using Raven.Client.Documents;
@@ -17,7 +18,7 @@ public static class ProjectionServiceExtensions
         where TMetadata : notnull
         => services.AddEventHandler(sp => new AsyncRavenEventHandler<TEvent, TMetadata>(
             sp.GetRequiredService<IDocumentStore>(),
-            sp.GetRequiredService<RavenDBOptions>(),
+            sp.GetRequiredService<IOptions<RavenDBOptions>>(),
             @delegate,
             sp));
 
@@ -27,7 +28,7 @@ public static class ProjectionServiceExtensions
         where TMetadata : notnull =>
         services.AddEventHandler(sp => new SyncRavenEventHandler<TEvent, TMetadata>(
             sp.GetRequiredService<IDocumentStore>(),
-            sp.GetRequiredService<RavenDBOptions>(),
+            sp.GetRequiredService<IOptions<RavenDBOptions>>(),
             @delegate,
             sp));
 

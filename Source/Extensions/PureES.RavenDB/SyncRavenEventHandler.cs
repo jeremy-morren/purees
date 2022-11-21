@@ -1,4 +1,5 @@
-﻿using PureES.Core;
+﻿using Microsoft.Extensions.Options;
+using PureES.Core;
 using PureES.EventBus;
 using Raven.Client.Documents;
 using Raven.Client.Documents.Session;
@@ -10,12 +11,12 @@ internal class SyncRavenEventHandler<TEvent, TMetadata> : IEventHandler<TEvent, 
     where TMetadata : notnull
 {
     private readonly Action<IServiceProvider, IAsyncDocumentSession, EventEnvelope<TEvent, TMetadata>> _delegate;
-    private readonly RavenDBOptions _options;
+    private readonly IOptions<RavenDBOptions> _options;
     private readonly IServiceProvider _services;
     private readonly IDocumentStore _store;
 
     public SyncRavenEventHandler(IDocumentStore store,
-        RavenDBOptions options,
+        IOptions<RavenDBOptions> options,
         Action<IServiceProvider, IAsyncDocumentSession, EventEnvelope<TEvent, TMetadata>> @delegate,
         IServiceProvider services)
     {
@@ -27,7 +28,7 @@ internal class SyncRavenEventHandler<TEvent, TMetadata> : IEventHandler<TEvent, 
 
     public async Task Handle(EventEnvelope<TEvent, TMetadata> @event, CancellationToken ct)
     {
-        using var session = _store.OpenAsyncSession(_options.Database);
+        using var session = _store.OpenAsyncSession(_options.Value.Database);
         _delegate(_services, session, @event);
         await session.SaveChangesAsync(ct);
     }
