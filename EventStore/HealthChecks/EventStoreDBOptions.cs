@@ -9,10 +9,17 @@ namespace HealthChecks.EventStoreDB.Grpc;
 public class EventStoreDBOptions
 {
     public string ConnectionString { get; set; } = null!;
-    
+
     /// <summary>
-    /// Configure logging
+    /// Gets or sets whether the eventstore TLS certificate should
+    /// be validated. Defaults to <c>true</c>
     /// </summary>
+    /// <remarks>
+    /// Set to <c>true</c> to allow self-signed certificates
+    /// </remarks>
+    public bool ValidateServerCertificate { get; set; } = true;
+
+    /// <summary>Gets or sets whether HTTP logging should be enabled. Defaults to <c>false</c></summary>
     public bool EnableLogging { get; set; } = false;
 
     public EventStoreClientSettings CreateSettings(IServiceProvider services)
@@ -25,6 +32,8 @@ public class EventStoreDBOptions
             var handler = new SocketsHttpHandler();
             if (EnableLogging)
                 settings.LoggerFactory = services.GetRequiredService<ILoggerFactory>();
+            if (!ValidateServerCertificate)
+                handler.SslOptions.RemoteCertificateValidationCallback = (_, _, _, _) => true;
             return handler;
         };
         return settings;
