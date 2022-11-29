@@ -48,6 +48,8 @@ public class EventBusTests
         0,
         0,
         DateTime.UtcNow,
-        new object(),
-        new object());
+        new Lazy<object>(() => Object),
+        new Lazy<object?>(() => Object));
+
+    private static readonly object Object = new();
 }

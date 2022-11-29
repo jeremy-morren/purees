@@ -34,26 +34,35 @@ public abstract class EventStoreTestsBase
         Assert.Equal(revision, ex.CurrentRevision);
     }
 
-    [Fact]
-    public async Task Append()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Append(bool useOptimisticConcurrency)
     {
         var store = CreateStore();
-        const string stream = nameof(Append);
+        var stream = nameof(Append)+useOptimisticConcurrency;
         var events = Enumerable.Range(0, 10)
             .Select(_ => NewEvent())
             .ToList();
         Assert.Equal((ulong) 4, await store.Create(stream, events.Take(5), default));
-        Assert.Equal((ulong) 9, await store.Append(stream, 4, events.Skip(5), default));
+        Assert.Equal((ulong) 9, useOptimisticConcurrency
+            ? await store.Append(stream, 4, events.Skip(5), default)
+            : await store.Append(stream, events.Skip(5), default));
         await AssertEqual(events, store.Read(stream, default));
         Assert.Equal((ulong) events.Count - 1, await store.GetRevision(stream, default));
     }
 
-    [Fact]
-    public async Task Append_To_Invalid_Should_Throw()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Append_To_Invalid_Should_Throw(bool useOptimisticConcurrency)
     {
         var store = CreateStore();
-        const string stream = nameof(Append_To_Invalid_Should_Throw);
-        await Assert.ThrowsAsync<StreamNotFoundException>(() => store.Append(stream, 0, NewEvent(), default));
+        var stream = nameof(Append_To_Invalid_Should_Throw)+useOptimisticConcurrency;
+        await Assert.ThrowsAsync<StreamNotFoundException>(() =>
+            useOptimisticConcurrency
+                ? store.Append(stream, 0, NewEvent(), default)
+                : store.Append(stream, NewEvent(), default));
     }
 
     [Fact]
@@ -111,6 +120,26 @@ public abstract class EventStoreTestsBase
         await AssertWrongVersion(() => store.Read(stream, 0, default));
 
         await AssertWrongVersion(() => store.ReadPartial(stream, RandVersion(events.Count + 1), default));
+    }
+
+    [Fact]
+    public async Task Count()
+    {
+        var store = CreateStore();
+        const string stream = nameof(Count);
+        var events = Enumerable.Range(0, 10)
+            .Select(_ => NewEvent())
+            .ToList();
+        await store.Create(stream, events, default);
+        Assert.Equal((ulong) events.Count, await store.Count(stream, default));
+    }
+
+    [Fact]
+    public async Task Count_Invalid_Should_Throw()
+    {
+        var store = CreateStore();
+        const string stream = nameof(Count_Invalid_Should_Throw);
+        await Assert.ThrowsAsync<StreamNotFoundException>(() => store.Count(stream, default));
     }
 
     [Fact]

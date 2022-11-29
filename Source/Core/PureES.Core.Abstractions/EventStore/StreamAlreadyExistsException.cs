@@ -2,6 +2,10 @@
 
 namespace PureES.Core.EventStore;
 
+/// <summary>
+/// The exception that is thrown when attempting
+/// to create a stream that already exists
+/// </summary>
 [SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 [SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")]
 public class StreamAlreadyExistsException : Exception

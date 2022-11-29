@@ -60,7 +60,7 @@ internal class UpdatedWhenExpBuilder
         var @base = Expression.Call(ExceptionHelpers.ThrowUpdatedWhenBaseMethod,
             Expression.Constant(aggregateType), @event);
         expressions.Add(@base);
-        //TODO: Better default value
+        //Note: We never actually get here, because we throw just above
         var @default = ValueTaskHelpers.DefaultMethod.MakeGenericMethod(aggregateType);
         expressions.Add(Expression.Label(returnTarget, Expression.Call(@default)));
         return Expression.Block(new[] {envelopeVar, @event, currentVar}, expressions);

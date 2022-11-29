@@ -19,6 +19,8 @@ internal class CreateOnHandlerExpBuilder
         if (!HandlerHelpers.IsCreateHandler(aggregateType, handlerMethod))
             throw new ArgumentException("Invalid create handler method");
         var commandType = HandlerHelpers.GetCommandType(handlerMethod);
+        if (command.Type != commandType)
+            throw new ArgumentException($"Invalid command {command.Type}", nameof(command));
         MethodInfo method;
 
         if (handlerMethod.ReturnType.IsValueTask(out var returnType))
@@ -55,31 +57,36 @@ internal class CreateOnHandlerExpBuilder
                     .MakeGenericMethod(commandType, handlerMethod.ReturnType);
         }
 
-        if (serviceProvider.Type != typeof(IServiceProvider))
-            throw new ArgumentException("Invalid ServiceProvider expression");
-        if (cancellationToken.Type != typeof(CancellationToken))
-            throw new ArgumentException("Invalid CancellationToken expression");
-        var getStreamId = new CommandServicesBuilder(_options)
-            .GetStreamId(HandlerHelpers.GetCommandType(handlerMethod));
-        var handler = BuildCreateHandler(aggregateType, handlerMethod);
+
+        var handler = BuildHandler(aggregateType, handlerMethod, command, serviceProvider, cancellationToken);
+        var getStreamId = BuildGetStreamId(command);
+        
         return Expression.Call(method, command, getStreamId, handler, serviceProvider, cancellationToken);
     }
 
-    private ConstantExpression BuildCreateHandler(Type aggregateType, MethodInfo handlerMethod)
+    private Expression BuildHandler(Type aggregateType,
+        MethodInfo handlerMethod,
+        Expression command,
+        Expression serviceProvider,
+        Expression cancellationToken)
     {
-        var cmdType = HandlerHelpers.GetCommandType(handlerMethod);
-        var cmd = Expression.Parameter(cmdType);
-        var sp = Expression.Parameter(typeof(IServiceProvider));
-        var ct = Expression.Parameter(typeof(CancellationToken));
-        var exp = new CreateExpBuilder(_options)
-            .InvokeCreateHandler(aggregateType, handlerMethod, cmd, sp, ct);
-        //Desired Func<TCommand, IServiceProvider, TEvent>
-        //where TEvent is return type
-        var type = typeof(Func<,,,>).MakeGenericType(cmdType,
-            typeof(IServiceProvider),
-            typeof(CancellationToken),
-            handlerMethod.ReturnType);
-        var lambda = Expression.Lambda(type, exp, "CreateOn", true, new[] {cmd, sp, ct});
-        return Expression.Constant(lambda.Compile(), type);
+        var handler = new CreateExpBuilder(_options)
+            .InvokeCreateHandler(aggregateType, handlerMethod, command, serviceProvider, cancellationToken);
+        
+        //Desired Func<TResponse> where TResponse is return type
+        var handlerType = typeof(Func<>).MakeGenericType(handlerMethod.ReturnType);
+        return Expression.Lambda(handlerType, handler, $"CreateOn<{command.Type}>", 
+            true, Array.Empty<ParameterExpression>());
+    }
+
+    private Expression BuildGetStreamId(Expression command)
+    {
+        var streamId = new GetStreamIdExpBuilder(_options).GetStreamId(command);
+        
+        //Desired return type is Func<string>()
+        return Expression.Lambda<Func<string>>(streamId, 
+            $"GetStreamId<{command.Type}>", 
+            true,
+            ArraySegment<ParameterExpression>.Empty);
     }
 }

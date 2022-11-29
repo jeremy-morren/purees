@@ -87,12 +87,12 @@ public static class TestAggregates
         Assert.Equal(new EventEnvelope<TEvent, Metadata>(envelope), actual);
     }
 
-    public static T NewEvent<T>()
+    public static Lazy<object> NewEvent<T>() => new (() => 
     {
         var constructor = typeof(T).GetConstructors(BindingFlags.Public | BindingFlags.Instance)
             .Single(c => c.GetParameters().Length == 1 && c.GetParameters()[0].ParameterType == typeof(Guid));
-        return (T) constructor.Invoke(new object?[] {Guid.NewGuid()});
-    }
+        return constructor.Invoke(new object?[] {Guid.NewGuid()})!;
+    }, true);
 
     public static T NewAggregate<T>()
     {
@@ -303,15 +303,18 @@ public record Updated1(Guid Id);
 
 public record Updated2(Guid Id);
 
-public record Metadata(Guid Id);
+public record Metadata(Guid Id)
+{
+    public static Lazy<object?> New() => new(() => new Metadata(Guid.NewGuid()), true);
+}
 
-public record EventEnvelope<T> : EventEnvelope<T, Metadata> where T : notnull
+public class EventEnvelope<T> : EventEnvelope<T, Metadata> where T : notnull
 {
     public EventEnvelope(EventEnvelope source) : base(source)
     {
     }
 
-    public EventEnvelope(EventEnvelope<T> source) : base(source)
+    public EventEnvelope(EventEnvelope<T, Metadata> source) : base(source)
     {
     }
 

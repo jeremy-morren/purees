@@ -53,7 +53,7 @@ public class UpdatedWhenTests
             Rand.NextULong(),
             DateTime.UtcNow,
             TestAggregates.NewEvent<TEvent>(),
-            new Metadata(Guid.NewGuid()));
+            Metadata.New());
 
         var svc = new AggregateService
         {
@@ -109,7 +109,7 @@ public class UpdatedWhenTests
             Rand.NextULong(),
             DateTime.UtcNow,
             TestAggregates.NewEvent<TEvent>(),
-            new Metadata(Guid.NewGuid()));
+            Metadata.New());
 
         var one = CreateEnvelope<Updated1>();
         var two = CreateEnvelope<Updated2>();

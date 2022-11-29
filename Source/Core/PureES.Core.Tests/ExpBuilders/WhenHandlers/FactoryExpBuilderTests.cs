@@ -49,7 +49,7 @@ public class FactoryExpBuilderTests
             Rand.NextULong(),
             DateTime.UtcNow,
             TestAggregates.NewEvent<TEvent>(),
-            new Metadata(Guid.NewGuid()));
+            Metadata.New());
 
         var created = CreateEnvelope<TCreated>();
         var updated1 = CreateEnvelope<Updated1>();

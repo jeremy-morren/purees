@@ -19,10 +19,15 @@ internal class InMemoryEventStoreSerializer<TMetadata> : IInMemoryEventStoreSeri
 
     public EventEnvelope Deserialize(EventRecord record)
     {
-        var metadata = record.Metadata != null ? _serializer.Deserialize(record.Metadata, typeof(TMetadata)) : null;
-        var @event = _serializer.Deserialize(record.Data,
-                         _typeMap.TryGetType(record.EventType, out var eventType) ? eventType : null)
-                     ?? throw new ArgumentException($"Event data is null for event {record.EventType}");
+        const LazyThreadSafetyMode threadMode = LazyThreadSafetyMode.ExecutionAndPublication;
+        var metadata = new Lazy<object?>(() => 
+            record.Metadata != null ? _serializer.Deserialize(record.Metadata, typeof(TMetadata)) : null, 
+            threadMode);
+        var @event = new Lazy<object>(() => 
+            _serializer.Deserialize(record.Data, 
+                _typeMap.TryGetType(record.EventType, out var eventType) ? eventType : null) 
+            ?? throw new ArgumentException($"Event data is null for event {record.EventType}"), 
+            threadMode);
         return new EventEnvelope(record.EventId,
             record.StreamId,
             record.StreamPosition,

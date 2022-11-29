@@ -10,11 +10,10 @@ internal class CommandHandler<TCommand> : ICommandHandler<TCommand>
     private readonly PureESServices _services;
 
     public CommandHandler(IServiceProvider serviceProvider,
-        ILoggerFactory loggerFactory,
         PureESServices services)
     {
         _serviceProvider = serviceProvider;
-        _logger = loggerFactory.CreateLogger(CommandServicesBuilder.LoggerCategory);
+        _logger = CommandServicesBuilder.GetLogger(serviceProvider);
         _services = services;
     }
 

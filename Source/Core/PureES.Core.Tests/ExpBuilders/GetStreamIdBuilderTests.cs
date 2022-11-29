@@ -8,7 +8,17 @@ namespace PureES.Core.Tests.ExpBuilders;
 public class GetStreamIdBuilderTests
 {
     [Fact]
-    public void Default_Properties()
+    public void ConstantStreamId()
+    {
+        var cmd = new ConstantStreamIdCommand();
+        var exp = new GetStreamIdExpBuilder(new CommandHandlerBuilderOptions())
+            .GetStreamId(Expression.Constant(cmd));
+        var func = Expression.Lambda<Func<string>>(exp).Compile();
+        Assert.Equal(ConstantStreamIdCommand.StreamId, func());
+    }
+    
+    [Fact]
+    public void ByPropertyName()
     {
         var cmd = Command.New();
         var exp = new GetStreamIdExpBuilder(new CommandHandlerBuilderOptions())
@@ -73,6 +83,12 @@ public class GetStreamIdBuilderTests
         Assert.Equal(cmd.OtherId.OtherStream, func());
     }
 
+    [StreamId(StreamId)]
+    private sealed class ConstantStreamIdCommand
+    {
+        public const string StreamId = "stream";
+    }
+    
     private record Command(AggId Id, AggId OtherId)
     {
         public static Command New() => new(AggId.New(), AggId.New());

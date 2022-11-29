@@ -1,6 +1,9 @@
 ﻿using System.Linq.Expressions;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using PureES.Core.ExpBuilders.AggregateCmdHandlers;
 using PureES.Core.ExpBuilders.WhenHandlers;
 
@@ -8,7 +11,6 @@ namespace PureES.Core.ExpBuilders.Services;
 
 internal class CommandServicesBuilder
 {
-    public const string LoggerCategory = "PureES.CommandHandler";
     private readonly CommandHandlerBuilderOptions _options;
 
     public CommandServicesBuilder(CommandHandlerBuilderOptions options) => _options = options;
@@ -75,18 +77,6 @@ internal class CommandServicesBuilder
     }
 
     /// <summary>
-    ///     Compiles a <c>Func&lt;TCommand, string&gt;</c> delegate
-    /// </summary>
-    public ConstantExpression GetStreamId(Type commandType)
-    {
-        var param = Expression.Parameter(commandType);
-        var exp = new GetStreamIdExpBuilder(_options).GetStreamId(param);
-        var type = typeof(Func<,>).MakeGenericType(commandType, typeof(string));
-        var lambda = Expression.Lambda(type, exp, "GetStreamId", true, new[] {param});
-        return Expression.Constant(lambda.Compile(), type);
-    }
-
-    /// <summary>
     ///     Compiles a <c>AggregateFactory&lt;TAggregate&gt;</c>
     /// </summary>
     public ConstantExpression Factory(Type aggregateType)
@@ -99,7 +89,14 @@ internal class CommandServicesBuilder
 
         //Output is AggregateFactory<TAggregate>
         var type = typeof(AggregateFactory<>).MakeGenericType(aggregateType);
-        var lambda = Expression.Lambda(type, exp, $"Factory[{aggregateType}]", true, new[] {events, services, ct});
+        var lambda = Expression.Lambda(type, exp, $"Factory<{aggregateType}>", true, new[] {events, services, ct});
         return Expression.Constant(lambda.Compile(), type);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static ILogger GetLogger(IServiceProvider services)
+    {
+        var factory = services.GetService<ILoggerFactory>() ?? NullLoggerFactory.Instance;
+        return factory.CreateLogger("PureES.CommandHandler");
     }
 }

@@ -1,6 +1,7 @@
 ﻿using System.Linq.Expressions;
 using System.Reflection;
 using PureES.Core.ExpBuilders.Services;
+using PureES.Core.ExpBuilders.WhenHandlers;
 
 namespace PureES.Core.ExpBuilders.AggregateCmdHandlers;
 
@@ -10,6 +11,8 @@ internal class UpdateOnHandlerExpBuilder
 
     public UpdateOnHandlerExpBuilder(CommandHandlerBuilderOptions options) => _options = options;
 
+    //TODO: Log matched method + aggregate
+    
     public Expression BuildUpdateOnExpression(Type aggregateType,
         MethodInfo handlerMethod,
         Expression command,
@@ -58,39 +61,60 @@ internal class UpdateOnHandlerExpBuilder
             throw new ArgumentException("Invalid ServiceProvider expression");
         if (cancellationToken.Type != typeof(CancellationToken))
             throw new ArgumentException("Invalid CancellationToken expression");
-        var getStreamId = new CommandServicesBuilder(_options)
-            .GetStreamId(HandlerHelpers.GetCommandType(handlerMethod));
-        var load = new CommandServicesBuilder(_options).Factory(aggregateType);
-        var handler = BuildUpdateHandler(aggregateType, handlerMethod);
+
+        var getStreamId = BuildGetStreamId(command);
+        
+        var factory = BuildFactory(aggregateType, serviceProvider, cancellationToken);
+
+        var handler = BuildUpdateHandler(aggregateType, handlerMethod, command, serviceProvider, cancellationToken);
+        
         return Expression.Call(method,
             command,
             getStreamId,
-            load,
+            factory,
             handler,
             serviceProvider,
             cancellationToken);
     }
 
-    private ConstantExpression BuildUpdateHandler(Type aggregateType, MethodInfo handlerMethod)
+    private Expression BuildUpdateHandler(Type aggregateType,
+        MethodInfo handlerMethod, 
+        Expression command,
+        Expression serviceProvider,
+        Expression cancellationToken)
     {
-        var cmdType = HandlerHelpers.GetCommandType(handlerMethod);
         var current = Expression.Parameter(aggregateType);
-        var cmd = Expression.Parameter(cmdType);
-        var sp = Expression.Parameter(typeof(IServiceProvider));
-        var ct = Expression.Parameter(typeof(CancellationToken));
+        
         var exp = new UpdateExpBuilder(_options)
-            .InvokeUpdateHandler(aggregateType, handlerMethod, current, cmd, sp, ct);
-        //Desired Func<TAggregate, TCommand, IServiceProvider, CancellationToken, TEvent>
-        //where TEvent is return type
-        var type = typeof(Func<,,,,>).MakeGenericType(
-            aggregateType,
-            cmdType,
-            typeof(IServiceProvider),
-            typeof(CancellationToken),
-            handlerMethod.ReturnType);
-        var lambda = Expression.Lambda(type, exp, "UpdateOn", true, new[] {current, cmd, sp, ct});
-        return Expression.Constant(lambda.Compile(), type);
+            .InvokeUpdateHandler(aggregateType, handlerMethod, current, command, serviceProvider, cancellationToken);
+        //Desired Func<TAggregate, TResponse>
+        //where TResponse is return type
+        var type = typeof(Func<,>).MakeGenericType(aggregateType, handlerMethod.ReturnType);
+        return Expression.Lambda(type, exp, $"UpdateOn<{command.Type}>", true, new[] {current });
     }
 
-    //TODO: Log matched method + aggregate
+    private Expression BuildFactory(Type aggregateType, Expression serviceProvider, Expression cancellationToken)
+    {
+        var events = Expression.Parameter(typeof(IAsyncEnumerable<EventEnvelope>));
+        var exp = new FactoryExpBuilder(_options)
+            .BuildExpression(aggregateType, events, serviceProvider, cancellationToken);
+
+        aggregateType = typeof(LoadedAggregate<>).MakeGenericType(aggregateType);
+
+        //Output is Func<IAsyncEnumerable<EventEnvelope>, ValueTask<TAggregate>>
+        var type = typeof(Func<,>).MakeGenericType(typeof(IAsyncEnumerable<EventEnvelope>),
+            typeof(ValueTask<>).MakeGenericType(aggregateType));
+        return Expression.Lambda(type, exp, $"Factory<{aggregateType}>", true, new[] {events});
+    }
+    
+    private Expression BuildGetStreamId(Expression command)
+    {
+        var streamId = new GetStreamIdExpBuilder(_options).GetStreamId(command);
+        
+        //Desired return type is Func<string>()
+        return Expression.Lambda<Func<string>>(streamId, 
+            $"GetStreamId<{command.Type}>", 
+            true,
+            ArraySegment<ParameterExpression>.Empty);
+    }
 }

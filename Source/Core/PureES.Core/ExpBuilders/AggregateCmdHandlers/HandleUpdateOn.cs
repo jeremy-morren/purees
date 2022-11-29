@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using PureES.Core.EventStore;
@@ -28,143 +29,197 @@ internal static class HandleUpdateOn
         typeof(HandleUpdateOn).GetStaticMethod(nameof(UpdateOnValueTaskAsyncWithResult));
 
     public static async Task<ulong> UpdateOnSync<TAggregate, TCommand, TResponse>(TCommand command,
-        Func<TCommand, string> getStreamId,
-        AggregateFactory<TAggregate> factory,
-        Func<TAggregate, TCommand, IServiceProvider, CancellationToken, TResponse> handle,
+        Func<string> getStreamId,
+        Func<IAsyncEnumerable<EventEnvelope>, ValueTask<LoadedAggregate<TAggregate>>> factory,
+        Func<TAggregate, TResponse> handle,
         IServiceProvider serviceProvider,
         CancellationToken ct)
         where TCommand : notnull
     {
-        var logger = serviceProvider.GetRequiredService<ILoggerFactory>()
-            .CreateLogger(CommandServicesBuilder.LoggerCategory);
-        var store = serviceProvider.GetRequiredService<IEventStore>();
-        var expectedVersion = await serviceProvider.GetExpectedVersion(command, ct);
-        var events = expectedVersion != null
-            ? store.Read(getStreamId(command), expectedVersion.Value, ct)
-            : store.Read(getStreamId(command), ct);
-        var current = await factory(events, serviceProvider, ct);
-        var response = handle(current.Aggregate, command, serviceProvider, ct);
-        return await ProcessUpdateResponse(logger, serviceProvider, getStreamId, current.Version, command, response,
-            ct);
+        var logger = CommandServicesBuilder.GetLogger(serviceProvider);
+        try
+        {
+            logger.LogDebug("Handling update command {@Command}", typeof(TCommand));
+            var streamId = getStreamId();
+            var store = serviceProvider.GetRequiredService<IEventStore>();
+            var expectedVersion = await serviceProvider.GetExpectedVersion(command, ct);
+            var events = expectedVersion != null
+                ? store.Read(streamId, expectedVersion.Value, ct)
+                : store.Read(streamId, ct);
+            var current = await factory(events);
+            var response = handle(current.Aggregate);
+            return await ProcessUpdateResponse(logger, serviceProvider, streamId, current.Version, command, response,
+                ct);
+        }
+        catch (Exception e)
+        {
+            logger.LogInformation(e, "Error handling update command {@Command}", typeof(TCommand));
+            throw;
+        }
     }
 
     public static async Task<ulong> UpdateOnValueTaskAsync<TAggregate, TCommand, TResponse>(TCommand command,
-        Func<TCommand, string> getStreamId,
-        AggregateFactory<TAggregate> factory,
-        Func<TAggregate, TCommand, IServiceProvider, CancellationToken, ValueTask<TResponse>> handle,
+        Func<string> getStreamId,
+        Func<IAsyncEnumerable<EventEnvelope>, ValueTask<LoadedAggregate<TAggregate>>> factory,
+        Func<TAggregate, ValueTask<TResponse>> handle,
         IServiceProvider serviceProvider,
         CancellationToken ct)
         where TCommand : notnull
     {
-        var logger = serviceProvider.GetRequiredService<ILoggerFactory>()
-            .CreateLogger(CommandServicesBuilder.LoggerCategory);
-        var store = serviceProvider.GetRequiredService<IEventStore>();
-        var expectedVersion = await serviceProvider.GetExpectedVersion(command, ct);
-        var events = expectedVersion != null
-            ? store.Read(getStreamId(command), expectedVersion.Value, ct)
-            : store.Read(getStreamId(command), ct);
-        var current = await factory(events, serviceProvider, ct);
-        var response = await handle(current.Aggregate, command, serviceProvider, ct);
-        return await ProcessUpdateResponse(logger,
-            serviceProvider,
-            getStreamId,
-            current.Version,
-            command,
-            response, ct);
+        var logger = CommandServicesBuilder.GetLogger(serviceProvider);
+        try
+        {
+            logger.LogDebug("Handling update command {@Command}", typeof(TCommand));
+            var streamId = getStreamId();
+            var store = serviceProvider.GetRequiredService<IEventStore>();
+            var expectedVersion = await serviceProvider.GetExpectedVersion(command, ct);
+            var events = expectedVersion != null
+                ? store.Read(streamId, expectedVersion.Value, ct)
+                : store.Read(streamId, ct);
+            var current = await factory(events);
+            var response = await handle(current.Aggregate);
+            return await ProcessUpdateResponse(logger,
+                serviceProvider,
+                streamId,
+                current.Version,
+                command,
+                response, ct);
+        }
+        catch (Exception e)
+        {
+            logger.LogInformation(e, "Error handling update command {@Command}", typeof(TCommand));
+            throw;
+        }
     }
 
     public static async Task<ulong> UpdateOnAsync<TAggregate, TCommand, TResponse>(TCommand command,
-        Func<TCommand, string> getStreamId,
-        AggregateFactory<TAggregate> factory,
-        Func<TAggregate, TCommand, IServiceProvider, CancellationToken, Task<TResponse>> handle,
+        Func<string> getStreamId,
+        Func<IAsyncEnumerable<EventEnvelope>, ValueTask<LoadedAggregate<TAggregate>>> factory,
+        Func<TAggregate, Task<TResponse>> handle,
         IServiceProvider serviceProvider,
         CancellationToken ct)
         where TCommand : notnull
     {
-        var logger = serviceProvider.GetRequiredService<ILoggerFactory>()
-            .CreateLogger(CommandServicesBuilder.LoggerCategory);
-        var store = serviceProvider.GetRequiredService<IEventStore>();
-        var expectedVersion = await serviceProvider.GetExpectedVersion(command, ct);
-        var events = expectedVersion != null
-            ? store.Read(getStreamId(command), expectedVersion.Value, ct)
-            : store.Read(getStreamId(command), ct);
-        var current = await factory(events, serviceProvider, ct);
-        var response = await handle(current.Aggregate, command, serviceProvider, ct);
-        return await ProcessUpdateResponse(logger,
-            serviceProvider,
-            getStreamId,
-            current.Version,
-            command,
-            response, ct);
+        var logger = CommandServicesBuilder.GetLogger(serviceProvider);
+        try
+        {
+            logger.LogDebug("Handling update command {@Command}", typeof(TCommand));
+            var streamId = getStreamId();
+            var store = serviceProvider.GetRequiredService<IEventStore>();
+            var expectedVersion = await serviceProvider.GetExpectedVersion(command, ct);
+            var events = expectedVersion != null
+                ? store.Read(streamId, expectedVersion.Value, ct)
+                : store.Read(streamId, ct);
+            var current = await factory(events);
+            var response = await handle(current.Aggregate);
+            return await ProcessUpdateResponse(logger,
+                serviceProvider,
+                streamId,
+                current.Version,
+                command,
+                response, ct);
+        }
+        catch (Exception e)
+        {
+            logger.LogInformation(e, "Error handling update command {@Command}", typeof(TCommand));
+            throw;
+        }
     }
 
     public static async Task<TResult> UpdateOnSyncWithResult<TAggregate, TCommand, TResponse, TEvent, TResult>(
         TCommand command,
-        Func<TCommand, string> getStreamId,
-        AggregateFactory<TAggregate> factory,
-        Func<TAggregate, TCommand, IServiceProvider, CancellationToken, TResponse> handle,
+        Func<string> getStreamId,
+        Func<IAsyncEnumerable<EventEnvelope>, ValueTask<LoadedAggregate<TAggregate>>> factory,
+        Func<TAggregate, TResponse> handle,
         IServiceProvider serviceProvider,
         CancellationToken ct)
         where TCommand : notnull
         where TResponse : CommandResult<TEvent, TResult>
     {
-        var logger = serviceProvider.GetRequiredService<ILoggerFactory>()
-            .CreateLogger(CommandServicesBuilder.LoggerCategory);
-        var store = serviceProvider.GetRequiredService<IEventStore>();
-        var expectedVersion = await serviceProvider.GetExpectedVersion(command, ct);
-        var events = expectedVersion != null
-            ? store.Read(getStreamId(command), expectedVersion.Value, ct)
-            : store.Read(getStreamId(command), ct);
-        var current = await factory(events, serviceProvider, ct);
-        var response = handle(current.Aggregate, command, serviceProvider, ct);
-        await ProcessUpdateResponse(logger, serviceProvider, getStreamId, current.Version, command, response.Event, ct);
-        return response.Result;
+        var logger = CommandServicesBuilder.GetLogger(serviceProvider);
+        try
+        {
+            logger.LogDebug("Handling update command {@Command}", typeof(TCommand));
+            var streamId = getStreamId();
+            var store = serviceProvider.GetRequiredService<IEventStore>();
+            var expectedVersion = await serviceProvider.GetExpectedVersion(command, ct);
+            var events = expectedVersion != null
+                ? store.Read(streamId, expectedVersion.Value, ct)
+                : store.Read(streamId, ct);
+            var current = await factory(events);
+            var response = handle(current.Aggregate);
+            await ProcessUpdateResponse(logger, serviceProvider, streamId, current.Version, command, response.Event, ct);
+            return response.Result;
+        }
+        catch (Exception e)
+        {
+            logger.LogInformation(e, "Error handling update command {@Command}", typeof(TCommand));
+            throw;
+        }
     }
 
     public static async Task<TResult> UpdateOnAsyncWithResult<TAggregate, TCommand, TResponse, TEvent, TResult>(
         TCommand command,
-        Func<TCommand, string> getStreamId,
-        AggregateFactory<TAggregate> factory,
-        Func<TAggregate, TCommand, IServiceProvider, CancellationToken, Task<TResponse>> handle,
+        Func<string> getStreamId,
+        Func<IAsyncEnumerable<EventEnvelope>, ValueTask<LoadedAggregate<TAggregate>>> factory,
+        Func<TAggregate, Task<TResponse>> handle,
         IServiceProvider serviceProvider,
         CancellationToken ct)
         where TCommand : notnull
         where TResponse : CommandResult<TEvent, TResult>
     {
-        var logger = serviceProvider.GetRequiredService<ILoggerFactory>()
-            .CreateLogger(CommandServicesBuilder.LoggerCategory);
-        var store = serviceProvider.GetRequiredService<IEventStore>();
-        var expectedVersion = await serviceProvider.GetExpectedVersion(command, ct);
-        var events = expectedVersion != null
-            ? store.Read(getStreamId(command), expectedVersion.Value, ct)
-            : store.Read(getStreamId(command), ct);
-        var current = await factory(events, serviceProvider, ct);
-        var response = await handle(current.Aggregate, command, serviceProvider, ct);
-        await ProcessUpdateResponse(logger, serviceProvider, getStreamId, current.Version, command, response.Event, ct);
-        return response.Result;
+        var logger = CommandServicesBuilder.GetLogger(serviceProvider);
+        try
+        {
+            logger.LogDebug("Handling update command {@Command}", typeof(TCommand));
+            var streamId = getStreamId();
+            var store = serviceProvider.GetRequiredService<IEventStore>();
+            var expectedVersion = await serviceProvider.GetExpectedVersion(command, ct);
+            var events = expectedVersion != null
+                ? store.Read(streamId, expectedVersion.Value, ct)
+                : store.Read(streamId, ct);
+            var current = await factory(events);
+            var response = await handle(current.Aggregate);
+            await ProcessUpdateResponse(logger, serviceProvider, streamId, current.Version, command, response.Event, ct);
+            return response.Result;
+        }
+        catch (Exception e)
+        {
+            logger.LogInformation(e, "Error handling update command {@Command}", typeof(TCommand));
+            throw;
+        }
     }
 
-    public static async Task<TResult>
-        UpdateOnValueTaskAsyncWithResult<TAggregate, TCommand, TResponse, TEvent, TResult>(TCommand command,
-            Func<TCommand, string> getStreamId,
-            AggregateFactory<TAggregate> factory,
-            Func<TAggregate, TCommand, IServiceProvider, CancellationToken, ValueTask<TResponse>> handle,
-            IServiceProvider serviceProvider,
-            CancellationToken ct)
+    public static async Task<TResult> UpdateOnValueTaskAsyncWithResult<TAggregate, TCommand, TResponse, TEvent, TResult>(
+        TCommand command,
+        Func<string> getStreamId,
+        Func<IAsyncEnumerable<EventEnvelope>, ValueTask<LoadedAggregate<TAggregate>>> factory,
+        Func<TAggregate, ValueTask<TResponse>> handle,
+        IServiceProvider serviceProvider,
+        CancellationToken ct)
         where TCommand : notnull
         where TResponse : CommandResult<TEvent, TResult>
     {
-        var logger = serviceProvider.GetRequiredService<ILoggerFactory>()
-            .CreateLogger(CommandServicesBuilder.LoggerCategory);
-        var store = serviceProvider.GetRequiredService<IEventStore>();
-        var expectedVersion = await serviceProvider.GetExpectedVersion(command, ct);
-        var events = expectedVersion != null
-            ? store.Read(getStreamId(command), expectedVersion.Value, ct)
-            : store.Read(getStreamId(command), ct);
-        var current = await factory(events, serviceProvider, ct);
-        var response = await handle(current.Aggregate, command, serviceProvider, ct);
-        await ProcessUpdateResponse(logger, serviceProvider, getStreamId, current.Version, command, response.Event, ct);
-        return response.Result;
+        var logger = CommandServicesBuilder.GetLogger(serviceProvider);
+        try
+        {
+            logger.LogDebug("Handling update command {@Command}", typeof(TCommand));
+            var streamId = getStreamId();
+            var store = serviceProvider.GetRequiredService<IEventStore>();
+            var expectedVersion = await serviceProvider.GetExpectedVersion(command, ct);
+            var events = expectedVersion != null
+                ? store.Read(streamId, expectedVersion.Value, ct)
+                : store.Read(streamId, ct);
+            var current = await factory(events);
+            var response = await handle(current.Aggregate);
+            await ProcessUpdateResponse(logger, serviceProvider, streamId, current.Version, command, response.Event, ct);
+            return response.Result;
+        }
+        catch (Exception e)
+        {
+            logger.LogInformation(e, "Error handling update command {@Command}", typeof(TCommand));
+            throw;
+        }
     }
 
 
@@ -174,7 +229,7 @@ internal static class HandleUpdateOn
     /// <returns></returns>
     public static async Task<ulong> ProcessUpdateResponse<TCommand, TResponse>(ILogger logger,
         IServiceProvider serviceProvider,
-        Func<TCommand, string> getStreamId,
+        string streamId,
         ulong currentVersion,
         TCommand command,
         TResponse? response,
@@ -188,12 +243,10 @@ internal static class HandleUpdateOn
                 typeof(TCommand), currentRevision);
             return currentRevision;
         }
-
         var store = serviceProvider.GetRequiredService<IEventStore>();
         var enricher = serviceProvider.GetRequiredService<IEventEnricher>();
         object? metadata;
         ulong revision;
-        var streamId = getStreamId(command);
         if (response is IEnumerable enumerable)
         {
             var events = new List<UncommittedEvent>();
@@ -212,7 +265,7 @@ internal static class HandleUpdateOn
             revision = await store.Append(streamId, currentRevision, @event, ct);
         }
 
-        logger.LogInformation("Successfully handled {@Command}. Stream {StreamId} now at revision {Revision}",
+        logger.LogInformation("Successfully handled update command {@Command}. Stream {StreamId} now at revision {Revision}",
             typeof(TCommand), streamId, revision);
         return revision;
     }

@@ -15,8 +15,8 @@ public class NewEventEnvelopeExpBuilderTests
             Rand.NextULong(),
             Rand.NextULong(),
             DateTime.UtcNow,
-            new Event(Guid.NewGuid()),
-            new Metadata(Guid.NewGuid()));
+            Event.New(),
+            Metadata.New());
         var builder = new NewEventEnvelopeExpBuilder(new CommandHandlerBuilderOptions());
         var exp = builder.New(typeof(EventEnvelope<Event, Metadata>),
             Expression.Constant(current));
@@ -25,7 +25,14 @@ public class NewEventEnvelopeExpBuilderTests
         Assert.True(current.Equals(func()));
     }
 
-    private record Event(Guid Id);
+    private record Event(Guid Id)
+    {
+        public static Lazy<object> New() => new(() => new Event(Guid.NewGuid()), true);
+    }
 
-    private record Metadata(Guid Id);
+    private record Metadata(Guid Id)
+    {
+        
+        public static Lazy<object?> New() => new(() => new Metadata(Guid.NewGuid()), true);
+    }
 }

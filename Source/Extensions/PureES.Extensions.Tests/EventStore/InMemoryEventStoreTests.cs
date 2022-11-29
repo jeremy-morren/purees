@@ -19,6 +19,8 @@ public class InMemoryEventStoreTests : EventStoreTestsBase
         var source = new TestInMemoryEventStore();
         Setup(source).GetAwaiter().GetResult();
 
+        AssertEqual(source, source);
+
         using var ms = new MemoryStream();
         source.Save(ms);
         ms.Seek(0, SeekOrigin.Begin);
@@ -26,9 +28,18 @@ public class InMemoryEventStoreTests : EventStoreTestsBase
         var destination = new TestInMemoryEventStore();
         destination.Load(ms);
 
-        Assert.Equal(source.ReadAll().Count, destination.ReadAll().Count);
-        Assert.Equal(source.ReadAll().Select(e => new {e.StreamId, e.StreamPosition, e.EventId, e.Timestamp}),
-            destination.ReadAll().Select(e => new {e.StreamId, e.StreamPosition, e.EventId, e.Timestamp}));
+        AssertEqual(source, destination);
+        AssertEqual(destination, destination);
+    }
+
+    private static void AssertEqual(IInMemoryEventStore left, IInMemoryEventStore right)
+    {
+        Assert.Equal(left.ReadAll().Count, right.ReadAll().Count);
+        Assert.Equal(left.ReadAll().Select(e => new {e.StreamId, e.StreamPosition, e.EventId, e.Timestamp}),
+            right.ReadAll().Select(e => new {e.StreamId, e.StreamPosition, e.EventId, e.Timestamp}));
+
+        Assert.All(left.ReadAll().Concat(right.ReadAll()), 
+            e => Assert.Equal(DateTimeKind.Utc, e.Timestamp.Kind));
     }
 
     private static async Task Setup(IEventStore eventStore)

@@ -90,11 +90,34 @@ internal class EventStoreDBClient : IEventStore
                 e.ActualStreamRevision.ToUInt64());
         }
     }
+    
+    /// <inheritdoc />
+    public async Task<ulong> Append(string streamId, IEnumerable<UncommittedEvent> events, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _eventStoreClient.AppendToStreamAsync(streamId,
+                StreamState.StreamExists, 
+                events.Select(_serializer.Serialize),
+                cancellationToken: cancellationToken);
+            return result.NextExpectedStreamRevision.ToUInt64();
+        }
+        catch (WrongExpectedVersionException e)
+        {
+            //We didn't provide a revision, so this is the only possibility
+            throw new StreamNotFoundException(e.StreamName, e);
+        }
+    }
 
     /// <inheritdoc />
     public Task<ulong> Append(string streamId, ulong expectedVersion, UncommittedEvent @event,
         CancellationToken cancellationToken)
         => Append(streamId, expectedVersion, new[] {@event}, cancellationToken);
+    
+    /// <inheritdoc />
+    public Task<ulong> Append(string streamId, UncommittedEvent @event,
+        CancellationToken cancellationToken)
+        => Append(streamId, new[] {@event}, cancellationToken);
 
     public async IAsyncEnumerable<EventEnvelope> ReadAll([EnumeratorCancellation] CancellationToken cancellationToken)
     {
@@ -196,5 +219,20 @@ internal class EventStoreDBClient : IEventStore
             yield break;
         await foreach (var r in records.WithCancellation(cancellationToken))
             yield return _serializer.Deserialize(r.Event);
+    }
+
+    public async Task<ulong> Count(string streamId, CancellationToken cancellationToken)
+    {
+        //We will read the last event in the stream, and return the position
+        var result = _eventStoreClient.ReadStreamAsync(Direction.Backwards,
+            streamId,
+            StreamPosition.End,
+            maxCount: 1,
+            resolveLinkTos: false,
+            cancellationToken: cancellationToken);
+        if (await result.ReadState == ReadState.StreamNotFound)
+            throw new StreamNotFoundException(streamId);
+        var e = await result.FirstAsync(cancellationToken);
+        return e.Event.EventNumber.ToUInt64() + 1; //EventNumber is 0-based
     }
 }

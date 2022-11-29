@@ -28,67 +28,55 @@ internal class FactoryExpBuilder
         if (cancellationToken.Type != typeof(CancellationToken))
             throw new InvalidOperationException("Invalid CancellationToken expression");
         var method = typeof(FactoryExpBuilder).GetStaticMethod(nameof(Load)).MakeGenericMethod(aggregateType);
-        var createdWhen = BuildCreatedWhen(aggregateType);
-        var updatedWhen = BuildUpdatedWhen(aggregateType);
-        return Expression.Call(method, events, createdWhen, updatedWhen, serviceProvider, cancellationToken);
+        var createdWhen = BuildCreatedWhen(aggregateType, serviceProvider, cancellationToken);
+        var updatedWhen = BuildUpdatedWhen(aggregateType, serviceProvider, cancellationToken);
+        return Expression.Call(method, events, createdWhen, updatedWhen, cancellationToken);
     }
 
     private static async ValueTask<LoadedAggregate<T>> Load<T>(IAsyncEnumerable<EventEnvelope> events,
-        Func<EventEnvelope, IServiceProvider, CancellationToken, ValueTask<T>> createWhen,
-        Func<T, EventEnvelope, IServiceProvider, CancellationToken, ValueTask<T>> updateWhen,
-        IServiceProvider serviceProvider,
+        Func<EventEnvelope, ValueTask<T>> createWhen,
+        Func<T, EventEnvelope, ValueTask<T>> updateWhen,
         CancellationToken ct)
     {
         await using var enumerator = events.GetAsyncEnumerator(ct);
         if (!await enumerator.MoveNextAsync())
             throw new ArgumentException("Provided events list is empty");
         //TODO: handle exceptions in when methods
-        var current = await createWhen(enumerator.Current, serviceProvider, ct);
+        var aggregate = await createWhen(enumerator.Current);
         var revision = (ulong) 1; //After createWhen version is 1
         while (await enumerator.MoveNextAsync())
         {
             ct.ThrowIfCancellationRequested();
-            current = await updateWhen(current, enumerator.Current, serviceProvider, ct);
+            aggregate = await updateWhen(aggregate, enumerator.Current);
             ++revision;
         }
-
-        return new LoadedAggregate<T>(current, revision);
+        return new LoadedAggregate<T>(aggregate, revision);
     }
 
-    private ConstantExpression BuildCreatedWhen(Type aggregateType)
+    private Expression BuildCreatedWhen(Type aggregateType, Expression serviceProvider, Expression cancellationToken)
     {
         var envelope = Expression.Parameter(typeof(EventEnvelope));
-        var serviceProvider = Expression.Parameter(typeof(IServiceProvider));
-        var token = Expression.Parameter(typeof(CancellationToken));
         var builder = new CreatedWhenExpBuilder(_options);
-        var exp = builder.BuildCreateExpression(aggregateType, envelope, serviceProvider, token);
-        //Results in Func<EventEnvelope, IServiceProvider, CancellationToken, ValueTask<T>>
-        var type = typeof(Func<,,,>).MakeGenericType(typeof(EventEnvelope),
-            typeof(IServiceProvider),
-            typeof(CancellationToken),
+        var exp = builder.BuildCreateExpression(aggregateType, envelope, serviceProvider, cancellationToken);
+        //Results in Func<EventEnvelope, ValueTask<TAggregate>>
+        var type = typeof(Func<,>).MakeGenericType(typeof(EventEnvelope),
             typeof(ValueTask<>).MakeGenericType(aggregateType));
-        var lambda = Expression.Lambda(type, exp, "CreatedWhen", true,
-            new[] {envelope, serviceProvider, token});
-        return Expression.Constant(lambda.Compile(), type);
+        return Expression.Lambda(type, exp, $"CreatedWhen<{aggregateType}>", true, new[] {envelope });
     }
 
-    private ConstantExpression BuildUpdatedWhen(Type aggregateType)
+    private Expression BuildUpdatedWhen(Type aggregateType,
+        Expression serviceProvider, 
+        Expression cancellationToken)
     {
         var current = Expression.Parameter(aggregateType);
-        var @event = Expression.Parameter(typeof(EventEnvelope));
-        var serviceProvider = Expression.Parameter(typeof(IServiceProvider));
-        var token = Expression.Parameter(typeof(CancellationToken));
+        var envelope = Expression.Parameter(typeof(EventEnvelope));
         var builder = new UpdatedWhenExpBuilder(_options);
-        var exp = builder.BuildUpdateExpression(aggregateType, current, @event, serviceProvider, token);
-        //Results in Func<T, EventEnvelope, IServiceProvider, CancellationToken, ValueTask<T>>
-        var type = typeof(Func<,,,,>).MakeGenericType(aggregateType,
+        var exp = builder.BuildUpdateExpression(aggregateType, current, envelope, serviceProvider, cancellationToken);
+        //Results in Func<TAggregate, EventEnvelope, ValueTask<TAggregate>>
+        var type = typeof(Func<,,>).MakeGenericType(aggregateType,
             typeof(EventEnvelope),
-            typeof(IServiceProvider),
-            typeof(CancellationToken),
             typeof(ValueTask<>).MakeGenericType(aggregateType));
-        var lambda = Expression.Lambda(type, exp, "UpdatedWhen", true,
-            new[] {current, @event, serviceProvider, token});
-        return Expression.Constant(lambda.Compile(), type);
+        return Expression.Lambda(type, exp, $"UpdatedWhen<{aggregateType}>", true, new[] {current, envelope });
     }
 
     public static void ValidateWhen(Type aggregateType, MethodInfo method)

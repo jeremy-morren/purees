@@ -30,7 +30,7 @@ public class UpdateOnHandlerTests
             Rand.NextULong(),
             DateTime.UtcNow,
             Events.Created.New(),
-            new Metadata());
+            Metadata.New());
         var cmd = Commands.Update.New();
         var metadata = new object();
         var expectedVersion = Rand.NextULong();
@@ -93,7 +93,7 @@ public class UpdateOnHandlerTests
             Rand.NextULong(),
             DateTime.UtcNow,
             Events.Created.New(),
-            new Metadata());
+            Metadata.New());
         var cmd = Commands.Update.New();
         var expectedVersion = Rand.NextULong();
         var ct = new CancellationTokenSource().Token;
@@ -150,7 +150,7 @@ public class UpdateOnHandlerTests
             Rand.NextULong(),
             DateTime.UtcNow,
             Events.Created.New(),
-            new Metadata());
+            Metadata.New());
         var cmd = Commands.Update.New();
         var metadata = new object();
         var expectedVersion = Rand.NextULong();
@@ -252,7 +252,10 @@ public class UpdateOnHandlerTests
             => ValueTask.FromResult(UpdateDerivedResult(current, cmd));
     }
 
-    private record Metadata;
+    private record Metadata
+    {
+        public static Lazy<object?> New() => new(() => new Metadata(), true);
+    }
 
     private record Result(TestAggregateId Id);
 

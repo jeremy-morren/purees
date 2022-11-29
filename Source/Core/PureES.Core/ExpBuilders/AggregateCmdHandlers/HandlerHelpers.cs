@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.Contracts;
 using System.Linq.Expressions;
 using System.Reflection;
 
@@ -80,6 +81,7 @@ public static class HandlerHelpers
         };
     }
 
+    [Pure]
     public static Type GetCommandType(MethodInfo method) =>
         method.GetParameters()
             .FirstOrDefault(p => p.GetCustomAttribute(typeof(CommandAttribute)) != null)

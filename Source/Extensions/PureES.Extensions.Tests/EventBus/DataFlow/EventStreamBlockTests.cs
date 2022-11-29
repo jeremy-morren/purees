@@ -20,9 +20,9 @@ public class EventStreamBlockTests
                 $"{i / streamSize}",
                 (ulong) (i % streamSize),
                 (ulong) i,
-                DateTime.Now,
-                new object(),
-                null))
+                DateTime.UtcNow,
+                new Lazy<object>(() => new object(), true),
+                new Lazy<object?>(() => null)))
             .ToList();
 
         var completions = envelopes

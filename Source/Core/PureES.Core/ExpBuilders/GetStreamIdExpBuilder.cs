@@ -21,6 +21,12 @@ internal class GetStreamIdExpBuilder
 
     public Expression GetStreamId(Expression cmdParam)
     {
+        //We first check to see if the 'GetStreamId' attribute exists
+        //If it does, then we return a constant
+        var attr = cmdParam.Type.GetCustomAttribute<StreamIdAttribute>();
+        if (attr != null)
+            return Expression.Constant(attr.StreamId);
+        
         //As cmd.Id.StreamId
         var idProp = _options.GetAggregateIdProperty?.Invoke(cmdParam.Type)
                      ?? GetDefaultAggregateIdProperty(cmdParam.Type);
@@ -30,7 +36,6 @@ internal class GetStreamIdExpBuilder
         var getId = Expression.Property(cmdParam, idProp);
         return Expression.Property(getId, streamIdProp);
     }
-
 
     private static PropertyInfo GetDefaultAggregateIdProperty(Type commandType)
     {
