@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using PureES.Core.ExpBuilders.AggregateCmdHandlers;
 using PureES.Core.ExpBuilders.WhenHandlers;
 
-namespace PureES.Core.ExpBuilders.Services;
+namespace PureES.Core.ExpBuilders;
 
 internal class CommandServicesBuilder
 {
@@ -17,8 +17,6 @@ internal class CommandServicesBuilder
 
     public void AddCommandHandlers(Type aggregateType, IServiceCollection services)
     {
-        if (aggregateType.GetCustomAttribute(typeof(AggregateAttribute)) == null)
-            throw new ArgumentException("Type is not an aggregate");
         foreach (var m in aggregateType.GetMethods(BindingFlags.Public | BindingFlags.Static))
             if (HandlerHelpers.IsCreateHandler(aggregateType, m))
             {

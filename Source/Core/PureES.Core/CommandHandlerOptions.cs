@@ -3,7 +3,7 @@
 // ReSharper disable CollectionNeverUpdated.Global
 // ReSharper disable ReturnTypeCanBeEnumerable.Global
 
-namespace PureES.Core.ExpBuilders.Services;
+namespace PureES.Core;
 
 public class CommandHandlerOptions
 {

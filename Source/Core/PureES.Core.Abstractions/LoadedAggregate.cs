@@ -1,5 +1,10 @@
-﻿namespace PureES.Core;
+﻿using PureES.Core.EventStore;
 
+namespace PureES.Core;
+
+/// <summary>
+/// Represents an Aggregate rehydrated from <see cref="IEventStore"/>
+/// </summary>
 public record LoadedAggregate<T>(T Aggregate, ulong Version)
 {
     /// <summary>Gets the built <c>Aggregate</c></summary>

@@ -11,7 +11,7 @@ public class OptimisticConcurrency : IOptimisticConcurrency
 
     public OptimisticConcurrency(Func<object, ulong?> getExpectedVersion) => _getExpectedVersion = getExpectedVersion;
 
-    public ValueTask<ulong?> GetExpectedVersion(object command, CancellationToken ct) =>
+    public ValueTask<ulong?> GetExpectedRevision(object command, CancellationToken ct) =>
         ValueTask.FromResult(_getExpectedVersion(command));
 }
 

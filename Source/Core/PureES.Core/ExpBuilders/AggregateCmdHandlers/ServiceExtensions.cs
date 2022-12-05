@@ -13,11 +13,11 @@ internal static class ServiceExtensions
         return src != null ? await src.GetMetadata(command, @event, ct) : null;
     }
 
-    public static async ValueTask<ulong?> GetExpectedVersion(this IServiceProvider provider,
+    public static async ValueTask<ulong?> GetExpectedRevision(this IServiceProvider provider,
         object command,
         CancellationToken ct)
     {
         var svc = provider.GetService<IOptimisticConcurrency>();
-        return svc != null ? await svc.GetExpectedVersion(command, ct) : null;
+        return svc != null ? await svc.GetExpectedRevision(command, ct) : null;
     }
 }

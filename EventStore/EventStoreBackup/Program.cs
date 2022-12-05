@@ -2,12 +2,18 @@ using System.Security.Cryptography.X509Certificates;
 using CommandLine;
 using EventStoreBackup;
 using EventStoreBackup.Auth;
+using EventStoreBackup.K8s;
+using EventStoreBackup.Services;
+using k8s;
+using k8s.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Serilog;
 using Serilog.Events;
 
-if (Parser.Default.ParseArguments<CommandLineOptions>(args) is not Parsed<CommandLineOptions> parsed)
+var parser = new Parser(s => s.IgnoreUnknownArguments = true);
+
+if (parser.ParseArguments<CommandLineOptions>(args) is not Parsed<CommandLineOptions> parsed)
     return 1;
 
 Log.Logger = new LoggerConfiguration()
@@ -47,6 +53,17 @@ try
                 .Build();
     });
 
+    builder.Services.AddSingleton(new Kubernetes(KubernetesClientConfiguration.BuildDefaultConfig()))
+        .AddTransient<K8sExec>();
+
+    builder.Services.AddOptions<EventStoreOptions>()
+        .Configure(builder.Configuration.GetSection("EventStore").Bind)
+        .Validate(o =>
+        {
+            o.Validate();
+            return true;
+        });
+
     builder.Services.AddTransient<BackupService>();
 
     builder.Services.Configure<BackupOptions>(builder.Configuration.GetSection("Backup").Bind)
@@ -59,6 +76,7 @@ try
     builder.Host.UseSerilog((context, services, conf) => conf
         .ReadFrom.Configuration(context.Configuration)
         .ReadFrom.Services(services)
+        .Destructure.ByTransforming<V1Pod>(p => new {Name = p.Name(), Namespace = p.Namespace()})
         .WriteTo.Console());
 
     var app = builder.Build();
@@ -91,3 +109,6 @@ finally
 {
     Log.CloseAndFlush();
 }
+
+// ReSharper disable once ClassNeverInstantiated.Global
+public partial class Program {}

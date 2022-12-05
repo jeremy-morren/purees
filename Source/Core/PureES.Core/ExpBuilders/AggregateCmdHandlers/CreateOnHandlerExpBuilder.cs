@@ -1,6 +1,8 @@
 ﻿using System.Linq.Expressions;
 using System.Reflection;
-using PureES.Core.ExpBuilders.Services;
+using Microsoft.Extensions.Logging;
+
+// ReSharper disable SuggestBaseTypeForParameter
 
 namespace PureES.Core.ExpBuilders.AggregateCmdHandlers;
 
@@ -59,9 +61,11 @@ internal class CreateOnHandlerExpBuilder
 
 
         var handler = BuildHandler(aggregateType, handlerMethod, command, serviceProvider, cancellationToken);
-        var getStreamId = BuildGetStreamId(command);
+        var streamId = new GetStreamIdExpBuilder(_options).GetStreamId(command);
+        var log = BuildLogCall(serviceProvider, aggregateType, handlerMethod, commandType);
         
-        return Expression.Call(method, command, getStreamId, handler, serviceProvider, cancellationToken);
+        var handle = Expression.Call(method, command, streamId, handler, serviceProvider, cancellationToken);
+        return Expression.Block(log, handle);
     }
 
     private Expression BuildHandler(Type aggregateType,
@@ -79,14 +83,28 @@ internal class CreateOnHandlerExpBuilder
             true, Array.Empty<ParameterExpression>());
     }
 
-    private Expression BuildGetStreamId(Expression command)
+    private static Expression BuildLogCall(Expression serviceProvider,
+        Type aggregateType,
+        MethodInfo handlerMethod,
+        Type commandType) =>
+        Expression.Call(LogMethod, 
+            serviceProvider,
+            Expression.Constant(aggregateType),
+            Expression.Constant(handlerMethod),
+            Expression.Constant(commandType));
+
+    private static void LogMatchedMethod(IServiceProvider serviceProvider, 
+        Type aggregateType,
+        MethodInfo handlerMethod,
+        Type commandType)
     {
-        var streamId = new GetStreamIdExpBuilder(_options).GetStreamId(command);
-        
-        //Desired return type is Func<string>()
-        return Expression.Lambda<Func<string>>(streamId, 
-            $"GetStreamId<{command.Type}>", 
-            true,
-            ArraySegment<ParameterExpression>.Empty);
+        var logger = CommandServicesBuilder.GetLogger(serviceProvider);
+        logger.LogDebug("Command {Command} matched create handler {Handler}",
+            commandType, $"{aggregateType}+{handlerMethod.Name}");
     }
+
+    private static readonly MethodInfo LogMethod =
+        typeof(CreateOnHandlerExpBuilder).GetMethod(nameof(LogMatchedMethod),
+            BindingFlags.NonPublic | BindingFlags.Static)
+        ?? throw new Exception($"Unable to get method {nameof(LogMatchedMethod)}");
 }

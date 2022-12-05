@@ -19,7 +19,6 @@ public class EventStreamBlockTests
             .Select(i => new EventEnvelope(Guid.NewGuid(),
                 $"{i / streamSize}",
                 (ulong) (i % streamSize),
-                (ulong) i,
                 DateTime.UtcNow,
                 new Lazy<object>(() => new object(), true),
                 new Lazy<object?>(() => null)))

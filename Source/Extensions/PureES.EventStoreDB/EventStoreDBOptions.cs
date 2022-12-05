@@ -27,11 +27,13 @@ public class EventStoreDBOptions
         if (string.IsNullOrWhiteSpace(ConnectionString))
             throw new InvalidOperationException("Connection string is required");
         var settings = EventStoreClientSettings.Create(ConnectionString);
+        if (EnableLogging)
+            settings.LoggerFactory = services.GetService<ILoggerFactory>();
         settings.CreateHttpMessageHandler = () =>
         {
             var handler = new SocketsHttpHandler();
             if (EnableLogging)
-                settings.LoggerFactory = services.GetRequiredService<ILoggerFactory>();
+                settings.LoggerFactory = services.GetService<ILoggerFactory>();
             if (!ValidateServerCertificate)
                 handler.SslOptions.RemoteCertificateValidationCallback = (_, _, _, _) => true;
             return handler;

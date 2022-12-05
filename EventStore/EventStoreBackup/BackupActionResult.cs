@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using EventStoreBackup.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EventStoreBackup;
@@ -15,10 +16,12 @@ public class BackupActionResult : IActionResult
         var svc = context.HttpContext.RequestServices.GetRequiredService<BackupService>();
 
         var response = context.HttpContext.Response;
+        var ct = context.HttpContext.RequestAborted;
         try
         {
+            var pod = await context.HttpContext.GetPodAsync(ct);
             response.StatusCode = (int) HttpStatusCode.OK;
-            await svc.Process(response, _compressionType, context.HttpContext.RequestAborted);
+            await svc.Process(context.HttpContext.Request.Host.ToString(), pod, response, _compressionType, ct);
         }
         catch (Exception e)
         {

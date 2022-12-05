@@ -22,7 +22,6 @@ public class EventEnvelopeTests
         Assert.Throws<ArgumentException>(() => new EventEnvelope(Guid.NewGuid(),
             Guid.NewGuid().ToString(),
             Rand.NextULong(),
-            Rand.NextULong(),
             DateTime.Now,
             Events.Created.New(),
             new Lazy<object?>(() => Object)));
@@ -31,7 +30,6 @@ public class EventEnvelopeTests
     private static EventEnvelope NewEnvelope() => new (
         Guid.NewGuid(),
         Guid.NewGuid().ToString(),
-        Rand.NextULong(),
         Rand.NextULong(),
         DateTime.UtcNow,
         Events.Created.New(),

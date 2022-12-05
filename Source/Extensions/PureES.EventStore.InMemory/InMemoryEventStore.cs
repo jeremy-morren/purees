@@ -29,10 +29,10 @@ internal class InMemoryEventStore : IInMemoryEventStore
         _eventTypeMap = eventTypeMap;
     }
 
-    #region Implementation
-
     //Implementation of IEventSTore
     //Note that all methods have to be synchronized to maintain integrity
+    
+    #region Append
 
     public Task<ulong> GetRevision(string streamId, CancellationToken _)
     {
@@ -41,6 +41,20 @@ internal class InMemoryEventStore : IInMemoryEventStore
             if (!_events.TryGetValue(streamId, out var events))
                 throw new StreamNotFoundException(streamId);
             return Task.FromResult((ulong) events.Count - 1);
+        }
+    }
+    
+    public Task<ulong> GetRevision(string streamId, ulong expectedRevision, CancellationToken _)
+    {
+        lock (_events)
+        {
+            if (!_events.TryGetValue(streamId, out var current))
+                throw new StreamNotFoundException(streamId);
+            if (current.Count - 1 != (long) expectedRevision)
+                throw new WrongStreamRevisionException(streamId,
+                    expectedRevision,
+                    (ulong) current.Count - 1);
+            return Task.FromResult((ulong) current.Count - 1);
         }
     }
 
@@ -66,16 +80,16 @@ internal class InMemoryEventStore : IInMemoryEventStore
     public Task<ulong> Create(string streamId, UncommittedEvent @event, CancellationToken _)
         => Create(streamId, ImmutableArray.Create(@event), _);
 
-    public Task<ulong> Append(string streamId, ulong expectedVersion, IEnumerable<UncommittedEvent> events,
+    public Task<ulong> Append(string streamId, ulong expectedRevision, IEnumerable<UncommittedEvent> events,
         CancellationToken _)
     {
         lock (_events)
         {
             if (!_events.TryGetValue(streamId, out var current))
                 throw new StreamNotFoundException(streamId);
-            if (current.Count - 1 != (long) expectedVersion)
+            if (current.Count - 1 != (long) expectedRevision)
                 throw new WrongStreamRevisionException(streamId,
-                    expectedVersion,
+                    expectedRevision,
                     (ulong) current.Count - 1);
             return Task.FromResult(AppendStream(streamId, events));
         }
@@ -91,11 +105,35 @@ internal class InMemoryEventStore : IInMemoryEventStore
         }
     }
 
-    public Task<ulong> Append(string streamId, ulong expectedVersion, UncommittedEvent @event, CancellationToken _)
-        => Append(streamId, expectedVersion, ImmutableArray.Create(@event), _);
+    public Task<ulong> Append(string streamId, ulong expectedRevision, UncommittedEvent @event, CancellationToken _)
+        => Append(streamId, expectedRevision, ImmutableArray.Create(@event), _);
     
     public Task<ulong> Append(string streamId, UncommittedEvent @event, CancellationToken _)
         => Append(streamId, ImmutableArray.Create(@event), _);
+    
+    
+
+    private ulong AppendStream(string streamId, IEnumerable<UncommittedEvent> events)
+    {
+        var timestamp = _systemClock.UtcNow;
+        var current = _events[streamId];
+        foreach (var e in events)
+        {
+            var record = _serializer.Serialize(e, streamId, timestamp);
+            var streamPos = current.Count;
+
+            record.StreamPosition = (uint) streamPos;
+
+            current.Add(record);
+            _all.Add((streamId, streamPos));
+        }
+
+        return (ulong) (current.Count - 1);
+    }
+    
+    #endregion
+    
+    #region Read
 
     public IReadOnlyList<EventEnvelope> ReadAll()
     {
@@ -187,34 +225,47 @@ internal class InMemoryEventStore : IInMemoryEventStore
             return list.ToAsyncEnumerable();
         }
     }
+    
+    private List<EventEnvelope> ReadInternal(string streamId)
+    {
+        if (!_events.TryGetValue(streamId, out var events))
+            throw new StreamNotFoundException(streamId);
+        return Enumerable.Range(0, events.Count)
+            .Select(i => events[i])
+            .Select(_serializer.Deserialize)
+            .ToList();
+    }
 
-    public Task<ulong> Count(string streamId, CancellationToken cancellationToken)
+    public IAsyncEnumerable<EventEnvelope> ReadMany(IEnumerable<string> streams, CancellationToken cancellationToken)
     {
         lock (_events)
         {
-            if (_events.TryGetValue(streamId, out var events))
-                return Task.FromResult((ulong) events.Count);
-            throw new StreamNotFoundException(streamId);
+            var events = streams.SelectMany(ReadInternal)
+                .OrderBy(e => e.Timestamp)
+                .ToList();
+            cancellationToken.ThrowIfCancellationRequested();
+            return events.ToAsyncEnumerable();
         }
     }
 
-    private ulong AppendStream(string streamId, IEnumerable<UncommittedEvent> events)
+    public async IAsyncEnumerable<EventEnvelope> ReadMany(IAsyncEnumerable<string> streams,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var timestamp = _systemClock.UtcNow;
-        var current = _events[streamId];
-        foreach (var e in events)
+        var list = await streams.ToListAsync(cancellationToken);
+
+        List<EventEnvelope> events;
+        lock (_events)
         {
-            var record = _serializer.Serialize(e, streamId, timestamp);
-            var streamPos = current.Count;
-
-            record.StreamPosition = (uint) streamPos;
-            record.OverallPosition = (uint) _all.Count;
-
-            current.Add(record);
-            _all.Add((streamId, streamPos));
+            events = list.SelectMany(ReadInternal)
+                .OrderBy(e => e.Timestamp)
+                .ToList();
         }
 
-        return (ulong) (current.Count - 1);
+        foreach (var e in events)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            yield return e;
+        }
     }
 
     #endregion
@@ -256,7 +307,6 @@ internal class InMemoryEventStore : IInMemoryEventStore
                     _events.Add(streamId, eventStream);
                 }
                 e.StreamPosition = (uint) eventStream.Count;
-                e.OverallPosition = (uint) _all.Count;
                 _all.Add((streamId, eventStream.Count));
                 eventStream.Add(e);
             }

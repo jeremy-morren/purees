@@ -123,23 +123,26 @@ public abstract class EventStoreTestsBase
     }
 
     [Fact]
-    public async Task Count()
+    public async Task GetStreamRevision()
     {
         var store = CreateStore();
-        const string stream = nameof(Count);
+        const string stream = nameof(GetStreamRevision);
         var events = Enumerable.Range(0, 10)
             .Select(_ => NewEvent())
             .ToList();
         await store.Create(stream, events, default);
-        Assert.Equal((ulong) events.Count, await store.Count(stream, default));
+        var revision = (ulong) events.Count - 1;
+        Assert.Equal(revision, await store.GetRevision(stream, default));
+        Assert.Equal(revision, await store.GetRevision(stream, revision, default));
+        await Assert.ThrowsAsync<WrongStreamRevisionException>(() => store.GetRevision(stream, revision + 1, default));
     }
 
     [Fact]
-    public async Task Count_Invalid_Should_Throw()
+    public async Task Get_Revision_Invalid_Should_Throw()
     {
         var store = CreateStore();
-        const string stream = nameof(Count_Invalid_Should_Throw);
-        await Assert.ThrowsAsync<StreamNotFoundException>(() => store.Count(stream, default));
+        const string stream = nameof(Get_Revision_Invalid_Should_Throw);
+        await Assert.ThrowsAsync<StreamNotFoundException>(() => store.GetRevision(stream, default));
     }
 
     [Fact]
@@ -156,9 +159,30 @@ public abstract class EventStoreTestsBase
 
         var all = await store.ReadAll(default).ToListAsync();
         Assert.NotEmpty(all);
-        Assert.Equal(all.OrderBy(e => e.OverallPosition), all);
-        Assert.Empty(all.GroupBy(a => a.OverallPosition).Where(g => g.Count() > 1));
-        Assert.Empty(all.GroupBy(a => new {a.StreamId, a.StreamPosition}).Where(g => g.Count() > 1));
+        Assert.Equal(all.OrderBy(e => e.Timestamp), all);
+        Assert.Empty(all.GroupBy(a => new {a.StreamId, a.StreamPosition})
+            .Where(g => g.Count() > 1));
+    }
+
+    [Fact]
+    public async Task StreamPosition_Should_Be_Ordered_And_Unique()
+    {
+        var store = CreateStore();
+        const string stream = nameof(StreamPosition_Should_Be_Ordered_And_Unique);
+        const int count = 100;
+        var events = Enumerable.Range(0, count).Select(_ => NewEvent()).ToList();
+        await store.Create(stream, events.Take(count / 2), default);
+        await store.Append(stream, events.Skip(count / 2), default);
+
+        Assert.Equal((ulong) count - 1, await store.GetRevision(stream, default));
+
+        
+        var list = await store.Read(stream, default).ToListAsync();
+
+        Assert.Equal(list.OrderBy(l => l.StreamPosition), list);
+        Assert.Equal(Enumerable.Range(0, count), list.Select(e => (int) e.StreamPosition));
+
+        Assert.Equal(list.OrderBy(e => e.Timestamp), list);
     }
 
     [Fact]
@@ -167,6 +191,46 @@ public abstract class EventStoreTestsBase
         var store = CreateStore();
 
         Assert.Empty(await store.ReadByEventType(typeof(int), default).ToListAsync());
+    }
+
+    [Fact]
+    public async Task ReadManyShouldReturnInChronologicalOrder()
+    {
+        var store = CreateStore();
+        
+        //We need to add in random order
+        var streamIds = Enumerable.Range(0, 10)
+            .SelectMany(i => Enumerable.Range(0, 10).Select(_ => $"stream-{i}"))
+            .OrderBy(_ => Guid.NewGuid());
+
+        foreach (var streamId in streamIds)
+        {
+            try
+            {
+                await store.Append(streamId, NewEvent(), default);
+            }
+            catch (StreamNotFoundException)
+            {
+                await store.Create(streamId, NewEvent(), default);
+            }
+        }
+
+        var half = Enumerable.Range(0, 10)
+            .Select(i => $"stream-{i}")
+            .OrderBy(_ => Guid.NewGuid())
+            .Take(5)
+            .ToHashSet();
+        
+        var syncResult = await store.ReadMany(half, default).ToListAsync();
+        var asyncResult = await store.ReadMany(half.ToAsyncEnumerable(), default).ToListAsync();
+        Assert.All(new [] { syncResult, asyncResult }, result =>
+        {
+            Assert.NotEmpty(result);
+            Assert.Equal(5 * 10, result.Count);
+            Assert.Equal(result, result.OrderBy(r => r.Timestamp));
+
+            Assert.Empty(result.Where(e => !half.Contains(e.StreamId)));
+        });
     }
 
     private static async Task AssertEqual(IEnumerable<UncommittedEvent> source, IAsyncEnumerable<EventEnvelope> events)

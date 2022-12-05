@@ -17,6 +17,7 @@ public static class Services
             builder.ClearProviders();
             builder.AddProvider(NullLoggerProvider.Instance);
         });
+        services.AddTransient(typeof(IAggregateStore<>), typeof(AggregateStore<>));
         configure?.Invoke(services);
         return services.BuildServiceProvider();
     }

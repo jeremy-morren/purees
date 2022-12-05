@@ -50,7 +50,6 @@ public class UpdatedWhenTests
         var envelope = new EventEnvelope(Guid.NewGuid(),
             Guid.NewGuid().ToString(),
             Rand.NextULong(),
-            Rand.NextULong(),
             DateTime.UtcNow,
             TestAggregates.NewEvent<TEvent>(),
             Metadata.New());
@@ -105,7 +104,6 @@ public class UpdatedWhenTests
 
         EventEnvelope CreateEnvelope<TEvent>() where TEvent : notnull => new(Guid.NewGuid(),
             Guid.NewGuid().ToString(),
-            Rand.NextULong(),
             Rand.NextULong(),
             DateTime.UtcNow,
             TestAggregates.NewEvent<TEvent>(),

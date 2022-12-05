@@ -28,15 +28,9 @@ public class SubscriptionOptions
     /// </summary>
     public int MaxDegreeOfParallelism { get; set; } = 1;
 
-    /// <summary>
-    ///     Indicates the number of events to be buffered
-    ///     before processing. The default is <c>-1</c> (no limit)
-    /// </summary>
-    public int BufferSize { get; set; } = -1;
-
     public EventStreamBlockOptions GetWorkerOptions() => new()
     {
         MaxDegreeOfParallelism = MaxDegreeOfParallelism,
-        BoundedCapacity = BufferSize
+        BoundedCapacity = MaxDegreeOfParallelism //Do not buffer more than we can handle anyway
     };
 }

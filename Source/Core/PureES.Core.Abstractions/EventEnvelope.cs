@@ -23,14 +23,12 @@ public class EventEnvelope : IEquatable<EventEnvelope>
         EventId = other.EventId;
         StreamId = other.StreamId;
         StreamPosition = other.StreamPosition;
-        OverallPosition = other.OverallPosition;
         Timestamp = other.Timestamp;
     }
 
     public EventEnvelope(Guid eventId,
         string streamId, 
         ulong streamPosition, 
-        ulong overallPosition, 
         DateTime timestamp,
         Lazy<object> @event,
         Lazy<object?> metadata)
@@ -40,7 +38,6 @@ public class EventEnvelope : IEquatable<EventEnvelope>
         EventId = eventId;
         StreamId = streamId;
         StreamPosition = streamPosition;
-        OverallPosition = overallPosition;
         Timestamp = timestamp;
         if (timestamp.Kind != DateTimeKind.Utc)
             throw new ArgumentException("Timestamp must be in UTC", nameof(timestamp));
@@ -54,12 +51,6 @@ public class EventEnvelope : IEquatable<EventEnvelope>
 
     /// <summary>The position of the event within the stream</summary>
     public ulong StreamPosition { get; }
-
-    /// <summary>
-    ///     The overall position of this event among all events.
-    ///     Not guaranteed to be contiguous (i.e. 0-1-2....)
-    /// </summary>
-    public ulong OverallPosition { get; }
 
     /// <summary>The UTC timestamp that the event was persisted</summary>
     public DateTime Timestamp { get; }
@@ -75,7 +66,6 @@ public class EventEnvelope : IEquatable<EventEnvelope>
         EventId,
         StreamId,
         StreamPosition,
-        OverallPosition,
         Timestamp,
         Event,
         Metadata
@@ -92,7 +82,6 @@ public class EventEnvelope : IEquatable<EventEnvelope>
                EventId.Equals(other.EventId) &&
                StreamId == other.StreamId &&
                StreamPosition == other.StreamPosition &&
-               OverallPosition == other.OverallPosition &&
                Timestamp.Equals(other.Timestamp);
     }
 
@@ -105,7 +94,7 @@ public class EventEnvelope : IEquatable<EventEnvelope>
     }
 
     public override int GetHashCode() => 
-        HashCode.Combine(Event, Metadata, EventId, StreamId, StreamPosition, OverallPosition, Timestamp);
+        HashCode.Combine(Event, Metadata, EventId, StreamId, StreamPosition, Timestamp);
     
     
     public bool Equals<TEvent, TMetadata>(EventEnvelope<TEvent, TMetadata>? other)
@@ -116,7 +105,6 @@ public class EventEnvelope : IEquatable<EventEnvelope>
         return EventId.Equals(other.EventId)
                && StreamId == other.StreamId
                && StreamPosition == other.StreamPosition
-               && OverallPosition == other.OverallPosition
                && Timestamp.Equals(other.Timestamp)
                && other.Event.Equals(Event)
                && MetadataEquals(other.Metadata);
@@ -148,7 +136,6 @@ public class EventEnvelope<TEvent, TMetadata> : IEquatable<EventEnvelope<TEvent,
         EventId = source.EventId;
         StreamId = source.StreamId;
         StreamPosition = source.StreamPosition;
-        OverallPosition = source.OverallPosition;
         Timestamp = source.Timestamp;
         _event = new Lazy<TEvent>(() =>
         {
@@ -171,7 +158,6 @@ public class EventEnvelope<TEvent, TMetadata> : IEquatable<EventEnvelope<TEvent,
         EventId = source.EventId;
         StreamId = source.StreamId;
         StreamPosition = source.StreamPosition;
-        OverallPosition = source.OverallPosition;
         Timestamp = source.Timestamp;
         _event = source._event;
         _metadata = source._metadata;
@@ -193,12 +179,6 @@ public class EventEnvelope<TEvent, TMetadata> : IEquatable<EventEnvelope<TEvent,
     public ulong StreamPosition { get; }
 
     /// <summary>
-    ///     The overall position of this event among all events.
-    ///     Not guaranteed to be contiguous (i.e. 0-1-2....)
-    /// </summary>
-    public ulong OverallPosition { get; }
-
-    /// <summary>
     ///     The UTC timestamp that the event was persisted
     /// </summary>
     public DateTime Timestamp { get; }
@@ -218,7 +198,6 @@ public class EventEnvelope<TEvent, TMetadata> : IEquatable<EventEnvelope<TEvent,
         EventId,
         StreamId,
         StreamPosition,
-        OverallPosition,
         Timestamp,
         Event,
         Metadata
@@ -235,7 +214,6 @@ public class EventEnvelope<TEvent, TMetadata> : IEquatable<EventEnvelope<TEvent,
                EventId.Equals(other.EventId) &&
                StreamId == other.StreamId &&
                StreamPosition == other.StreamPosition &&
-               OverallPosition == other.OverallPosition &&
                Timestamp.Equals(other.Timestamp);
     }
 
@@ -248,7 +226,7 @@ public class EventEnvelope<TEvent, TMetadata> : IEquatable<EventEnvelope<TEvent,
     }
 
     public override int GetHashCode() => 
-        HashCode.Combine(Event, Metadata, EventId, StreamId, StreamPosition, OverallPosition, Timestamp);
+        HashCode.Combine(Event, Metadata, EventId, StreamId, StreamPosition, Timestamp);
     
     public bool Equals(EventEnvelope? other)
     {
@@ -256,7 +234,6 @@ public class EventEnvelope<TEvent, TMetadata> : IEquatable<EventEnvelope<TEvent,
         return EventId.Equals(other.EventId)
                && StreamId == other.StreamId
                && StreamPosition == other.StreamPosition
-               && OverallPosition == other.OverallPosition
                && Timestamp.Equals(other.Timestamp)
                && Event.Equals(other.Event)
                && MetadataEquals(other.Metadata);

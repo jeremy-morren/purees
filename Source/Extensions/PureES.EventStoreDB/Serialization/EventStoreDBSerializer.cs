@@ -33,7 +33,6 @@ internal class EventStoreDBSerializer<TMetadata> : IEventStoreDBSerializer
         return new EventEnvelope(record.EventId.ToGuid(),
             record.EventStreamId,
             record.EventNumber.ToUInt64(),
-            record.Position.CommitPosition,
             record.Created,
             @event,
             metadata);

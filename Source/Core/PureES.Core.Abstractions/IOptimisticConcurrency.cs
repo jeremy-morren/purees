@@ -2,5 +2,5 @@
 
 public interface IOptimisticConcurrency
 {
-    ValueTask<ulong?> GetExpectedVersion(object command, CancellationToken ct);
+    ValueTask<ulong?> GetExpectedRevision(object command, CancellationToken ct);
 }

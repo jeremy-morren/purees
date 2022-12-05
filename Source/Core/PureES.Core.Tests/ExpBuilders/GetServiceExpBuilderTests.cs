@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using System;
+using System.Linq.Expressions;
+using Microsoft.Extensions.DependencyInjection;
 using PureES.Core.ExpBuilders;
 using Xunit;
 
@@ -10,22 +12,33 @@ public class GetServiceBuilderExpTests
     public void Get_Singleton_Service()
     {
         var svc = new Service();
-        var func = new GetServiceExpBuilder(new CommandHandlerBuilderOptions())
-            .CompileDelegate<Service>();
         using var provider = Services.Build(s => s.AddSingleton(svc));
-        Assert.Same(svc, func(provider));
+        CompileDelegate(out var getRequired, out var get);
+        Assert.Same(svc, getRequired(provider));
+        Assert.Same(svc, get(provider));
     }
-
+    
     [Fact]
-    public void Get_Transient_Service()
+    public void Get_NonExisting_Should_Return_Null()
     {
-        var func = new GetServiceExpBuilder(new CommandHandlerBuilderOptions())
-            .CompileDelegate<Service>();
-        using var provider = Services.Build(s => s.AddTransient<Service>());
-        func(provider); //As long as it succeeds
+        using var provider = Services.Build();
+        CompileDelegate(out var getRequired, out var get);
+        Assert.Null(get(provider));
     }
 
     private class Service
     {
+    }
+    
+    private static void CompileDelegate(out Func<IServiceProvider, Service> getRequiredService,
+        out Func<IServiceProvider, Service?> getService)
+    {
+        var param = Expression.Parameter(typeof(IServiceProvider));
+        var getRequired = new GetServiceExpBuilder(new CommandHandlerBuilderOptions())
+            .GetRequiredService(param, typeof(Service));
+        var get = new GetServiceExpBuilder(new CommandHandlerBuilderOptions())
+            .GetService(param, typeof(Service));
+        getRequiredService = Expression.Lambda<Func<IServiceProvider, Service>>(getRequired, param).Compile();
+        getService = Expression.Lambda<Func<IServiceProvider, Service>>(get, param).Compile();
     }
 }

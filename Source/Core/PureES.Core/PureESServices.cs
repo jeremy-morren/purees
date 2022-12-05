@@ -1,8 +1,10 @@
 ﻿using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using PureES.Core.ExpBuilders;
+using PureES.Core.ExpBuilders.WhenHandlers;
 
-namespace PureES.Core.ExpBuilders.Services;
+namespace PureES.Core;
 
 internal class PureESServices : IServiceProvider
 {

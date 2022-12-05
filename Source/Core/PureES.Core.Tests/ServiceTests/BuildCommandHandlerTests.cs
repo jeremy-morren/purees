@@ -6,7 +6,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using PureES.Core.EventStore.Serialization;
-using PureES.Core.ExpBuilders.Services;
 using PureES.Core.Tests.ExpBuilders.AggregateCmdHandlers;
 using PureES.Core.Tests.Models;
 using PureES.EventStore.InMemory;

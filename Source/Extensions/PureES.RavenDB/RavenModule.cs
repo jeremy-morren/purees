@@ -38,6 +38,7 @@ public static class RavenModule
             });
 
         return services
+            .Configure(configureOptions)
             .AddSingleton(sp =>
             {
                 var options = sp.GetRequiredService<IOptions<RavenDBOptions>>().Value;

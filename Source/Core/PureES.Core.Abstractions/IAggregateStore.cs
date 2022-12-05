@@ -2,8 +2,8 @@
 
 public interface IAggregateStore<T> where T : notnull
 {
-    ValueTask<LoadedAggregate<T>> Create(IAsyncEnumerable<EventEnvelope> events, CancellationToken token);
-    ValueTask<LoadedAggregate<T>> Load(string streamId, CancellationToken token);
-    ValueTask<LoadedAggregate<T>> Load(string streamId, ulong expectedVersion, CancellationToken token);
-    ValueTask<LoadedAggregate<T>> LoadPartial(string streamId, ulong requiredVersion, CancellationToken token);
+    ValueTask<LoadedAggregate<T>> Create(IAsyncEnumerable<EventEnvelope> events, CancellationToken cancellationToken);
+    ValueTask<LoadedAggregate<T>> Load(string streamId, CancellationToken cancellationToken);
+    ValueTask<LoadedAggregate<T>> Load(string streamId, ulong expectedRevision, CancellationToken cancellationToken);
+    ValueTask<LoadedAggregate<T>> LoadPartial(string streamId, ulong requiredRevision, CancellationToken cancellationToken);
 }

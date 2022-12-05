@@ -31,7 +31,6 @@ internal class InMemoryEventStoreSerializer<TMetadata> : IInMemoryEventStoreSeri
         return new EventEnvelope(record.EventId,
             record.StreamId,
             record.StreamPosition,
-            record.OverallPosition,
             record.Created,
             @event,
             metadata);

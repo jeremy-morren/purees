@@ -1,7 +1,8 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using PureES.Core.ExpBuilders;
 
-namespace PureES.Core.ExpBuilders.Services;
+namespace PureES.Core;
 
 internal class CommandHandler<TCommand> : ICommandHandler<TCommand>
 {
@@ -21,10 +22,12 @@ internal class CommandHandler<TCommand> : ICommandHandler<TCommand>
     {
         try
         {
-            _logger.LogInformation("Handling command {@Command}", typeof(TCommand));
+            _logger.LogDebug("Handling command {@Command}", typeof(TCommand));
             var @delegate = _services.GetService<Func<TCommand, IServiceProvider, CancellationToken, Task<ulong>>>()
                             ?? throw new Exception($"No command handler found for command type {typeof(TCommand)}");
-            return await @delegate(command, _serviceProvider, cancellationToken);
+            var response = await @delegate(command, _serviceProvider, cancellationToken);
+            _logger.LogInformation("Successfully handled command {@Command}", typeof(TCommand));
+            return response;
         }
         catch (Exception e)
         {
@@ -41,7 +44,9 @@ internal class CommandHandler<TCommand> : ICommandHandler<TCommand>
             var @delegate = _services.GetService<Func<TCommand, IServiceProvider, CancellationToken, Task<TResult>>>()
                             ?? throw new Exception(
                                 $"No command handler found for command type {typeof(TCommand)} returning result {typeof(TResult)}");
-            return await @delegate(command, _serviceProvider, cancellationToken);
+            var response = await @delegate(command, _serviceProvider, cancellationToken);
+            _logger.LogInformation("Successfully handled command {@Command}", typeof(TCommand));
+            return response;
         }
         catch (Exception e)
         {

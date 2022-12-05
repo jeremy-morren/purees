@@ -5,7 +5,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using PureES.Core.EventStore;
-using PureES.Core.ExpBuilders.Services;
 
 namespace PureES.Core.ExpBuilders.AggregateCmdHandlers;
 
@@ -29,137 +28,77 @@ internal static class HandleCreateOn
         typeof(HandleCreateOn).GetStaticMethod(nameof(CreateOnValueTaskAsyncResult));
 
     public static async Task<ulong> CreateOnSync<TCommand, TResponse>(TCommand command,
-        Func<string> getStreamId,
+        string streamId,
         Func<TResponse> handle,
         IServiceProvider serviceProvider,
         CancellationToken ct)
         where TCommand : notnull
         where TResponse : notnull
     {
-        var logger = CommandServicesBuilder.GetLogger(serviceProvider);
-        try
-        {
-            logger.LogDebug("Handling create command {@Command}", typeof(TCommand));
-            var response = handle();
-            return await ProcessCreateResponse(logger, serviceProvider, getStreamId, command, response, ct);
-        }
-        catch (Exception e)
-        {
-            logger.LogInformation(e, "Error handling create command {@Command}", typeof(TCommand));
-            throw;
-        }
+        var response = handle();
+        return await ProcessCreateResponse(serviceProvider, streamId, command, response, ct);
     }
 
     public static async Task<TResult> CreateOnSyncResult<TCommand, TResponse, TEvent, TResult>(TCommand command,
-        Func<string> getStreamId,
+        string streamId,
         Func<TResponse> handle,
         IServiceProvider serviceProvider,
         CancellationToken ct)
         where TCommand : notnull
         where TResponse : CommandResult<TEvent, TResult>
     {
-        var logger = CommandServicesBuilder.GetLogger(serviceProvider);
-        try
-        {
-            logger.LogDebug("Handling create command {@Command}", typeof(TCommand));
-            var response = handle();
-            await ProcessCreateResponse(logger, serviceProvider, getStreamId, command, response.Event, ct);
-            return response.Result;
-        }
-        catch (Exception e)
-        {
-            logger.LogInformation(e, "Error handling create command {@Command}", typeof(TCommand));
-            throw;
-        }
+        var response = handle();
+        await ProcessCreateResponse(serviceProvider, streamId, command, response.Event, ct);
+        return response.Result;
     }
 
     public static async Task<ulong> CreateOnAsync<TCommand, TResponse>(TCommand command,
-        Func<string> getStreamId,
+        string streamId,
         Func<Task<TResponse>> handle,
         IServiceProvider serviceProvider,
         CancellationToken ct)
         where TCommand : notnull
     {
-        var logger = CommandServicesBuilder.GetLogger(serviceProvider);
-        try
-        {
-            logger.LogDebug("Handling create command {@Command}", typeof(TCommand));
-            var response = await handle();
-            return await ProcessCreateResponse(logger, serviceProvider, getStreamId, command, response, ct);
-        }
-        catch (Exception e)
-        {
-            logger.LogInformation(e, "Error handling create command {@Command}", typeof(TCommand));
-            throw;
-        }
+        var response = await handle();
+        return await ProcessCreateResponse(serviceProvider, streamId, command, response, ct);
     }
 
     public static async Task<ulong> CreateOnValueTaskAsync<TCommand, TResponse>(TCommand command,
-        Func<string> getStreamId,
+        string streamId,
         Func<ValueTask<TResponse>> handle,
         IServiceProvider serviceProvider,
         CancellationToken ct)
         where TCommand : notnull
     {
-        var logger = CommandServicesBuilder.GetLogger(serviceProvider);
-        try
-        {
-            logger.LogDebug("Handling create command {@Command}", typeof(TCommand));
-            var response = await handle();
-            return await ProcessCreateResponse(logger, serviceProvider, getStreamId, command, response, ct);
-        }
-        catch (Exception e)
-        {
-            logger.LogInformation(e, "Error handling create command {@Command}", typeof(TCommand));
-            throw;
-        }
+        var response = await handle();
+        return await ProcessCreateResponse(serviceProvider, streamId, command, response, ct);
     }
 
     public static async Task<TResult> CreateOnAsyncResult<TCommand, TResponse, TEvent, TResult>(TCommand command,
-        Func<string> getStreamId,
+        string streamId,
         Func<Task<TResponse>> handle,
         IServiceProvider serviceProvider,
         CancellationToken ct)
         where TCommand : notnull
         where TResponse : CommandResult<TEvent, TResult>
     {
-        var logger = CommandServicesBuilder.GetLogger(serviceProvider);
-        try
-        {
-            logger.LogDebug("Handling create command {@Command}", typeof(TCommand));
-            var response = await handle();
-            await ProcessCreateResponse(logger, serviceProvider, getStreamId, command, response.Event, ct);
-            return response.Result;
-        }
-        catch (Exception e)
-        {
-            logger.LogInformation(e, "Error handling create command {@Command}", typeof(TCommand));
-            throw;
-        }
+        var response = await handle();
+        await ProcessCreateResponse(serviceProvider, streamId, command, response.Event, ct);
+        return response.Result;
     }
 
     public static async Task<TResult> CreateOnValueTaskAsyncResult<TCommand, TResponse, TEvent, TResult>(
         TCommand command,
-        Func<string> getStreamId,
+        string streamId,
         Func<ValueTask<TResponse>> handle,
         IServiceProvider serviceProvider,
         CancellationToken ct)
         where TCommand : notnull
         where TResponse : CommandResult<TEvent, TResult>
     {
-        var logger = CommandServicesBuilder.GetLogger(serviceProvider);
-        try
-        {
-            logger.LogDebug("Handling create command {@Command}", typeof(TCommand));
-            var response = await handle();
-            await ProcessCreateResponse(logger, serviceProvider, getStreamId, command, response.Event, ct);
-            return response.Result;
-        }
-        catch (Exception e)
-        {
-            logger.LogInformation(e, "Error handling create command {@Command}", typeof(TCommand));
-            throw;
-        }
+        var response = await handle();
+        await ProcessCreateResponse(serviceProvider, streamId, command, response.Event, ct);
+        return response.Result;
     }
 
 
@@ -167,21 +106,21 @@ internal static class HandleCreateOn
     ///     Persists a create command handler response to <see cref="IEventStore" />
     /// </summary>
     /// <returns></returns>
-    private static async Task<ulong> ProcessCreateResponse<TCommand, TResponse>(ILogger logger,
+    private static async Task<ulong> ProcessCreateResponse<TCommand, TResponse>(
         IServiceProvider serviceProvider,
-        Func<string> getStreamId,
+        string streamId,
         TCommand command,
         TResponse? response,
         CancellationToken ct)
         where TCommand : notnull
     {
         if (response == null)
-            throw new InvalidOperationException($"Create Command {typeof(TCommand)} returned no response");
+            throw new InvalidOperationException($"Create command {typeof(TCommand)} returned no response");
         var store = serviceProvider.GetRequiredService<IEventStore>();
         var enricher = serviceProvider.GetRequiredService<IEventEnricher>();
         object? metadata;
         ulong revision;
-        var streamId = getStreamId();
+        var logger = CommandServicesBuilder.GetLogger(serviceProvider);
         if (response is IEnumerable enumerable)
         {
             var events = new List<UncommittedEvent>();
@@ -192,16 +131,19 @@ internal static class HandleCreateOn
             }
 
             revision = await store.Create(streamId, events, ct);
+            
+            logger.LogDebug("Appended {EventCount} event(s). Stream {StreamId} now at revision {Revision}",
+                events.Count, streamId, revision);
         }
         else
         {
             metadata = await enricher.GetMetadata(command, response, ct);
             var @event = new UncommittedEvent(Guid.NewGuid(), response, metadata);
             revision = await store.Create(streamId, @event, ct);
+            
+            logger.LogDebug("Appended {EventCount} event(s). Stream {StreamId} now at revision {Revision}",
+                1, streamId, revision);
         }
-
-        logger.LogInformation("Successfully handled create command {@Command}. Stream {StreamId} now at revision {Revision}",
-            typeof(TCommand), getStreamId(), revision);
         return revision;
     }
 }

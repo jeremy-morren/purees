@@ -51,6 +51,21 @@ public sealed class EventStoreTestHarness : IDisposable
 
     private async Task<string> Start(CancellationToken ct)
     {
+        const string platform = "linux";
+        const string image = "eventstore/eventstore";
+        const string tag = "21.10.8-buster-slim";
+        //Pull image
+        await DockerClient.Images.CreateImageAsync(new ImagesCreateParameters()
+            {
+                FromImage = image,
+                Tag = tag,
+                Platform = platform
+            },
+            null,
+            new Progress<JSONMessage>(),
+            ct);
+        
+        //Start container
         var response = await DockerClient.Containers.CreateContainerAsync(new CreateContainerParameters
         {
             Env = new List<string>
@@ -59,8 +74,8 @@ public sealed class EventStoreTestHarness : IDisposable
                 "EVENTSTORE_INSECURE=true",
                 "EVENTSTORE_MEM_DB=true"
             },
-            Image = "eventstore/eventstore:21.10.8-buster-slim",
-            Platform = "linux",
+            Image = $"{image}:{tag}",
+            Platform = platform,
             HostConfig = new HostConfig
             {
                 AutoRemove = true,

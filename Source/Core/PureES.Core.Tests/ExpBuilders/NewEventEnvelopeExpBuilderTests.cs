@@ -13,7 +13,6 @@ public class NewEventEnvelopeExpBuilderTests
         var current = new EventEnvelope(Guid.NewGuid(),
             Guid.NewGuid().ToString(),
             Rand.NextULong(),
-            Rand.NextULong(),
             DateTime.UtcNow,
             Event.New(),
             Metadata.New());

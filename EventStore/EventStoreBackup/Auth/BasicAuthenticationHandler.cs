@@ -5,7 +5,9 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using k8s.Models;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Extensions.Options;
 using Microsoft.Net.Http.Headers;
 
@@ -43,7 +45,7 @@ public class BasicAuthenticationHandler : AuthenticationHandler<BasicAuthenticat
             return AuthenticateResult.NoResult();
 
         var ct = Context.RequestAborted;
-        var uri = new Uri(Options.EventStoreServer, UriKind.Absolute);
+        var pod = await Context.GetPodAsync(ct);
         var request = new HttpRequestMessage()
         {
             Method = HttpMethod.Get,
@@ -52,7 +54,8 @@ public class BasicAuthenticationHandler : AuthenticationHandler<BasicAuthenticat
                 Accept = {new MediaTypeWithQualityHeaderValue("application/json")},
                 Authorization = new AuthenticationHeaderValue(Scheme.Name, split[1]), //We send the raw value
             },
-            RequestUri = new Uri($"{uri}users")
+            //Forward request to pod
+            RequestUri = new Uri($"https://{pod.Name()}.{pod.Namespace()}/users", UriKind.Absolute)
         };
         using var response = await _client.SendAsync(request, ct);
         if (!response.IsSuccessStatusCode)

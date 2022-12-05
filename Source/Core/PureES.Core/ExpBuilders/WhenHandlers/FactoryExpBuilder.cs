@@ -38,12 +38,13 @@ internal class FactoryExpBuilder
         Func<T, EventEnvelope, ValueTask<T>> updateWhen,
         CancellationToken ct)
     {
+        if (events == null) throw new ArgumentNullException(nameof(events));
         await using var enumerator = events.GetAsyncEnumerator(ct);
         if (!await enumerator.MoveNextAsync())
             throw new ArgumentException("Provided events list is empty");
         //TODO: handle exceptions in when methods
         var aggregate = await createWhen(enumerator.Current);
-        var revision = (ulong) 1; //After createWhen version is 1
+        var revision = (ulong) 1; //After createWhen revision is 1
         while (await enumerator.MoveNextAsync())
         {
             ct.ThrowIfCancellationRequested();

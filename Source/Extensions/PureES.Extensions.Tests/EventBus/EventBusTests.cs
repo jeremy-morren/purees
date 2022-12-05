@@ -46,7 +46,6 @@ public class EventBusTests
         Guid.NewGuid(),
         Guid.NewGuid().ToString(),
         0,
-        0,
         DateTime.UtcNow,
         new Lazy<object>(() => Object),
         new Lazy<object?>(() => Object));

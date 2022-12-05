@@ -23,7 +23,6 @@ internal class EventStoreDBClient : IEventStore
         _typeMap = typeMap;
     }
 
-
     public async Task<bool> Exists(string streamId, CancellationToken cancellationToken)
     {
         var result = _eventStoreClient.ReadStreamAsync(Direction.Forwards,
@@ -46,6 +45,16 @@ internal class EventStoreDBClient : IEventStore
         var record = await records.FirstAsync(cancellationToken);
         return record.Event.EventNumber.ToUInt64();
     }
+    
+    public async Task<ulong> GetRevision(string streamId, ulong expectedRevision, CancellationToken cancellationToken)
+    {
+        var actual = await GetRevision(streamId, cancellationToken);
+        if (actual != expectedRevision)
+            throw new WrongStreamRevisionException(streamId, expectedRevision, actual);
+        return actual;
+    }
+    
+    #region Append
 
     public async Task<ulong> Create(string streamId,
         IEnumerable<UncommittedEvent> events,
@@ -70,13 +79,13 @@ internal class EventStoreDBClient : IEventStore
         Create(streamId, new[] {@event}, cancellationToken);
 
     /// <inheritdoc />
-    public async Task<ulong> Append(string streamId, ulong expectedVersion, IEnumerable<UncommittedEvent> events,
+    public async Task<ulong> Append(string streamId, ulong expectedRevision, IEnumerable<UncommittedEvent> events,
         CancellationToken cancellationToken)
     {
         try
         {
             var result = await _eventStoreClient.AppendToStreamAsync(streamId,
-                StreamRevision.FromStreamPosition(expectedVersion),
+                StreamRevision.FromStreamPosition(expectedRevision),
                 events.Select(_serializer.Serialize),
                 cancellationToken: cancellationToken);
             return result.NextExpectedStreamRevision.ToUInt64();
@@ -110,14 +119,18 @@ internal class EventStoreDBClient : IEventStore
     }
 
     /// <inheritdoc />
-    public Task<ulong> Append(string streamId, ulong expectedVersion, UncommittedEvent @event,
+    public Task<ulong> Append(string streamId, ulong expectedRevision, UncommittedEvent @event,
         CancellationToken cancellationToken)
-        => Append(streamId, expectedVersion, new[] {@event}, cancellationToken);
+        => Append(streamId, expectedRevision, new[] {@event}, cancellationToken);
     
     /// <inheritdoc />
     public Task<ulong> Append(string streamId, UncommittedEvent @event,
         CancellationToken cancellationToken)
         => Append(streamId, new[] {@event}, cancellationToken);
+    
+    #endregion
+    
+    #region Read
 
     public async IAsyncEnumerable<EventEnvelope> ReadAll([EnumeratorCancellation] CancellationToken cancellationToken)
     {
@@ -221,18 +234,116 @@ internal class EventStoreDBClient : IEventStore
             yield return _serializer.Deserialize(r.Event);
     }
 
-    public async Task<ulong> Count(string streamId, CancellationToken cancellationToken)
+    #endregion
+    
+    #region Read Multiple
+
+    public IAsyncEnumerable<EventEnvelope> ReadMany(IEnumerable<string> streams, 
+        CancellationToken cancellationToken)
     {
-        //We will read the last event in the stream, and return the position
-        var result = _eventStoreClient.ReadStreamAsync(Direction.Backwards,
-            streamId,
-            StreamPosition.End,
-            maxCount: 1,
-            resolveLinkTos: false,
-            cancellationToken: cancellationToken);
-        if (await result.ReadState == ReadState.StreamNotFound)
-            throw new StreamNotFoundException(streamId);
-        var e = await result.FirstAsync(cancellationToken);
-        return e.Event.EventNumber.ToUInt64() + 1; //EventNumber is 0-based
+        //Ensure we get only distinct streams
+        var enumerators = streams.Distinct().SelectAwait(async stream =>
+        {
+            var readResult = _eventStoreClient.ReadStreamAsync(direction: Direction.Forwards,
+                streamName: stream,
+                revision: StreamPosition.Start,
+                resolveLinkTos: true,
+                cancellationToken: cancellationToken);
+            if (await readResult.ReadState == ReadState.StreamNotFound)
+                throw new StreamNotFoundException(stream);
+            return readResult;
+        });
+        return Merge(enumerators, cancellationToken);
     }
+
+    public IAsyncEnumerable<EventEnvelope> ReadMany(IAsyncEnumerable<string> streams, CancellationToken cancellationToken)
+    {
+        //Ensure we get only distinct streams
+        var enumerators = streams.Distinct().SelectAwait(async stream =>
+        {
+            var readResult = _eventStoreClient.ReadStreamAsync(direction: Direction.Forwards,
+                streamName: stream,
+                revision: StreamPosition.Start,
+                resolveLinkTos: true,
+                cancellationToken: cancellationToken);
+            if (await readResult.ReadState == ReadState.StreamNotFound)
+                throw new StreamNotFoundException(stream);
+            return readResult;
+        });
+        return Merge(enumerators, cancellationToken);
+    }
+
+    /// <summary>
+    /// Merges multiple streams together, returning events in chronological order
+    /// </summary>
+    private async IAsyncEnumerable<EventEnvelope> Merge(IAsyncEnumerable<IAsyncEnumerable<ResolvedEvent>> streams,
+        [EnumeratorCancellation] CancellationToken ct)
+    {
+        //We will maintain a dictionary of timestamps to enumerators
+        //These represent the last event read from each stream
+        
+        //Read the next event from the stream with the earliest event
+        //Repeat until all enumerators complete
+
+        var records = new SortedDictionary<DateTime, IAsyncEnumerator<EventRecord>>();
+        
+        try
+        {
+            //Seed the dictionary with the first result from each stream
+
+            await foreach (var stream in streams.WithCancellation(ct))
+            {
+                var enumerator = stream.Select(e => e.Event).GetAsyncEnumerator(ct);
+                try
+                {
+                    if (!await enumerator.MoveNextAsync(ct))
+                        //The stream was empty, ignore
+                        await enumerator.DisposeAsync();
+                    else
+                        records.Add(enumerator.Current.Created, enumerator);
+                }
+                catch (Exception)
+                {
+                    await enumerator.DisposeAsync();
+                    throw;
+                }
+            }
+
+            //Loop until all streams are completed
+            while (records.Count > 0)
+            {
+                ct.ThrowIfCancellationRequested();
+                
+                var date = records.Keys.First();
+                var stream = records[date];
+            
+                //return the Current Event (i.e. the one with timestamp date)
+                yield return _serializer.Deserialize(stream.Current);
+            
+                records.Remove(date);
+                try
+                {
+                    if (!await stream.MoveNextAsync(ct))
+                        //We have reached the end of the stream, Dispose
+                        await stream.DisposeAsync();
+                    else
+                        //Update stream timestamp
+                        records.Add(stream.Current.Created, stream);
+                }
+                catch (Exception)
+                {
+                    await stream.DisposeAsync();
+                    throw;
+                }
+            }
+        }
+        finally
+        {
+            //Allowing for the fact that things may go wrong, ensure we dispose the streams
+            foreach (var stream in records.Values)
+                await stream.DisposeAsync();
+        }
+    }
+
+    #endregion
 }

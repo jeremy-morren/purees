@@ -27,33 +27,35 @@ public class UpdateOnHandlerTests
             Guid.NewGuid(),
             Guid.NewGuid().ToString(),
             Rand.NextULong(),
-            Rand.NextULong(),
             DateTime.UtcNow,
             Events.Created.New(),
             Metadata.New());
         var cmd = Commands.Update.New();
         var metadata = new object();
-        var expectedVersion = Rand.NextULong();
-        var version = Rand.NextULong();
+        var currentRevision = Rand.NextULong();
+        var nextRevision = Rand.NextULong();
         var ct = new CancellationTokenSource().Token;
 
-        eventStore.Setup(s => s.Read(cmd.Id.StreamId, expectedVersion, ct))
+        eventStore.Setup(s => s.Read(cmd.Id.StreamId, currentRevision, ct))
             .Returns(new[] {created}.AsAsyncEnumerable())
-            .Verifiable("Load not called");
-
+            .Verifiable("Read not called");
+        eventStore.Setup(s => s.GetRevision(cmd.Id.StreamId, currentRevision, ct))
+            .Returns(Task.FromResult(currentRevision))
+            .Verifiable("GetRevision not called");
 
         eventStore.Setup(s => s.Append(cmd.Id.StreamId,
-                0, //Single event
+                currentRevision,
                 It.Is<UncommittedEvent>(e =>
                     e.Event is Events.Updated
                     && ((Events.Updated) e.Event).Equals(cmd)
                     && ReferenceEquals(metadata, e.Metadata)),
                 ct))
-            .Returns(Task.FromResult(version))
+            .Returns(Task.FromResult(nextRevision))
             .Verifiable("EventStore.Append not called");
 
         using var sp = Services.Build(s => s
             .AddSingleton(eventStore.Object)
+            .AddSingleton(PureESServices.Build(typeof(Aggregate), new CommandHandlerBuilderOptions()))
             .AddEventEnricher((c, e) =>
             {
                 Assert.Equal(cmd, c);
@@ -64,7 +66,7 @@ public class UpdateOnHandlerTests
             .AddOptimisticConcurrency(c =>
             {
                 Assert.Equal(cmd, c);
-                return expectedVersion;
+                return currentRevision;
             }));
 
         var builder = new UpdateOnHandlerExpBuilder(new CommandHandlerBuilderOptions());
@@ -75,7 +77,7 @@ public class UpdateOnHandlerTests
             Expression.Constant(ct));
         var func = Expression.Lambda<Func<Task<ulong>>>(exp).Compile();
 
-        Assert.Equal(version, func().GetAwaiter().GetResult());
+        Assert.Equal(nextRevision, func().GetAwaiter().GetResult());
         eventStore.Verify();
     }
 
@@ -90,27 +92,30 @@ public class UpdateOnHandlerTests
             Guid.NewGuid(),
             Guid.NewGuid().ToString(),
             Rand.NextULong(),
-            Rand.NextULong(),
             DateTime.UtcNow,
             Events.Created.New(),
             Metadata.New());
         var cmd = Commands.Update.New();
-        var expectedVersion = Rand.NextULong();
+        var currentRevision = Rand.NextULong();
         var ct = new CancellationTokenSource().Token;
 
         var eventEnricher = new Mock<IEventEnricher>();
 
-        eventStore.Setup(s => s.Read(cmd.Id.StreamId, expectedVersion, ct))
+        eventStore.Setup(s => s.Read(cmd.Id.StreamId, currentRevision, ct))
             .Returns(new[] {created}.AsAsyncEnumerable())
-            .Verifiable("Load not called");
+            .Verifiable("Read not called");
+        eventStore.Setup(s => s.GetRevision(cmd.Id.StreamId, currentRevision, ct))
+            .Returns(Task.FromResult(currentRevision))
+            .Verifiable("GetRevision not called");
 
         using var sp = Services.Build(s => s
             .AddSingleton(eventStore.Object)
             .AddSingleton(eventEnricher.Object)
+            .AddSingleton(PureESServices.Build(typeof(Aggregate), new CommandHandlerBuilderOptions()))
             .AddOptimisticConcurrency(c =>
             {
                 Assert.Equal(cmd, c);
-                return expectedVersion;
+                return currentRevision;
             }));
 
         var builder = new UpdateOnHandlerExpBuilder(new CommandHandlerBuilderOptions());
@@ -121,12 +126,12 @@ public class UpdateOnHandlerTests
             Expression.Constant(ct));
         var func = Expression.Lambda<Func<Task<ulong>>>(exp).Compile();
 
-        Assert.Equal((ulong) 0, func().GetAwaiter().GetResult());
+        Assert.Equal(currentRevision, func().GetAwaiter().GetResult());
 
-        eventStore.Verify(s => s.Append(cmd.Id.StreamId,
-                created.StreamPosition, //Single event (from above)
-                It.IsAny<UncommittedEvent>(),
-                ct),
+        eventStore.Verify(s => s.Append(It.IsAny<string>(), 
+                It.IsAny<ulong>(), 
+                It.IsAny<UncommittedEvent>(), 
+                It.IsAny<CancellationToken>()),
             Times.Never);
 
         eventEnricher.Verify(e => e.GetMetadata(cmd, It.IsAny<object>(), ct), Times.Never);
@@ -147,33 +152,35 @@ public class UpdateOnHandlerTests
             Guid.NewGuid(),
             Guid.NewGuid().ToString(),
             Rand.NextULong(),
-            Rand.NextULong(),
             DateTime.UtcNow,
             Events.Created.New(),
             Metadata.New());
         var cmd = Commands.Update.New();
         var metadata = new object();
-        var expectedVersion = Rand.NextULong();
-        var version = Rand.NextULong();
+        var currentRevision = Rand.NextULong();
+        var nextRevision = Rand.NextULong();
         var ct = new CancellationTokenSource().Token;
 
-        eventStore.Setup(s => s.Read(cmd.Id.StreamId, expectedVersion, ct))
+        eventStore.Setup(s => s.Read(cmd.Id.StreamId, currentRevision, ct))
             .Returns(new[] {created}.AsAsyncEnumerable())
-            .Verifiable("Load not called");
-
+            .Verifiable("Read not called");
+        eventStore.Setup(s => s.GetRevision(cmd.Id.StreamId, currentRevision, ct))
+            .Returns(Task.FromResult(currentRevision))
+            .Verifiable("GetRevision not called");
 
         eventStore.Setup(s => s.Append(cmd.Id.StreamId,
-                0, //Single event
+                currentRevision,
                 It.Is<UncommittedEvent>(e =>
                     e.Event is Events.Updated
                     && ((Events.Updated) e.Event).Equals(cmd)
                     && ReferenceEquals(metadata, e.Metadata)),
                 ct))
-            .Returns(Task.FromResult(version))
+            .Returns(Task.FromResult(nextRevision))
             .Verifiable("EventStore.Append not called");
 
         using var sp = Services.Build(s => s
             .AddSingleton(eventStore.Object)
+            .AddSingleton(PureESServices.Build(typeof(Aggregate), new CommandHandlerBuilderOptions()))
             .AddEventEnricher((c, e) =>
             {
                 Assert.Equal(cmd, c);
@@ -184,7 +191,7 @@ public class UpdateOnHandlerTests
             .AddOptimisticConcurrency(c =>
             {
                 Assert.Equal(cmd, c);
-                return expectedVersion;
+                return currentRevision;
             }));
 
         var builder = new UpdateOnHandlerExpBuilder(new CommandHandlerBuilderOptions());
