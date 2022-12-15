@@ -55,7 +55,7 @@ public class BasicAuthenticationHandler : AuthenticationHandler<BasicAuthenticat
                 Authorization = new AuthenticationHeaderValue(Scheme.Name, split[1]), //We send the raw value
             },
             //Forward request to pod
-            RequestUri = new Uri($"https://{pod.Name()}.{pod.Namespace()}/users", UriKind.Absolute)
+            RequestUri = new Uri($"https://{pod.Name()}:2113/users", UriKind.Absolute)
         };
         using var response = await _client.SendAsync(request, ct);
         if (!response.IsSuccessStatusCode)

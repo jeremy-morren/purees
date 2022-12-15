@@ -15,7 +15,14 @@ public static class BasicAuthenticationServiceCollectionExtensions
 
         builder.Services.RemoveAll(typeof(BasicAuthenticationHandler));
 
-        builder.Services.AddHttpClient<BasicAuthenticationHandler>();
+        builder.Services.AddHttpClient<BasicAuthenticationHandler>()
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler()
+            {
+                SslOptions =
+                {
+                    RemoteCertificateValidationCallback = (_, _, _, _) => true,
+                }
+            });
 
         return builder;
     }

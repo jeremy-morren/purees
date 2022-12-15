@@ -1,26 +1,11 @@
-﻿FROM mcr.microsoft.com/dotnet/aspnet:6.0-alpine AS base
-RUN apk add --no-cache rsync ca-certificates
+﻿FROM mcr.microsoft.com/dotnet/aspnet:6.0 AS base
 EXPOSE 80/tcp
 EXPOSE 443/tcp
-
-ARG UID=1000
-ARG GID=1000
-
-#Setup user 1000/eventstore
-#This is the user that eventstore runs under as well
-RUN addgroup --gid ${GID} "eventstore" && \
-    adduser \
-    --disabled-password \
-    --gecos "" \
-    --ingroup "eventstore" \
-    --no-create-home \
-    --uid ${UID} \
-    "eventstore"
 
 #Ensure temporary directory is set
 ENV CONFIG_BACKUP__TEMPDIRECTORY="/tmp"
 
-FROM mcr.microsoft.com/dotnet/sdk:6.0-alpine AS build
+FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
 WORKDIR /Build
 COPY ["EventStoreBackup.csproj", "./"]
 RUN dotnet restore "EventStoreBackup.csproj"

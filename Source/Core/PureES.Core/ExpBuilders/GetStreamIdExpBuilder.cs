@@ -26,39 +26,40 @@ internal class GetStreamIdExpBuilder
         var attr = cmdParam.Type.GetCustomAttribute<StreamIdAttribute>();
         if (attr != null)
             return Expression.Constant(attr.StreamId);
-        
+
         //As cmd.Id.StreamId
         var idProp = _options.GetAggregateIdProperty?.Invoke(cmdParam.Type)
                      ?? GetDefaultAggregateIdProperty(cmdParam.Type);
+
+        var getId = WithNullCheck(Expression.Property(cmdParam, idProp), idProp.Name);
+        
+        //If StreamId is a string, then we return that
+        if (idProp.PropertyType == typeof(string))
+            return getId;
+
         var streamIdProp = _options.GetStreamIdProperty?.Invoke(idProp.PropertyType)
                            ?? GetDefaultStreamIdProperty(idProp.PropertyType);
-        //TODO: Add null checking
-        var getId = Expression.Property(cmdParam, idProp);
-        return Expression.Property(getId, streamIdProp);
+
+        return WithNullCheck(Expression.Property(getId, streamIdProp), $"{idProp.Name}.{streamIdProp.Name}");
+    }
+
+    private static Expression WithNullCheck(Expression src, string name)
+    {
+        if (!src.Type.IsNullable())
+            return src;
+        var @null = Expression.Constant(null, src.Type);
+        var ex = new NullReferenceException($"Unable to get StreamId: {name} is null");
+        var nullCheck = Expression.IfThen(
+            Expression.ReferenceEqual(src, @null),
+            Expression.Throw(Expression.Constant(ex)));
+        return Expression.Block(nullCheck, src);
     }
 
     private static PropertyInfo GetDefaultAggregateIdProperty(Type commandType)
     {
         var props = commandType.GetProperties(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
-        return props.SingleOrDefault(p => p.Name == AggregateIdProperty)
-               ?? throw new InvalidOperationException($"AggregateId property not found on command type {commandType}");
-    }
-
-    private static void ValidAggregateIdProperty(Type commandType, PropertyInfo prop)
-    {
-        //Ensure type is class/struct
-        if (!prop.PropertyType.IsClass && !(prop.PropertyType.IsValueType && !prop.PropertyType.IsPrimitive))
-            throw new InvalidOperationException(
-                $"AggregateId must be strongly-typed with StreamId property for command {commandType}");
-        //Check nullability
-        if ((prop.PropertyType.IsClass && NullContext.Create(prop).ReadState == NullabilityState.Nullable)
-            || Nullable.GetUnderlyingType(prop.PropertyType) != null)
-            throw new InvalidOperationException(
-                $"AggregateId property on {commandType} has an invalid return type. Return type must be non-nullable class/struct");
-        if (prop.GetGetMethod() == null)
-            throw new InvalidOperationException($"Getter not found for property {prop} on {commandType}");
-        if (!prop.GetGetMethod()!.IsPublic)
-            throw new InvalidOperationException($"Getter not public for property {prop} on {commandType}");
+        return props.SingleOrDefault(p => p.Name.Equals(AggregateIdProperty, StringComparison.InvariantCultureIgnoreCase))
+               ?? throw new InvalidOperationException($"'{AggregateIdProperty}' property not found on command type {commandType}");
     }
 
     private static PropertyInfo GetDefaultStreamIdProperty(Type idType)
@@ -66,16 +67,5 @@ internal class GetStreamIdExpBuilder
         var props = idType.GetProperties(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
         return props.SingleOrDefault(p => p.Name == StreamIdProperty)
                ?? throw new InvalidOperationException($"StreamId property not found on strongly-typed ID {idType}");
-    }
-
-    private static void ValidateStreamIdProperty(Type idType, PropertyInfo prop)
-    {
-        if (prop.PropertyType != typeof(string) || NullContext.Create(prop).ReadState == NullabilityState.Nullable)
-            throw new InvalidOperationException(
-                $"StreamId property on {idType} has an invalid return type. Return type must be non-nullable string");
-        if (prop.GetGetMethod() == null)
-            throw new InvalidOperationException($"Getter not found for property {prop} on {idType}");
-        if (!prop.GetGetMethod()!.IsPublic)
-            throw new InvalidOperationException($"Getter not public for property {prop} on {idType}");
     }
 }

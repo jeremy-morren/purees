@@ -5,13 +5,13 @@ namespace PureES.EventBus.DataFlow;
 public class EventStreamBlockOptions
 {
     /// <summary>
-    ///     Gets the maximum number of event streams that may be processed simultaneously.
+    ///     Gets or sets the maximum number of event streams that may be processed simultaneously.
     ///     The default is <c>-1</c> (no limit)
     /// </summary>
     public int MaxDegreeOfParallelism { get; set; } = 1;
 
     /// <summary>
-    ///     Gets or sets the maximum number of events that may be buffered by the block.
+    ///     Gets or sets the mximum number of events that may be buffered by the block.
     /// </summary>
     public int BoundedCapacity { get; set; } = DataflowBlockOptions.Unbounded;
 

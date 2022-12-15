@@ -16,6 +16,27 @@ public class GetStreamIdBuilderTests
         var func = Expression.Lambda<Func<string>>(exp).Compile();
         Assert.Equal(ConstantStreamIdCommand.StreamId, func());
     }
+
+    [Fact]
+    public void StringStreamId()
+    {
+        var cmd = new StringStreamIdCommand();
+        var exp = new GetStreamIdExpBuilder(new CommandHandlerBuilderOptions())
+            .GetStreamId(Expression.Constant(cmd));
+        var func = Expression.Lambda<Func<string>>(exp).Compile();
+        Assert.Equal(cmd.Id, func());
+    }
+    
+    [Fact]
+    public void NullStringStreamId()
+    {
+        var cmd = new StringStreamIdCommand() {Id = null};
+        var exp = new GetStreamIdExpBuilder(new CommandHandlerBuilderOptions())
+            .GetStreamId(Expression.Constant(cmd));
+        var func = Expression.Lambda<Func<string>>(exp).Compile();
+        var ex = Assert.Throws<NullReferenceException>(() => func());
+        Assert.Contains(nameof(cmd.Id), ex.Message);
+    }
     
     [Fact]
     public void ByPropertyName()
@@ -87,6 +108,11 @@ public class GetStreamIdBuilderTests
     private sealed class ConstantStreamIdCommand
     {
         public const string StreamId = "stream";
+    }
+    
+    private sealed class StringStreamIdCommand
+    {
+        public string? Id { get; set; } = "stream";
     }
     
     private record Command(AggId Id, AggId OtherId)

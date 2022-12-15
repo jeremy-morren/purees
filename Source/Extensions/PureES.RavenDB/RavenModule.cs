@@ -6,7 +6,6 @@ using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using Raven.Client.Documents;
 using Raven.Client.Documents.Conventions;
-using Raven.Client.Documents.Linq;
 using Raven.Client.Documents.Operations;
 using Raven.Client.Documents.Session;
 using Raven.Client.Exceptions;
@@ -14,6 +13,7 @@ using Raven.Client.Exceptions.Database;
 using Raven.Client.Json.Serialization.NewtonsoftJson;
 using Raven.Client.ServerWide;
 using Raven.Client.ServerWide.Operations;
+
 // ReSharper disable MemberCanBePrivate.Global
 
 // ReSharper disable ClassNeverInstantiated.Global

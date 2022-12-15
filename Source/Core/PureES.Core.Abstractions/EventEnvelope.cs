@@ -89,7 +89,7 @@ public class EventEnvelope : IEquatable<EventEnvelope>
     {
         if (ReferenceEquals(null, obj)) return false;
         if (ReferenceEquals(this, obj)) return true;
-        if (obj.GetType() != this.GetType()) return false;
+        if (obj.GetType() != GetType()) return false;
         return Equals((EventEnvelope) obj);
     }
 
@@ -221,7 +221,7 @@ public class EventEnvelope<TEvent, TMetadata> : IEquatable<EventEnvelope<TEvent,
     {
         if (ReferenceEquals(null, obj)) return false;
         if (ReferenceEquals(this, obj)) return true;
-        if (obj.GetType() != this.GetType()) return false;
+        if (obj.GetType() != GetType()) return false;
         return Equals((EventEnvelope<TEvent, TMetadata>) obj);
     }
 

@@ -6,19 +6,21 @@ namespace PureES.Core.ExpBuilders;
 internal static class TypeExtensions
 {
     private static readonly NullabilityInfoContext Nullability = new();
-    public static bool IsNullable(this Type type) => Nullable.GetUnderlyingType(type) != null;
+    
+    public static bool IsNullable(this Type type) => !type.IsValueType || Nullable.GetUnderlyingType(type) != null;
+    public static bool IsNullableValueType(this Type type) => type.IsValueType && Nullable.GetUnderlyingType(type) != null;
 
     [MethodImpl(MethodImplOptions.Synchronized)] //This is necessary for some reason
     public static bool IsNullable(this ParameterInfo parameter)
     {
-        if (IsNullable(parameter.ParameterType)) return true;
+        if (IsNullableValueType(parameter.ParameterType)) return true;
         return Nullability.Create(parameter).WriteState == NullabilityState.Nullable;
     }
 
     [MethodImpl(MethodImplOptions.Synchronized)] //This is necessary for some reason
     public static bool IsNullable(this PropertyInfo property)
     {
-        if (IsNullable(property.PropertyType)) return true;
+        if (IsNullableValueType(property.PropertyType)) return true;
         return Nullability.Create(property).WriteState == NullabilityState.Nullable;
     }
 

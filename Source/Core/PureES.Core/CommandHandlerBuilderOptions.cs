@@ -1,5 +1,7 @@
 ﻿using System.Reflection;
 
+// ReSharper disable UnusedAutoPropertyAccessor.Global
+
 namespace PureES.Core;
 
 public record CommandHandlerBuilderOptions
@@ -9,7 +11,7 @@ public record CommandHandlerBuilderOptions
     /// <summary>
     ///     Gets the strongly-typed ID
     ///     property on a command that represents
-    ///     the aggregate Id (with <c>StreamId</c> property)
+    ///     the aggregate Id
     /// </summary>
     /// <remarks>
     ///     If delegate or return type are null,

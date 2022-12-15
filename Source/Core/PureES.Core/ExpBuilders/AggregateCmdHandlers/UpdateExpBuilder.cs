@@ -52,7 +52,10 @@ internal class UpdateExpBuilder
             }
             else
             {
-                throw new InvalidOperationException(Resources.UndecoratedHandlerParameter);
+                throw new InvalidOperationException(Resources.UndecoratedHandlerParameter
+                    .Replace("{Parameter}", p.Name)
+                    .Replace("{Aggregate}", aggregateType.FullName)
+                    .Replace("{Method}", methodInfo.Name));
             }
 
         return Expression.Call(methodInfo, parameters.ToArray());

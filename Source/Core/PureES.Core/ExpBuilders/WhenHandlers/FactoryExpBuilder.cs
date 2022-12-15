@@ -86,22 +86,22 @@ internal class FactoryExpBuilder
         //Should be T When(..)
         //Return type should be T, Task<T> or ValueTask<T>
         if (method.GetGenericArguments().Length != 0)
-            throw new InvalidOperationException($"When method {methodName} has generic parameters");
+            throw new InvalidOperationException($"{methodName}: has generic parameters");
         if (method.ReturnType.IsTask(out var rt) || method.ReturnType.IsValueTask(out rt))
         {
-            if (rt != aggregateType || rt.IsNullable())
+            if (rt != aggregateType || rt.IsNullableValueType())
                 throw new InvalidOperationException(
-                    $"When method does not return {methodName} non-nullable aggregate type");
+                    $"{methodName}: does not return non-nullable aggregate type");
         }
         else
         {
-            if (method.ReturnType != aggregateType || method.ReturnType.IsNullable())
+            if (method.ReturnType != aggregateType || method.ReturnType.IsNullableValueType())
                 throw new InvalidOperationException(
                     $"When method does not return {methodName} non-nullable aggregate type");
         }
 
         if (!method.IsStatic)
-            throw new InvalidOperationException($"When method {methodName} is not static static");
+            throw new InvalidOperationException($"{methodName}: is not static static");
     }
 
     public void ValidateEnvelope(ParameterInfo parameter)

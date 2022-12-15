@@ -13,7 +13,7 @@ public static class EventStoreDBHealthCheckServiceCollectionExtensions
         IEnumerable<string>? tags = null,
         TimeSpan? timeout = null)
     {
-        builder.Services.AddSingleton<EventStoreDBHealthCheck>(sp =>
+        builder.Services.AddSingleton(sp =>
         {
             var options = new EventStoreDBOptions();
             configureOptions(options);

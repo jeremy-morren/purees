@@ -123,9 +123,9 @@ public class BackupService
         }.ToString();
         headers[HeaderNames.ContentType] = compression switch
         {
-            CompressionType.Gzip => "application/tar+gzip",
-            CompressionType.Bzip2 => "application/tar+bzip2",
-            _ => "application/tar"
+            CompressionType.Gzip => "application/x-tar+gzip",
+            CompressionType.Bzip2 => "application/x-tar+bzip2",
+            _ => "application/x-tar"
         };
     }
     

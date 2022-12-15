@@ -7,12 +7,6 @@ namespace EventStoreBackup.Auth;
 
 public class BasicAuthenticationSchemeOptions : AuthenticationSchemeOptions
 {
-    /// <summary>
-    /// Indicates whether the SSL certificate of the
-    /// eventstore server should be validated
-    /// </summary>
-    public bool ValidateCertificate { get; set; } = true;
-
     public Encoding Encoding { get; set; } = Encoding.Latin1;
 
     public override void Validate()

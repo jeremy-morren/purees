@@ -1,10 +1,8 @@
 ﻿using System.Collections;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using PureES.Core.EventStore;
-using PureES.Core.ExpBuilders.WhenHandlers;
 
 namespace PureES.Core.ExpBuilders.AggregateCmdHandlers;
 
