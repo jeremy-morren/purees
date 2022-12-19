@@ -77,7 +77,7 @@ internal class CommandServicesBuilder
     /// <summary>
     ///     Compiles a <c>AggregateFactory&lt;TAggregate&gt;</c>
     /// </summary>
-    public ConstantExpression Factory(Type aggregateType)
+    public Delegate CompileFactory(Type aggregateType, out Type delegateType)
     {
         var events = Expression.Parameter(typeof(IAsyncEnumerable<EventEnvelope>));
         var services = Expression.Parameter(typeof(IServiceProvider));
@@ -86,9 +86,10 @@ internal class CommandServicesBuilder
             .BuildExpression(aggregateType, events, services, ct);
 
         //Output is AggregateFactory<TAggregate>
-        var type = typeof(AggregateFactory<>).MakeGenericType(aggregateType);
-        var lambda = Expression.Lambda(type, exp, $"Factory<{aggregateType}>", true, new[] {events, services, ct});
-        return Expression.Constant(lambda.Compile(), type);
+        delegateType = typeof(AggregateFactory<>).MakeGenericType(aggregateType);
+        var lambda = Expression.Lambda(delegateType, exp, $"Factory<{aggregateType}>", true, new[] {events, services, ct});
+        
+        return lambda.Compile();
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

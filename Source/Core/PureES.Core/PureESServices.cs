@@ -46,7 +46,7 @@ internal class PureESServices : IServiceProvider
         builder.AddCommandHandlers(aggregateType, services);
 
         //Add load method
-        var load = builder.Factory(aggregateType);
-        services.Add(new ServiceDescriptor(load.Type, load.Value));
+        var load = builder.CompileFactory(aggregateType, out var delegateType);
+        services.Add(new ServiceDescriptor(delegateType, load));
     }
 }
