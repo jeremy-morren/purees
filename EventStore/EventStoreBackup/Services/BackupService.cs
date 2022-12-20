@@ -53,14 +53,15 @@ public class BackupService
             SetHeaders(response.Headers, serverName, date, compression);
             await response.StartAsync(ct);
             
-            await PerformBackup(pod, baseDir, ct);
+            //await PerformBackup(pod, baseDir, ct);
 
             //Write the TAR to the response body
             await CreateTar(pod, baseDir, response.BodyWriter, compression, ct);
         }
         finally
         {
-            await Exec("rm", "-rf", baseDir);
+            //We do not pass any cancellationToken, because this operation should complete regardless of cancellation status
+            await _exec.Exec(pod, new[] {"rm", "-rf", baseDir}, default);
 
             await response.CompleteAsync();
         }

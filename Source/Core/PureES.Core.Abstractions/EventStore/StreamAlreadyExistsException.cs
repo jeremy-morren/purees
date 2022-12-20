@@ -1,6 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
-
-namespace PureES.Core.EventStore;
+﻿namespace PureES.Core.EventStore;
 
 /// <summary>
 /// The exception that is thrown when attempting

@@ -22,4 +22,8 @@ namespace PureES.Core;
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, Inherited = false)]
 public sealed class AggregateAttribute : Attribute
 {
+    public AggregateAttribute()
+    {
+        new FromServicesAttribute();
+    }
 }

@@ -1,4 +1,7 @@
-﻿namespace PureES.Core.EventStore;
+﻿// ReSharper disable MemberCanBePrivate.Global
+// ReSharper disable UnusedAutoPropertyAccessor.Global
+
+namespace PureES.Core.EventStore;
 
 public class StreamNotFoundException : Exception
 {

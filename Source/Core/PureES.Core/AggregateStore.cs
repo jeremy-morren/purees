@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using PureES.Core.EventStore;
+﻿using PureES.Core.EventStore;
 using PureES.Core.ExpBuilders.WhenHandlers;
 
 // ReSharper disable MemberCanBePrivate.Global

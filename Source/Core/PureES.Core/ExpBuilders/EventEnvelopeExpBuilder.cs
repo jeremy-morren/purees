@@ -1,6 +1,4 @@
-﻿using System.Linq.Expressions;
-
-namespace PureES.Core.ExpBuilders;
+﻿namespace PureES.Core.ExpBuilders;
 
 internal class NewEventEnvelopeExpBuilder
 {

@@ -1,7 +1,4 @@
-﻿using System.Linq.Expressions;
-using System.Reflection;
-
-namespace PureES.Core.ExpBuilders.WhenHandlers;
+﻿namespace PureES.Core.ExpBuilders.WhenHandlers;
 
 /// <summary>
 ///     Builds an expression which

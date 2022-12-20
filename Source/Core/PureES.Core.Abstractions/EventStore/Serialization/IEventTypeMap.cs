@@ -1,6 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
-
-namespace PureES.Core.EventStore.Serialization;
+﻿namespace PureES.Core.EventStore.Serialization;
 
 public interface IEventTypeMap
 {

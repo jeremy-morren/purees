@@ -1,6 +1,4 @@
-﻿using System.Reflection;
-
-namespace PureES.Core.ExpBuilders.WhenHandlers;
+﻿namespace PureES.Core.ExpBuilders.WhenHandlers;
 
 internal class ExceptionHelpers
 {

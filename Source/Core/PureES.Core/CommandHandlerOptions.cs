@@ -1,6 +1,4 @@
-﻿using System.Reflection;
-
-// ReSharper disable CollectionNeverUpdated.Global
+﻿// ReSharper disable CollectionNeverUpdated.Global
 // ReSharper disable ReturnTypeCanBeEnumerable.Global
 
 namespace PureES.Core;

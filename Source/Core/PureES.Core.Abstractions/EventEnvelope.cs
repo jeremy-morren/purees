@@ -1,10 +1,9 @@
 ﻿using PureES.Core.EventStore;
 
+// ReSharper disable InconsistentNaming
 // ReSharper disable UnusedAutoPropertyAccessor.Global
 // ReSharper disable MemberCanBePrivate.Global
-// ReSharper disable ClassNeverInstantiated.Global
 // ReSharper disable ConditionIsAlwaysTrueOrFalse
-// ReSharper disable InconsistentNaming
 
 namespace PureES.Core;
 

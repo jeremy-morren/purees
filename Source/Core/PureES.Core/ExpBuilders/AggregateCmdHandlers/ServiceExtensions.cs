@@ -1,6 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-
-namespace PureES.Core.ExpBuilders.AggregateCmdHandlers;
+﻿namespace PureES.Core.ExpBuilders.AggregateCmdHandlers;
 
 internal static class ServiceExtensions
 {
