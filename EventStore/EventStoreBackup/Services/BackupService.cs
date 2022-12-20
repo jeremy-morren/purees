@@ -38,6 +38,7 @@ public class BackupService
         var date = DateTime.UtcNow;
 
         var baseDir = ToUnixDirectory(_options.TempDirectory);
+        
         baseDir = $"{baseDir}/{Guid.NewGuid()}";
         
         _logger.LogInformation("Creating backup in folder {BaseFolder}", baseDir);
@@ -191,7 +192,7 @@ public class BackupService
         CompressionType? compressionType,
         CancellationToken ct)
     {
-        Task Exec(params string[] args) => _exec.Exec(pod, args, ct);
+        Task<K8sExecResponse> Exec(params string[] args) => _exec.Exec(pod, args, ct);
         
         //Set directories to 755 (read & execute)
         //Files to 644 (read-only)
@@ -201,16 +202,32 @@ public class BackupService
         //Make files readonly
         await Exec("/bin/sh", "-c", $"chmod 644 $(find '{baseDir}' -type f)");
         
-        var comp = compressionType switch
+        var outFile = $"{baseDir}/{Guid.NewGuid()}";
+        
+        try
         {
-            CompressionType.Gzip => "z",
-            CompressionType.Bzip2 => "j",
-            _ => null
-        };
-        //Use -O flag to write to stdout (i.e. pipewriter)
-        //Use -C flag to change directory to baseDir
-        //Include backup/ & metadata/ folders
-        await _exec.Exec(pod, new[] {"tar", "c", "-C", baseDir, $"-O{comp}", "backup/", "metadata/"}, output, ct);
+            var flags = compressionType switch
+            {
+                CompressionType.Gzip => "z",
+                CompressionType.Bzip2 => "j",
+                _ => null
+            };
+            
+            //Use -C flag to change directory to baseDir
+            //Include backup/ & metadata/ folders
+            var files = await Exec("tar", "c", "-C", baseDir, "-f", outFile, $"-v{flags}", "backup/", "metadata/");
+
+            var entryCount = files?.Message?.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length;
+            _logger.LogInformation("Created TAR archive. {Entries} Entries", entryCount);
+
+            //And write response
+            await _exec.Exec(pod, new[] {"cat", outFile}, output, ct);
+        }
+        finally
+        {
+            //No cancellationToken, we need cleanup to run regardless
+            await _exec.Exec(pod, new[] {"rm", outFile}, default);
+        }
     }
     
     #endregion
