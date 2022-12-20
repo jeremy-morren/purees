@@ -160,22 +160,22 @@ public class BackupService
             await _exec.Exec(pod, cmd, ct);
         }
 
-        // //Because the default eventstore image does not include rsync, we have to get tricky
-        // //We will get the list of files and do our globbing manually here
-        //
-        // //Get files in index/
-        // var index = (await _exec.Exec(pod, 
-        //     new[] {"/bin/sh", "-c", $"cd '{dataDir}' && find index/ -type f || exit $?"},
-        //     ct)).StdOut?.Split('\n') ?? Array.Empty<string>();
-        //
-        // //We use --parents to preserve directory structure
-        // await Copy($"--parents {string.Join(" ", index.Where(f => f.EndsWith(".chk")))}");
-        // await Copy($"--parents {string.Join(" ", index.Where(f => !f.EndsWith(".chk")))}");
-        //
-        // await Copy("*.chk");
-        // await Copy("chunk-*.*");
+        //Because the default eventstore image does not include rsync, we have to get tricky
+        //We will get the list of files and do our globbing manually here
+        
+        //Get files in index/
+        var index = (await _exec.Exec(pod, 
+            new[] {"/bin/sh", "-c", $"cd '{dataDir}' && find index/ -type f || exit $?"},
+            ct)).StdOut?.Split('\n') ?? Array.Empty<string>();
+        
+        //We use --parents to preserve directory structure
+        await Copy($"--parents {string.Join(" ", index.Where(f => f.EndsWith(".chk")))}");
+        await Copy($"--parents {string.Join(" ", index.Where(f => !f.EndsWith(".chk")))}");
+        
+        await Copy("*.chk");
+        await Copy("chunk-*.*");
     }
-
+    
     private static string ToUnixDirectory(string directory)
     {
         directory = directory.Replace("\\", "/");
