@@ -1,43 +1,58 @@
-﻿using System.Diagnostics.CodeAnalysis;
-using EventStore.Client;
-using Microsoft.Extensions.DependencyInjection;
+﻿using EventStore.Client;
+using Microsoft.Extensions.Http.Logging;
 using Microsoft.Extensions.Logging;
+
+// ReSharper disable InconsistentNaming
+// ReSharper disable IdentifierTypo
+// ReSharper disable MemberCanBePrivate.Global
+// ReSharper disable UnusedAutoPropertyAccessor.Global
 
 namespace PureES.EventStoreDB;
 
-[SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public class EventStoreDBOptions
 {
-    public string ConnectionString { get; set; } = null!;
+    /// <summary>
+    /// Gets or sets the URLs use
+    /// </summary>
+    public ISet<string> URLs { get; set; } = new HashSet<string>();
 
     /// <summary>
-    /// Gets or sets whether the eventstore TLS certificate should
-    /// be validated. Defaults to <c>true</c>
+    /// Gets or sets the credentials used to authenticate to EventStoreDB in format format <c>username:password</c>
+    /// </summary>
+    public string? Credentials { get; set; }
+
+    /// <summary>
+    /// Indicates whether the EventStore node(s) are secured with TLS (default <see langword="true"/>)
+    /// </summary>
+    public bool UseTLS { get; set; } = true;
+
+    /// <summary>
+    /// Gets or sets whether the EventStore TLS certificates should be verified (default <see langword="true"/>)
     /// </summary>
     /// <remarks>
-    /// Set to <c>true</c> to allow self-signed certificates
+    /// If node(s) are using self-signed certificates, set to <see langword="true"/>, otherwise <see langword="false"/>
     /// </remarks>
-    public bool ValidateServerCertificate { get; set; } = true;
+    public bool VerifyTLSCert { get; set; } = true;
 
-    /// <summary>Gets or sets whether HTTP logging should be enabled. Defaults to <c>false</c></summary>
-    public bool EnableLogging { get; set; } = false;
+    /// <summary>
+    /// Gets or sets whether logging should be enabled (default <see langword="true"/>)
+    /// </summary>
+    public bool EnableLogging { get; set; } = true;
 
-    public EventStoreClientSettings CreateSettings(IServiceProvider services)
+    public void Validate()
     {
-        if (string.IsNullOrWhiteSpace(ConnectionString))
-            throw new InvalidOperationException("Connection string is required");
-        var settings = EventStoreClientSettings.Create(ConnectionString);
+        if (URLs == null! || URLs.Count == 0)
+            throw new Exception("EventStore URL(s) are required");
+    }
+
+    public EventStoreClientSettings CreateSettings(ILoggerFactory loggerFactory)
+    {
+        Validate();
+        var credentials = Credentials != null ? $"{Credentials}@" : null;
+        var url = string.Join(",", URLs);
+        var settings = EventStoreClientSettings.Create($"esdb://{credentials}{url}?tls={UseTLS}&tlsVerifyCert={VerifyTLSCert}");
         if (EnableLogging)
-            settings.LoggerFactory = services.GetService<ILoggerFactory>();
-        settings.CreateHttpMessageHandler = () =>
-        {
-            var handler = new SocketsHttpHandler();
-            if (EnableLogging)
-                settings.LoggerFactory = services.GetService<ILoggerFactory>();
-            if (!ValidateServerCertificate)
-                handler.SslOptions.RemoteCertificateValidationCallback = (_, _, _, _) => true;
-            return handler;
-        };
+            settings.LoggerFactory = loggerFactory;
         return settings;
     }
 }

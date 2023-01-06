@@ -1,5 +1,8 @@
 using EventStore.Client;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using PureES.Core.EventStore;
 using PureES.EventStoreDB.Subscriptions;
 
@@ -12,12 +15,21 @@ public static class EventStoreDBServiceCollectionExtensions
     public static IServiceCollection AddEventStoreDB(this IServiceCollection services,
         Action<EventStoreDBOptions> configureOptions)
     {
-        return services
-            .AddSingleton(sp =>
+        services.AddOptions<EventStoreDBOptions>()
+            .Configure(configureOptions)
+            .Validate(o =>
             {
-                var options = new EventStoreDBOptions();
-                configureOptions(options);
-                var settings = options.CreateSettings(sp);
+                o.Validate();
+                _ = o.CreateSettings(NullLoggerFactory.Instance);
+                return true;
+            });
+        
+        return services
+            .AddSingleton<EventStoreClient>(sp =>
+            {
+                var options = sp.GetRequiredService<IOptions<EventStoreDBOptions>>();
+                var loggerFactory = sp.GetService<ILoggerFactory>() ?? NullLoggerFactory.Instance;
+                var settings = options.Value.CreateSettings(loggerFactory);
                 return new EventStoreClient(settings);
             })
             .AddTransient<IEventStore, EventStoreDBClient>();
