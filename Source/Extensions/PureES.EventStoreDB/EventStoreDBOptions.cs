@@ -12,9 +12,9 @@ namespace PureES.EventStoreDB;
 public class EventStoreDBOptions
 {
     /// <summary>
-    /// Gets or sets the URLs use
+    /// Gets or sets the EventStore Nodes use
     /// </summary>
-    public ISet<string> URLs { get; set; } = new HashSet<string>();
+    public ISet<string> Nodes { get; set; } = new HashSet<string>();
 
     /// <summary>
     /// Gets or sets the credentials used to authenticate to EventStoreDB in format format <c>username:password</c>
@@ -41,7 +41,7 @@ public class EventStoreDBOptions
 
     public void Validate()
     {
-        if (URLs == null! || URLs.Count == 0)
+        if (Nodes == null! || Nodes.Count == 0)
             throw new Exception("EventStore URL(s) are required");
     }
 
@@ -49,7 +49,7 @@ public class EventStoreDBOptions
     {
         Validate();
         var credentials = Credentials != null ? $"{Credentials}@" : null;
-        var url = string.Join(",", URLs);
+        var url = string.Join(",", Nodes);
         var settings = EventStoreClientSettings.Create($"esdb://{credentials}{url}?tls={UseTLS}&tlsVerifyCert={VerifyTLSCert}");
         if (EnableLogging)
             settings.LoggerFactory = loggerFactory;
