@@ -28,7 +28,7 @@ public class WebApp : WebApplicationFactory<Program>
         builder.UseSerilog((context, conf) =>
         {
             conf.ReadFrom.Configuration(context.Configuration)
-                .Destructure.ByTransforming<V1Pod>(p => new {Name = p.Name(), Namespace = p.Namespace()});
+                .DestructureObjects();
             
             if (_output != null)
                 conf.WriteTo.Sink(new TestOutputHelperSink(_output));

@@ -17,9 +17,9 @@ namespace EventStoreBackup.Auth;
 
 public class BasicAuthenticationHandler : AuthenticationHandler<BasicAuthenticationSchemeOptions>
 {
-    private readonly HttpClient _client;
+    private readonly EventStoreClient _client;
 
-    public BasicAuthenticationHandler(HttpClient client,
+    public BasicAuthenticationHandler(EventStoreClient client,
         IOptionsMonitor<BasicAuthenticationSchemeOptions> options,
         ILoggerFactory logger,
         UrlEncoder encoder,
@@ -33,10 +33,10 @@ public class BasicAuthenticationHandler : AuthenticationHandler<BasicAuthenticat
         //The value is 'user:pass' (we will use Base64 Encoding)
         
         var src = Context.Request.Headers[HeaderNames.Authorization];
-        if (src.Count != 1)
+        if (src.Count != 1 || string.IsNullOrEmpty(src[0]))
             return AuthenticateResult.NoResult();
         
-        var split = src[0].Split(' ');
+        var split = src[0]!.Split(' ');
         if (split.Length != 2)
             return AuthenticateResult.NoResult();
         
@@ -45,19 +45,10 @@ public class BasicAuthenticationHandler : AuthenticationHandler<BasicAuthenticat
             return AuthenticateResult.NoResult();
 
         var ct = Context.RequestAborted;
-        var pod = await Context.GetPodAsync(ct);
-        var request = new HttpRequestMessage()
-        {
-            Method = HttpMethod.Get,
-            Headers =
-            {
-                Accept = {new MediaTypeWithQualityHeaderValue("application/json")},
-                Authorization = new AuthenticationHeaderValue(Scheme.Name, split[1]), //We send the raw value
-            },
-            //Forward request to pod
-            RequestUri = new Uri($"https://{pod.Name()}:2113/users", UriKind.Absolute)
-        };
-        using var response = await _client.SendAsync(request, ct);
+        using var response = await _client.GetAsync(await Context.GetPodAsync(ct),
+            "/users",
+            new AuthenticationHeaderValue(Scheme.Name, split[1]),  //We send the raw value
+            ct);
         if (!response.IsSuccessStatusCode)
         {
             if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)

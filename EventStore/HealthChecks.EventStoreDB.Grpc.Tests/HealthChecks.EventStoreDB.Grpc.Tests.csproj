@@ -9,6 +9,7 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Docker.DotNet" Version="3.125.12" />
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.1.0" />
         <PackageReference Include="Moq" Version="4.18.2" />
         <PackageReference Include="xunit" Version="2.4.1" />
@@ -23,7 +24,6 @@
     </ItemGroup>
     
     <ItemGroup>
-        <ProjectReference Include="../../Source/Extensions/PureES.Extensions.Tests/PureES.Extensions.Tests.csproj" />
         <ProjectReference Include="..\HealthChecks\HealthChecks.EventStoreDB.Grpc.csproj" />
     </ItemGroup>
 

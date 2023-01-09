@@ -13,7 +13,7 @@ public class K8sExecTests
     {
         var ct = new CancellationTokenSource(10000).Token;
         var client = new Kubernetes(KubernetesClientConfiguration.BuildDefaultConfig());
-        var pod = await client.ReadNamespacedPodAsync("esdb-0", "esdb", false, ct);
+        var pod = await client.ReadNamespacedPodAsync(Pod2, Namespace, false, ct);
         var exec = new K8sExec(client, NullLogger<K8sExec>.Instance);
 
         var response = await exec.Exec(pod, new[] {"ls", "/data/db", "-l"}, ct);
@@ -27,7 +27,7 @@ public class K8sExecTests
     {
         var ct = new CancellationTokenSource(10000).Token;
         var client = new Kubernetes(KubernetesClientConfiguration.BuildDefaultConfig());
-        var pod = await client.ReadNamespacedPodAsync("esdb-0", "esdb", false, ct);
+        var pod = await client.ReadNamespacedPodAsync(Pod1, Namespace, false, ct);
         var exec = new K8sExec(client, NullLogger<K8sExec>.Instance);
 
         var output = new MemoryStream();
@@ -47,7 +47,7 @@ public class K8sExecTests
     {
         var ct = new CancellationTokenSource(10000).Token;
         var client = new Kubernetes(KubernetesClientConfiguration.BuildDefaultConfig());
-        var pod = await client.ReadNamespacedPodAsync("esdb-0", "esdb", false, ct);
+        var pod = await client.ReadNamespacedPodAsync(Pod0, Namespace, false, ct);
         var exec = new K8sExec(client, NullLogger<K8sExec>.Instance);
         
         var ex = await Assert.ThrowsAsync<K8sExecException>(() => exec.Exec(pod, new[] {"ls", "/asdf"}, ct));
@@ -57,4 +57,10 @@ public class K8sExecTests
         Assert.NotNull(ex.Response.StdErr);
         Assert.Null(ex.Response.StdOut);
     }
+
+    private const string Namespace = "db";
+
+    private const string Pod0 = "esdb-0";
+    private const string Pod1 = "esdb-1";
+    private const string Pod2 = "esdb-2";
 }

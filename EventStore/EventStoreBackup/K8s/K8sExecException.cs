@@ -12,9 +12,13 @@ public class K8sExecException : Exception
     public K8sExecResponse Response { get; }
 
     public K8sExecException(string command, K8sExecResponse response)
-        : base($"Error running command '{command}': {response.Message}: {response.StdErr}")
+        : base($"Error running command '{command}': {response.Status}: {FormatMessage(response.Message)}: {FormatMessage(response.StdErr)}")
     {
         Command = command;
         Response = response;
     }
+
+    public static string? FormatMessage(string? input) =>
+        input?.ReplaceLineEndings()
+            .Replace(Environment.NewLine, "\\n");
 }

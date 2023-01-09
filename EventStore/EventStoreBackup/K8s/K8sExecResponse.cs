@@ -49,5 +49,6 @@ public sealed class K8sExecResponse
 public enum K8sExecStatus
 {
     Success,
-    Failure
+    Failure,
+    Unknown
 }

@@ -8,6 +8,7 @@ using k8s;
 using k8s.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.HttpOverrides;
 using Serilog;
 using Serilog.Events;
 
@@ -16,8 +17,10 @@ var parser = new Parser(s => s.IgnoreUnknownArguments = true);
 if (parser.ParseArguments<CommandLineOptions>(args) is not Parsed<CommandLineOptions> parsed)
     return 1;
 
+const string logFormat = "[{Timestamp:yyyy-MM-dd HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}";
+
 Log.Logger = new LoggerConfiguration()
-    .WriteTo.Console()
+    .WriteTo.Console(outputTemplate: logFormat)
     .CreateBootstrapLogger();
 
 try
@@ -37,6 +40,16 @@ try
     builder.Services.AddControllers();
 
     builder.Services.AddHealthChecks();
+    
+    builder.Services.AddHttpClient<EventStoreClient>()
+        .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler()
+        {
+            //Disable TLS validation
+            SslOptions =
+            {
+                RemoteCertificateValidationCallback = (_, _, _, _) => true,
+            }
+        });
 
     const string scheme = "Basic";
 
@@ -76,10 +89,15 @@ try
     builder.Host.UseSerilog((context, services, conf) => conf
         .ReadFrom.Configuration(context.Configuration)
         .ReadFrom.Services(services)
-        .Destructure.ByTransforming<V1Pod>(p => new {Name = p.Name(), Namespace = p.Namespace()})
-        .WriteTo.Console());
+        .WriteTo.Console(outputTemplate: logFormat)
+        .DestructureObjects());
 
     var app = builder.Build();
+
+    app.UseForwardedHeaders(new ForwardedHeadersOptions()
+    {
+        ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost
+    });
 
     app.UseSerilogRequestLogging(context =>
     {
@@ -88,6 +106,10 @@ try
                 ? LogEventLevel.Debug
                 : LogEventLevel.Information;
     });
+
+    //Only add if we are not in testing
+    if (!AppDomain.CurrentDomain.GetAssemblies().Any(c => c.FullName != null && c.FullName.StartsWith("xunit")))
+        app.UseMiddleware<ReadinessMiddleware>();
 
     app.UseAuthentication();
     app.UseAuthorization();

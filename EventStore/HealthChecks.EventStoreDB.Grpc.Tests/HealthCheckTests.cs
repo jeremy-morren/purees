@@ -1,7 +1,6 @@
 ﻿using EventStore.Client;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Moq;
-using PureES.Extensions.Tests.EventStore.EventStoreDB;
 
 namespace HealthChecks.EventStoreDB.Grpc.Tests;
 

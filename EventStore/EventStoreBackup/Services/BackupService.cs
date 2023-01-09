@@ -1,6 +1,5 @@
 ﻿using System.IO.Pipelines;
 using System.Net;
-using System.Text;
 using System.Text.Json;
 using EventStoreBackup.K8s;
 using k8s.Models;
@@ -41,7 +40,8 @@ public class BackupService
         
         baseDir = $"{baseDir}/{Guid.NewGuid()}";
         
-        _logger.LogInformation("Creating backup in folder {BaseFolder}", baseDir);
+        _logger.LogInformation("Creating backup in folder {BaseFolder} on pod {@Pod} with compression: {CompressionType}", 
+            baseDir, pod, compression);
 
         await Exec("mkdir", baseDir);
 
@@ -57,17 +57,16 @@ public class BackupService
             await PerformBackup(pod, baseDir, ct);
 
             //Write the TAR to the response body
-            await CreateTar(pod, baseDir, response.BodyWriter, compression, ct);
+            await CopyTar(pod, baseDir, response.BodyWriter, compression, ct);
         }
         finally
         {
+            await response.CompleteAsync();
+            
             //We do not pass any cancellationToken, because this operation should complete regardless of cancellation status
             await _exec.Exec(pod, new[] {"rm", "-rf", baseDir}, default);
-
-            await response.CompleteAsync();
         }
     }
-    
     
     #region Setup
     
@@ -132,8 +131,7 @@ public class BackupService
     }
     
     #endregion
-    
-    
+
     #region Backup
     
     //Actually do the backup, see https://developers.eventstore.com/server/v20.10/operations.html#simple-full-backup-restore
@@ -185,7 +183,7 @@ public class BackupService
         return directory.EndsWith('/') ? directory[..^1] : directory;
     }
     
-    private async Task CreateTar(
+    private async Task CopyTar(
         V1Pod pod,
         string baseDir,
         PipeWriter output, 
@@ -201,33 +199,26 @@ public class BackupService
         
         //Make files readonly
         await Exec("/bin/sh", "-c", $"chmod 644 $(find '{baseDir}' -type f)");
-        
-        var outFile = $"{baseDir}/{Guid.NewGuid()}";
-        
-        try
+    
+        var flags = compressionType switch
         {
-            var flags = compressionType switch
-            {
-                CompressionType.Gzip => "z",
-                CompressionType.Bzip2 => "j",
-                _ => null
-            };
-            
-            //Use -C flag to change directory to baseDir
-            //Include backup/ & metadata/ folders
-            var files = await Exec("tar", "c", "-C", baseDir, "-f", outFile, $"-v{flags}", "backup/", "metadata/");
+            CompressionType.Gzip => "z",
+            CompressionType.Bzip2 => "j",
+            _ => null
+        };
+        
+        //c (compress) command
+        //-O to write to stdout (i.e. pipewriter)
+        //-v to get the file entries below (to stderr)
+        //Use -C flag to change directory to baseDir
+        //Include backup/ & metadata/ folders
+        var response = await _exec.Exec(pod,
+            new[] {"tar", "c", $"-v{flags}OC", baseDir, "metadata/", "backup/"},
+            output,
+            ct);
 
-            var entryCount = files?.Message?.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length;
-            _logger.LogInformation("Created TAR archive. {Entries} Entries", entryCount);
-
-            //And write response
-            await _exec.Exec(pod, new[] {"cat", outFile}, output, ct);
-        }
-        finally
-        {
-            //No cancellationToken, we need cleanup to run regardless
-            await _exec.Exec(pod, new[] {"rm", outFile}, default);
-        }
+        var entryCount = response.StdErr?.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length;
+        _logger.LogInformation("Wrote TAR archive. {Entries} items", entryCount);
     }
     
     #endregion
