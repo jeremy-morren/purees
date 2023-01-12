@@ -1,5 +1,4 @@
 ﻿using EventStore.Client;
-using Microsoft.Extensions.Http.Logging;
 using Microsoft.Extensions.Logging;
 
 // ReSharper disable InconsistentNaming
@@ -42,7 +41,7 @@ public class EventStoreDBOptions
     public void Validate()
     {
         if (Nodes == null! || Nodes.Count == 0)
-            throw new Exception("EventStore URL(s) are required");
+            throw new Exception("EventStore Nodes(s) are required");
     }
 
     public EventStoreClientSettings CreateSettings(ILoggerFactory loggerFactory)
