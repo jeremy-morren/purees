@@ -5,12 +5,12 @@
 ///     left folds over an Array of Events
 /// </summary>
 /// <remarks>
-///     Works with 2 methods : CreateWhen(event) and UpdateWhen(Agg, event)
-///     (depending on if this is the first event)
+/// Works with 3 methods : CreateWhen(event), UpdateWhen(Agg, event) and When(Agg, event)
+/// CreateWhen for first event, UpdateWhen for every subsequent event
+/// When for every event (after CreateWhen/UpdateWhen)
 /// </remarks>
 internal class FactoryExpBuilder
 {
-    public const string MethodName = "When";
     private readonly CommandHandlerBuilderOptions _options;
 
     public FactoryExpBuilder(CommandHandlerBuilderOptions options) => _options = options;
@@ -27,12 +27,19 @@ internal class FactoryExpBuilder
         var method = typeof(FactoryExpBuilder).GetStaticMethod(nameof(Load)).MakeGenericMethod(aggregateType);
         var createdWhen = BuildCreatedWhen(aggregateType, serviceProvider, cancellationToken);
         var updatedWhen = BuildUpdatedWhen(aggregateType, serviceProvider, cancellationToken);
-        return Expression.Call(method, events, createdWhen, updatedWhen, cancellationToken);
+        var when = BuildWhen(aggregateType, serviceProvider, cancellationToken);
+        return Expression.Call(method, 
+            events, 
+            createdWhen, 
+            updatedWhen, 
+            when,
+            cancellationToken);
     }
 
-    private static async ValueTask<LoadedAggregate<T>> Load<T>(IAsyncEnumerable<EventEnvelope> events,
+    private static async ValueTask<T> Load<T>(IAsyncEnumerable<EventEnvelope> events,
         Func<EventEnvelope, ValueTask<T>> createWhen,
         Func<T, EventEnvelope, ValueTask<T>> updateWhen,
+        Func<T, EventEnvelope, ValueTask<T>> when,
         CancellationToken ct)
     {
         if (events == null) throw new ArgumentNullException(nameof(events));
@@ -41,14 +48,14 @@ internal class FactoryExpBuilder
             throw new ArgumentException("Provided events list is empty");
         //TODO: handle exceptions in when methods
         var aggregate = await createWhen(enumerator.Current);
-        var revision = (ulong) 1; //After createWhen revision is 1
+        aggregate = await when(aggregate, enumerator.Current); //Call after every method
         while (await enumerator.MoveNextAsync())
         {
             ct.ThrowIfCancellationRequested();
             aggregate = await updateWhen(aggregate, enumerator.Current);
-            ++revision;
+            aggregate = await when(aggregate, enumerator.Current); //Call after every method
         }
-        return new LoadedAggregate<T>(aggregate, revision);
+        return aggregate;
     }
 
     private Expression BuildCreatedWhen(Type aggregateType, Expression serviceProvider, Expression cancellationToken)
@@ -76,8 +83,23 @@ internal class FactoryExpBuilder
             typeof(ValueTask<>).MakeGenericType(aggregateType));
         return Expression.Lambda(type, exp, $"UpdatedWhen<{aggregateType}>", true, new[] {current, envelope });
     }
+    
+    private Expression BuildWhen(Type aggregateType,
+        Expression serviceProvider, 
+        Expression cancellationToken)
+    {
+        var current = Expression.Parameter(aggregateType);
+        var envelope = Expression.Parameter(typeof(EventEnvelope));
+        var builder = new WhenExpBuilder(_options);
+        var exp = builder.BuildWhenExpression(aggregateType, current, envelope, serviceProvider, cancellationToken);
+        //Results in Func<TAggregate, EventEnvelope, ValueTask<TAggregate>>
+        var type = typeof(Func<,,>).MakeGenericType(aggregateType,
+            typeof(EventEnvelope),
+            typeof(ValueTask<>).MakeGenericType(aggregateType));
+        return Expression.Lambda(type, exp, $"When<{aggregateType}>", true, new[] {current, envelope });
+    }
 
-    public static void ValidateWhen(Type aggregateType, MethodInfo method)
+    public static void ValidateWhenMethod(Type aggregateType, MethodInfo method)
     {
         var methodName = $"{aggregateType}+{method}";
         //Should be T When(..)
@@ -98,18 +120,18 @@ internal class FactoryExpBuilder
         }
 
         if (!method.IsStatic)
-            throw new InvalidOperationException($"{methodName}: is not static static");
+            throw new InvalidOperationException($"{methodName}: must be public static method");
     }
 
-    public void ValidateEnvelope(ParameterInfo parameter)
+    public void ValidateStronglyTypedEventEnvelope(ParameterInfo parameter)
     {
         //We are expecting EventEnvelope<TAny, TAny>
         if (parameter.IsNullable())
             throw new InvalidOperationException("EventEnvelope parameter must be non-nullable");
         var ex = new InvalidOperationException($"Invalid EventEnvelope parameter {parameter.ParameterType}");
-        if (_options.IsEventEnvelope != null)
+        if (_options.IsStronglyTypedEventEnvelope != null)
         {
-            if (!_options.IsEventEnvelope(parameter.ParameterType))
+            if (!_options.IsStronglyTypedEventEnvelope(parameter.ParameterType))
                 throw ex;
             return;
         }
@@ -119,10 +141,10 @@ internal class FactoryExpBuilder
         if (typeof(EventEnvelope<,>).MakeGenericType(args) != parameter.ParameterType) throw ex;
     }
 
-    public bool IsEnvelope(Type type)
+    public bool IsStronglyTypedEventEnvelope(Type type)
     {
-        if (_options.IsEventEnvelope != null)
-            return _options.IsEventEnvelope(type);
+        if (_options.IsStronglyTypedEventEnvelope != null)
+            return _options.IsStronglyTypedEventEnvelope(type);
         if (type.GetGenericArguments().Length != 2)
             return false;
         return typeof(EventEnvelope<,>).MakeGenericType(type.GetGenericArguments()) == type;

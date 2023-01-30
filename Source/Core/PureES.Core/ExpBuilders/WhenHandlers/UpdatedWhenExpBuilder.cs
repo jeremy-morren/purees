@@ -2,6 +2,9 @@
 
 namespace PureES.Core.ExpBuilders.WhenHandlers;
 
+/// <summary>
+/// Builds UpdateWhen handler (for second event onwards)
+/// </summary>
 internal class UpdatedWhenExpBuilder
 {
     private readonly CommandHandlerBuilderOptions _options;
@@ -85,7 +88,7 @@ internal class UpdatedWhenExpBuilder
                 ? cancellationToken
                 : p.GetCustomAttribute(typeof(FromServicesAttribute)) != null
                     ? new GetServiceExpBuilder(_options).GetRequiredService(serviceProvider, p.ParameterType)
-                    : IsEnvelope(p)
+                    : IsStronglyTypedEnvelope(p)
                         ? envelope
                         : current)
             .ToArray();
@@ -108,7 +111,7 @@ internal class UpdatedWhenExpBuilder
     /// <summary>
     ///     Returns parameters that are not CancellationTokens or have [FromServices] attribute
     /// </summary>
-    private static List<ParameterInfo> GetEnvelopeParams(MethodBase method) => method.GetParameters()
+    private static List<ParameterInfo> GetParams(MethodBase method) => method.GetParameters()
         .Where(p => p.ParameterType != typeof(CancellationToken) &&
                     p.GetCustomAttribute(typeof(FromServicesAttribute)) == null)
         .ToList();
@@ -116,8 +119,8 @@ internal class UpdatedWhenExpBuilder
     public void ValidateUpdatedWhen(Type aggregateType, MethodInfo method)
     {
         //We are expecting a T When(T current, EventEnvelope<TAny, TAny> @event) method
-        FactoryExpBuilder.ValidateWhen(aggregateType, method);
-        var parameters = GetEnvelopeParams(method);
+        FactoryExpBuilder.ValidateWhenMethod(aggregateType, method);
+        var parameters = GetParams(method);
         switch (parameters.Count)
         {
             case < 2:
@@ -130,17 +133,17 @@ internal class UpdatedWhenExpBuilder
         if (parameters[0].ParameterType != aggregateType || parameters[0].IsNullable())
             throw new InvalidOperationException(
                 "UpdateWhen method must take non-nullable aggregate as 1st parameter");
-        new FactoryExpBuilder(_options).ValidateEnvelope(parameters[1]);
+        new FactoryExpBuilder(_options).ValidateStronglyTypedEventEnvelope(parameters[1]);
     }
 
     public bool IsUpdatedWhen(Type aggregateType, MethodInfo method)
     {
-        var parameters = GetEnvelopeParams(method);
+        var parameters = GetParams(method);
 
         //We are expecting a T When(T current, EventEnvelope<TAny, TAny> @event) method
         //Check if return type is aggregateType, takes 2 parameters
-        //Parameter 1 should be aggregateType
-        //Parameter 2 should be EventEnvelope
+        //1 Parameter should be aggregateType
+        //1 Parameter should be strongly typed EventEnvelope
 
         if (method.ReturnType.IsTask(out var returnType))
         {
@@ -159,11 +162,11 @@ internal class UpdatedWhenExpBuilder
         }
 
         return parameters.Count == 2
-               && parameters[0].ParameterType == aggregateType
-               && IsEnvelope(parameters[1]);
+               && parameters.All(p => 
+                   p.ParameterType == aggregateType 
+                   || IsStronglyTypedEnvelope(p));
     }
-
-    private bool IsEnvelope(ParameterInfo parameter) =>
-        _options.IsEventEnvelope?.Invoke(parameter.ParameterType)
-        ?? new FactoryExpBuilder(_options).IsEnvelope(parameter.ParameterType);
+    
+    private bool IsStronglyTypedEnvelope(ParameterInfo parameter) =>
+        new FactoryExpBuilder(_options).IsStronglyTypedEventEnvelope(parameter.ParameterType);
 }

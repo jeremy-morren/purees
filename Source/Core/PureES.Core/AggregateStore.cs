@@ -34,19 +34,19 @@ public class AggregateStore<TAggregate> : IAggregateStore<TAggregate> where TAgg
         ulong requiredRevision, CancellationToken cancellationToken) =>
         EventStore.ReadPartial(streamId, requiredRevision, cancellationToken);
 
-    ValueTask<LoadedAggregate<TAggregate>> IAggregateStore<TAggregate>.Create(IAsyncEnumerable<EventEnvelope> events, 
+    ValueTask<TAggregate> IAggregateStore<TAggregate>.Create(IAsyncEnumerable<EventEnvelope> events, 
         CancellationToken cancellationToken) => _factory(events, _serviceProvider, cancellationToken);
 
-    ValueTask<LoadedAggregate<TAggregate>> IAggregateStore<TAggregate>.Load(string streamId, 
+    ValueTask<TAggregate> IAggregateStore<TAggregate>.Load(string streamId, 
         CancellationToken cancellationToken) => 
         _factory(Load(streamId, cancellationToken), _serviceProvider, cancellationToken);
     
-    ValueTask<LoadedAggregate<TAggregate>> IAggregateStore<TAggregate>.Load(string streamId, 
+    ValueTask<TAggregate> IAggregateStore<TAggregate>.Load(string streamId, 
         ulong expectedRevision, 
         CancellationToken cancellationToken) =>
         _factory(Load(streamId, expectedRevision, cancellationToken), _serviceProvider, cancellationToken);
 
-    ValueTask<LoadedAggregate<TAggregate>> IAggregateStore<TAggregate>.LoadPartial(string streamId,
+    ValueTask<TAggregate> IAggregateStore<TAggregate>.LoadPartial(string streamId,
         ulong requiredRevision,
         CancellationToken cancellationToken) => 
         _factory(LoadPartial(streamId, requiredRevision, cancellationToken), _serviceProvider, cancellationToken);

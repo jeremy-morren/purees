@@ -23,7 +23,7 @@ public static class TestAggregates
 {
     public static CommandHandlerBuilderOptions Options => new()
     {
-        IsEventEnvelope = type =>
+        IsStronglyTypedEventEnvelope = type =>
         {
             return type.GetGenericArguments().Length switch
             {
@@ -74,7 +74,8 @@ public static class TestAggregates
         var env = (EventEnvelope<TEvent, Metadata>?) aggregate
             .GetType()
             .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-            .Single(p => p.PropertyType.GetGenericArguments()[0] == typeof(TEvent))
+            .Single(p => p.PropertyType.GetGenericArguments().Length > 0 && 
+                         p.PropertyType.GetGenericArguments()[0] == typeof(TEvent))
             .GetValue(aggregate);
         return env != (EventEnvelope?) null ? new EventEnvelope<TEvent, Metadata>(env) : null;
     }
@@ -85,6 +86,38 @@ public static class TestAggregates
         var actual = GetEnvelope<TEvent>(aggregate);
         Assert.NotNull(actual);
         Assert.Equal(new EventEnvelope<TEvent, Metadata>(envelope), actual);
+    }
+    
+    public static void AssertEqual(object aggregate, EventEnvelope envelope)
+    {
+        var assertEqualMethod = typeof(TestAggregates).GetMethods(BindingFlags.Public | BindingFlags.Static)
+            .Single(m => m.Name == nameof(AssertEqual) && m.GetGenericArguments().Length == 1);
+        assertEqualMethod.MakeGenericMethod(envelope.Event.GetType())
+            .Invoke(null, new[] {aggregate, envelope});
+    }
+    
+    public static void AssertWhen(object aggregate, EventEnvelope last)
+    {
+        Assert.NotEqual(DateTime.MaxValue, last.Timestamp);
+        Assert.NotEqual(DateTime.MinValue, last.Timestamp);
+        Assert.NotEqual(default, last.Timestamp);
+        
+        Assert.NotEqual(ulong.MaxValue, last.StreamPosition);
+        
+        var streamPositionProp = aggregate.GetType()
+                       .GetProperty(nameof(Aggregate.StreamPosition), BindingFlags.Public | BindingFlags.Instance)
+                   ?? throw new Exception($"Unable to get StreamPosition property from type {aggregate.GetType()}");
+        var lastUpdatedOnProp = aggregate.GetType()
+                       .GetProperty(nameof(Aggregate.LastUpdatedOn), BindingFlags.Public | BindingFlags.Instance)
+                   ?? throw new Exception($"Unable to get last updated on property from type {aggregate.GetType()}");
+        var streamPosition = streamPositionProp.GetValue(aggregate);
+        var lastUpdated = lastUpdatedOnProp.GetValue(aggregate);
+        Assert.NotNull(streamPosition);
+        Assert.NotNull(lastUpdated);
+
+        Assert.NotEqual(ulong.MaxValue, (ulong) streamPosition!);
+        Assert.Equal(last.StreamPosition, (ulong) streamPosition);
+        Assert.Equal(last.Timestamp, (DateTime) lastUpdated!);
     }
 
     public static Lazy<object> NewEvent<T>() => new (() => 
@@ -105,10 +138,12 @@ public static class TestAggregates
 public record Aggregate(EventEnvelope<Created1, Metadata>? Created1,
     EventEnvelope<Created2, Metadata>? Created2,
     EventEnvelope<Updated1, Metadata>? Updated1,
-    EventEnvelope<Updated2, Metadata>? Updated2)
+    EventEnvelope<Updated2, Metadata>? Updated2,
+    DateTime LastUpdatedOn,
+    ulong StreamPosition)
 {
     public static Aggregate When(EventEnvelope<Created1, Metadata> envelope, CancellationToken _) =>
-        new(envelope, null, null, null);
+        new(envelope, null, null, null, DateTime.MaxValue, ulong.MaxValue);
 
     public static Aggregate When(EventEnvelope<Created2, Metadata> envelope,
         [FromServices] AggregateService svc,
@@ -116,7 +151,7 @@ public record Aggregate(EventEnvelope<Created1, Metadata>? Created1,
     {
         if (svc.Event != null)
             Assert.Equal(envelope, new EventEnvelope<Created2, Metadata>(svc.Event!));
-        return new Aggregate(null, envelope, null, null);
+        return new Aggregate(null, envelope, null, null, DateTime.MaxValue, ulong.MaxValue);
     }
 
     public static Aggregate When(Aggregate current, EventEnvelope<Updated1, Metadata> envelope, CancellationToken _)
@@ -131,22 +166,34 @@ public record Aggregate(EventEnvelope<Created1, Metadata>? Created1,
             Assert.Equal(envelope, new EventEnvelope<Updated2, Metadata>(svc.Event!));
         return current with {Updated2 = envelope};
     }
+
+    public static Aggregate When(Aggregate current,
+        EventEnvelope envelope,
+        [FromServices] AggregateService svc,
+        CancellationToken _)
+        => current with
+        {
+            StreamPosition = envelope.StreamPosition, 
+            LastUpdatedOn = envelope.Timestamp
+        };
 }
 
 public record AggregateAsync(EventEnvelope<Created1, Metadata>? Created1,
     EventEnvelope<Created2, Metadata>? Created2,
     EventEnvelope<Updated1, Metadata>? Updated1,
-    EventEnvelope<Updated2, Metadata>? Updated2)
+    EventEnvelope<Updated2, Metadata>? Updated2,
+    DateTime LastUpdatedOn,
+    ulong StreamPosition)
 {
     public static Task<AggregateAsync> When(EventEnvelope<Created1, Metadata> envelope, CancellationToken _) =>
-        Task.FromResult(new AggregateAsync(envelope, null, null, null));
+        Task.FromResult(new AggregateAsync(envelope, null, null, null, DateTime.MaxValue, ulong.MaxValue));
 
     public static Task<AggregateAsync> When(EventEnvelope<Created2, Metadata> envelope,
         [FromServices] AggregateService svc)
     {
         if (svc.Event != null)
             Assert.Equal(envelope, new EventEnvelope<Created2, Metadata>(svc.Event!));
-        return Task.FromResult(new AggregateAsync(null, envelope, null, null));
+        return Task.FromResult(new AggregateAsync(null, envelope, null, null, DateTime.MaxValue, ulong.MaxValue));
     }
 
     public static Task<AggregateAsync> When(AggregateAsync current,
@@ -163,23 +210,35 @@ public record AggregateAsync(EventEnvelope<Created1, Metadata>? Created1,
             Assert.Equal(envelope, new EventEnvelope<Updated2, Metadata>(svc.Event!));
         return Task.FromResult(current with {Updated2 = envelope});
     }
+
+    public static Task<AggregateAsync> When(AggregateAsync current,
+        EventEnvelope envelope,
+        [FromServices] AggregateService svc,
+        CancellationToken _)
+        => Task.FromResult(current with
+        {
+            StreamPosition = envelope.StreamPosition,
+            LastUpdatedOn = envelope.Timestamp
+        });
 }
 
 public record AggregateValueTaskAsync(EventEnvelope<Created1, Metadata>? Created1,
     EventEnvelope<Created2, Metadata>? Created2,
     EventEnvelope<Updated1, Metadata>? Updated1,
-    EventEnvelope<Updated2, Metadata>? Updated2)
+    EventEnvelope<Updated2, Metadata>? Updated2,
+    DateTime LastUpdatedOn,
+    ulong StreamPosition)
 {
     public static ValueTask<AggregateValueTaskAsync> When(EventEnvelope<Created1, Metadata> envelope,
         CancellationToken _) =>
-        ValueTask.FromResult(new AggregateValueTaskAsync(envelope, null, null, null));
+        ValueTask.FromResult(new AggregateValueTaskAsync(envelope, null, null, null, DateTime.MaxValue, ulong.MaxValue));
 
     public static ValueTask<AggregateValueTaskAsync> When(EventEnvelope<Created2, Metadata> envelope,
         [FromServices] AggregateService svc)
     {
         if (svc.Event != null)
             Assert.Equal(envelope, new EventEnvelope<Created2, Metadata>(svc.Event!));
-        return ValueTask.FromResult(new AggregateValueTaskAsync(null, envelope, null, null));
+        return ValueTask.FromResult(new AggregateValueTaskAsync(null, envelope, null, null, DateTime.MaxValue, ulong.MaxValue));
     }
 
     public static ValueTask<AggregateValueTaskAsync> When(AggregateValueTaskAsync current,
@@ -196,22 +255,34 @@ public record AggregateValueTaskAsync(EventEnvelope<Created1, Metadata>? Created
             Assert.Equal(envelope, new EventEnvelope<Updated2, Metadata>(svc.Event!));
         return ValueTask.FromResult(current with {Updated2 = envelope});
     }
+
+    public static ValueTask<AggregateValueTaskAsync> When(AggregateValueTaskAsync current,
+        EventEnvelope envelope,
+        [FromServices] AggregateService svc,
+        CancellationToken _)
+        => ValueTask.FromResult(current with
+        {
+            StreamPosition = envelope.StreamPosition,
+            LastUpdatedOn = envelope.Timestamp
+        });
 }
 
 public record AggregateCustomEnvelope(EventEnvelope<Created1>? Created1,
     EventEnvelope<Created2>? Created2,
     EventEnvelope<Updated1>? Updated1,
-    EventEnvelope<Updated2>? Updated2)
+    EventEnvelope<Updated2>? Updated2,
+    DateTime LastUpdatedOn,
+    ulong StreamPosition)
 {
     public static AggregateCustomEnvelope When(EventEnvelope<Created1> envelope, CancellationToken _) =>
-        new(envelope, null, null, null);
+        new(envelope, null, null, null, DateTime.MaxValue, ulong.MaxValue);
 
     public static AggregateCustomEnvelope When(EventEnvelope<Created2> envelope,
         [FromServices] AggregateService svc)
     {
         if (svc.Event != null)
             Assert.Equal(envelope, svc.Event!);
-        return new AggregateCustomEnvelope(null, envelope, null, null);
+        return new AggregateCustomEnvelope(null, envelope, null, null, DateTime.MaxValue, ulong.MaxValue);
     }
 
     public static AggregateCustomEnvelope When(AggregateCustomEnvelope current,
@@ -228,22 +299,34 @@ public record AggregateCustomEnvelope(EventEnvelope<Created1>? Created1,
             Assert.Equal(envelope, new EventEnvelope<Updated2>(svc.Event!));
         return current with {Updated2 = envelope};
     }
+
+    public static AggregateCustomEnvelope When(AggregateCustomEnvelope current,
+        EventEnvelope envelope,
+        [FromServices] AggregateService svc,
+        CancellationToken _)
+        => current with
+        {
+            StreamPosition = envelope.StreamPosition,
+            LastUpdatedOn = envelope.Timestamp
+        };
 }
 
 public record AggregateAsyncCustomEnvelope(EventEnvelope<Created1>? Created1,
     EventEnvelope<Created2>? Created2,
     EventEnvelope<Updated1>? Updated1,
-    EventEnvelope<Updated2>? Updated2)
+    EventEnvelope<Updated2>? Updated2,
+    DateTime LastUpdatedOn,
+    ulong StreamPosition)
 {
     public static Task<AggregateAsyncCustomEnvelope> When(EventEnvelope<Created1> envelope, CancellationToken _) =>
-        Task.FromResult(new AggregateAsyncCustomEnvelope(envelope, null, null, null));
+        Task.FromResult(new AggregateAsyncCustomEnvelope(envelope, null, null, null, DateTime.MaxValue, ulong.MaxValue));
 
     public static Task<AggregateAsyncCustomEnvelope> When(EventEnvelope<Created2> envelope,
         [FromServices] AggregateService svc)
     {
         if (svc.Event != null)
             Assert.Equal(envelope, svc.Event!);
-        return Task.FromResult(new AggregateAsyncCustomEnvelope(null, envelope, null, null));
+        return Task.FromResult(new AggregateAsyncCustomEnvelope(null, envelope, null, null, DateTime.MaxValue, ulong.MaxValue));
     }
 
     public static Task<AggregateAsyncCustomEnvelope> When(AggregateAsyncCustomEnvelope current,
@@ -260,23 +343,35 @@ public record AggregateAsyncCustomEnvelope(EventEnvelope<Created1>? Created1,
             Assert.Equal(envelope, new EventEnvelope<Updated2>(svc.Event!));
         return Task.FromResult(current with {Updated2 = envelope});
     }
+
+    public static Task<AggregateAsyncCustomEnvelope> When(AggregateAsyncCustomEnvelope current,
+        EventEnvelope envelope,
+        [FromServices] AggregateService svc,
+        CancellationToken _)
+        => Task.FromResult(current with
+        {
+            StreamPosition = envelope.StreamPosition,
+            LastUpdatedOn = envelope.Timestamp
+        });
 }
 
 public record AggregateValueTaskAsyncCustomEnvelope(EventEnvelope<Created1>? Created1,
     EventEnvelope<Created2>? Created2,
     EventEnvelope<Updated1>? Updated1,
-    EventEnvelope<Updated2>? Updated2)
+    EventEnvelope<Updated2>? Updated2,
+    DateTime LastUpdatedOn,
+    ulong StreamPosition)
 {
     public static ValueTask<AggregateValueTaskAsyncCustomEnvelope> When(EventEnvelope<Created1> envelope,
         CancellationToken _) =>
-        ValueTask.FromResult(new AggregateValueTaskAsyncCustomEnvelope(envelope, null, null, null));
+        ValueTask.FromResult(new AggregateValueTaskAsyncCustomEnvelope(envelope, null, null, null, DateTime.MaxValue, ulong.MaxValue));
 
     public static ValueTask<AggregateValueTaskAsyncCustomEnvelope> When(EventEnvelope<Created2> envelope,
         [FromServices] AggregateService svc)
     {
         if (svc.Event != null)
             Assert.Equal(envelope, svc.Event);
-        return ValueTask.FromResult(new AggregateValueTaskAsyncCustomEnvelope(null, envelope, null, null));
+        return ValueTask.FromResult(new AggregateValueTaskAsyncCustomEnvelope(null, envelope, null, null, DateTime.MaxValue, ulong.MaxValue));
     }
 
     public static ValueTask<AggregateValueTaskAsyncCustomEnvelope> When(AggregateValueTaskAsyncCustomEnvelope current,
@@ -293,6 +388,16 @@ public record AggregateValueTaskAsyncCustomEnvelope(EventEnvelope<Created1>? Cre
             Assert.Equal(envelope, new EventEnvelope<Updated2>(svc.Event));
         return ValueTask.FromResult(current with {Updated2 = envelope});
     }
+
+    public static ValueTask<AggregateValueTaskAsyncCustomEnvelope> When(AggregateValueTaskAsyncCustomEnvelope current,
+        EventEnvelope envelope,
+        [FromServices] AggregateService svc,
+        CancellationToken _)
+        => ValueTask.FromResult(current with
+        {
+            StreamPosition = envelope.StreamPosition,
+            LastUpdatedOn = envelope.Timestamp
+        });
 }
 
 public record Created1(Guid Id);

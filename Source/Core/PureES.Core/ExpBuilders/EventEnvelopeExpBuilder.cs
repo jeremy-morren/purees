@@ -22,9 +22,9 @@ internal class NewEventEnvelopeExpBuilder
     private void ValidateEnvelope(Type envelopeType)
     {
         var ex = new ArgumentException($"Invalid EventEnvelope type {envelopeType}");
-        if (_options.IsEventEnvelope != null)
+        if (_options.IsStronglyTypedEventEnvelope != null)
         {
-            if (!_options.IsEventEnvelope(envelopeType))
+            if (!_options.IsStronglyTypedEventEnvelope(envelopeType))
                 throw ex;
             return;
         }

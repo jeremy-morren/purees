@@ -2,6 +2,9 @@
 
 namespace PureES.Core.ExpBuilders.WhenHandlers;
 
+/// <summary>
+/// Builds CreateWhen Handler (i.e. for first event in list)
+/// </summary>
 internal class CreatedWhenExpBuilder
 {
     private readonly CommandHandlerBuilderOptions _options;
@@ -114,12 +117,12 @@ internal class CreatedWhenExpBuilder
     public void ValidateCreatedWhen(Type aggregateType, MethodInfo method)
     {
         //We are expecting a T When(EventEnvelope<TAny, TAny> @event) method
-        FactoryExpBuilder.ValidateWhen(aggregateType, method);
+        FactoryExpBuilder.ValidateWhenMethod(aggregateType, method);
         var parameters = GetEnvelopeParams(method);
         if (parameters.Count != 1)
             throw new InvalidOperationException(
                 $"Create When method {method} has too many parameters");
-        new FactoryExpBuilder(_options).ValidateEnvelope(parameters[0]);
+        new FactoryExpBuilder(_options).ValidateStronglyTypedEventEnvelope(parameters[0]);
     }
 
     public bool IsCreatedWhen(Type aggregateType, MethodInfo method)
@@ -135,7 +138,7 @@ internal class CreatedWhenExpBuilder
         var parameters = GetEnvelopeParams(method);
         if (parameters.Count != 1)
             return false;
-        return _options.IsEventEnvelope?.Invoke(parameters[0].ParameterType)
-               ?? new FactoryExpBuilder(_options).IsEnvelope(parameters[0].ParameterType);
+        return _options.IsStronglyTypedEventEnvelope?.Invoke(parameters[0].ParameterType)
+               ?? new FactoryExpBuilder(_options).IsStronglyTypedEventEnvelope(parameters[0].ParameterType);
     }
 }

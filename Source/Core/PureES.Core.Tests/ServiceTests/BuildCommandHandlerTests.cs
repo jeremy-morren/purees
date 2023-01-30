@@ -27,7 +27,7 @@ public class BuildCommandHandlerTests
     [InlineData(typeof(AggregateValueTaskAsync))]
     public async Task BuildNoResult(Type aggregateType)
     {
-        using var sp = BuildServices(aggregateType, out var create, out var update);
+        await using var sp = BuildServices(aggregateType, out var create, out var update);
 
         var createHandler = sp.GetRequiredService<ICommandHandler<Commands.Create>>();
         var updateHandler = sp.GetRequiredService<ICommandHandler<Commands.Update>>();
@@ -47,7 +47,7 @@ public class BuildCommandHandlerTests
     [InlineData(typeof(AggregateValueTaskAsyncResult))]
     public async Task BuildResult(Type aggregateType)
     {
-        using var sp = BuildServices(aggregateType, out var create, out var update);
+        await using var sp = BuildServices(aggregateType, out var create, out var update);
 
         var createHandler = sp.GetRequiredService<ICommandHandler<Commands.Create>>();
         var updateHandler = sp.GetRequiredService<ICommandHandler<Commands.Update>>();
@@ -141,7 +141,6 @@ public class BuildCommandHandlerTests
         var revision = update != null ? (ulong) 1 : 0;
         var store = services.GetRequiredService<IAggregateStore<TAggregate>>();
         var aggregate = await store.Load(create.Id.StreamId, revision, default);
-        Assert.Equal(revision + 1, aggregate.Version);
 
         TValue? GetProperty<TValue>()
         {
@@ -149,7 +148,7 @@ public class BuildCommandHandlerTests
                            .GetProperties(BindingFlags.Instance | BindingFlags.Public)
                            .SingleOrDefault(p => p.PropertyType == typeof(TValue))
                        ?? throw new Exception($"Unable to get property of type {typeof(TValue)}");
-            return (TValue?) prop.GetValue(aggregate.Aggregate);
+            return (TValue?) prop.GetValue(aggregate);
         }
 
         var created = GetProperty<EventEnvelope<Events.Created, Metadata>>();
@@ -172,12 +171,18 @@ public class BuildCommandHandlerTests
 
     [Aggregate]
     private record Aggregate(EventEnvelope<Events.Created, Metadata> Created,
-        EventEnvelope<Events.Updated, Metadata>? Updated)
+        EventEnvelope<Events.Updated, Metadata>? Updated,
+        ulong StreamPosition)
     {
-        public static Aggregate When(EventEnvelope<Events.Created, Metadata> e) => new(e, null);
+        public static Aggregate When(EventEnvelope<Events.Created, Metadata> e) => 
+            new(e, null, e.StreamPosition);
 
         public static Aggregate When(Aggregate current, EventEnvelope<Events.Updated, Metadata> e)
-            => current with {Updated = e};
+            => current with
+            {
+                Updated = e, 
+                StreamPosition = e.StreamPosition
+            };
 
         public static Events.Created Create([Command] Commands.Create cmd) => new(cmd.Id, cmd.Value);
 
@@ -193,7 +198,8 @@ public class BuildCommandHandlerTests
     private record AggregateAsync(EventEnvelope<Events.Created, Metadata> Created,
         EventEnvelope<Events.Updated, Metadata>? Updated)
     {
-        public static AggregateAsync When(EventEnvelope<Events.Created, Metadata> e) => new(e, null);
+        public static AggregateAsync When(EventEnvelope<Events.Created, Metadata> e) => 
+            new(e, null);
 
         public static AggregateAsync When(AggregateAsync current, EventEnvelope<Events.Updated, Metadata> e)
             => current with {Updated = e};
@@ -213,7 +219,8 @@ public class BuildCommandHandlerTests
     private record AggregateValueTaskAsync(EventEnvelope<Events.Created, Metadata> Created,
         EventEnvelope<Events.Updated, Metadata>? Updated)
     {
-        public static AggregateValueTaskAsync When(EventEnvelope<Events.Created, Metadata> e) => new(e, null);
+        public static AggregateValueTaskAsync When(EventEnvelope<Events.Created, Metadata> e) => 
+            new(e, null);
 
         public static AggregateValueTaskAsync When(AggregateValueTaskAsync current,
             EventEnvelope<Events.Updated, Metadata> e)
@@ -286,7 +293,8 @@ public class BuildCommandHandlerTests
     private record AggregateValueTaskAsyncResult(EventEnvelope<Events.Created, Metadata> Created,
         EventEnvelope<Events.Updated, Metadata>? Updated)
     {
-        public static AggregateValueTaskAsyncResult When(EventEnvelope<Events.Created, Metadata> e) => new(e, null);
+        public static AggregateValueTaskAsyncResult When(EventEnvelope<Events.Created, Metadata> e) =>
+            new(e, null);
 
         public static AggregateValueTaskAsyncResult When(AggregateValueTaskAsyncResult current,
             EventEnvelope<Events.Updated, Metadata> e)

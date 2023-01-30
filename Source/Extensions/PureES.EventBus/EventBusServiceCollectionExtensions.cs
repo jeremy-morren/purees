@@ -7,13 +7,6 @@ namespace PureES.EventBus;
 
 public static class EventBusServiceCollectionExtensions
 {
-    private static void AddEventHandlersCore(this IServiceCollection services,
-        Action<EventBusOptions>? configureOptions)
-    {
-        services.TryAddSingleton(new EventHandlerCollection());
-        services.Configure<EventBusOptions>(o => configureOptions?.Invoke(o));
-    }
-
     /// <summary>
     ///     Adds an <see cref="IEventBus" /> to the service collection
     /// </summary>
@@ -23,8 +16,8 @@ public static class EventBusServiceCollectionExtensions
     public static IServiceCollection AddEventBus(this IServiceCollection services,
         Action<EventBusOptions>? configureOptions = null)
     {
-        services.AddEventHandlersCore(configureOptions);
-
+        services.Configure<EventBusOptions>(o => configureOptions?.Invoke(o));
+        
         services.TryAddSingleton<IEventBus, EventBus>();
 
         return services;
@@ -41,12 +34,7 @@ public static class EventBusServiceCollectionExtensions
         where TEvent : notnull
         where TMetadata : notnull
     {
-        services.AddEventHandlersCore(null);
-
-        var descriptor = services.Single(d => d.ServiceType == typeof(EventHandlerCollection));
-
-        var collection = (EventHandlerCollection?) descriptor.ImplementationInstance!;
-        collection.AddEventHandler(factory);
+        services.AddSingleton<Func<IServiceProvider, IEventHandler<TEvent, TMetadata>>>(factory);
         return services;
     }
 }

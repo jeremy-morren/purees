@@ -60,7 +60,7 @@ public class CreatedWhenTests
             Event = envelope
         };
 
-        using var sp = new ServiceCollection()
+        await using var sp = new ServiceCollection()
             .AddSingleton(svc)
             .BuildServiceProvider();
 
@@ -88,7 +88,7 @@ public class CreatedWhenTests
     private static async Task InvokeCreatedWhenGeneric<TAggregate>() where TAggregate : notnull
     {
         var svc = new AggregateService();
-        using var sp = new ServiceCollection()
+        await using var sp = new ServiceCollection()
             .AddSingleton(svc)
             .BuildServiceProvider();
 

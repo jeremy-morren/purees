@@ -37,7 +37,7 @@ internal static class HandleUpdateOn
             ? await eventStore.GetRevision(streamId, expectedRevision.Value, ct)
             : await eventStore.GetRevision(streamId, ct);
         var current = await aggregateStore.Load(streamId, streamRevision, ct);
-        var response = handle(current.Aggregate);
+        var response = handle(current);
         return await ProcessUpdateResponse(serviceProvider, streamId, streamRevision, command, response, ct);
     }
 
@@ -56,7 +56,7 @@ internal static class HandleUpdateOn
             ? await eventStore.GetRevision(streamId, expectedRevision.Value, ct)
             : await eventStore.GetRevision(streamId, ct);
         var current = await aggregateStore.Load(streamId, streamRevision, ct);
-        var response = await handle(current.Aggregate);
+        var response = await handle(current);
         return await ProcessUpdateResponse(serviceProvider, streamId, streamRevision, command, response, ct);
     }
 
@@ -75,7 +75,7 @@ internal static class HandleUpdateOn
             ? await eventStore.GetRevision(streamId, expectedRevision.Value, ct)
             : await eventStore.GetRevision(streamId, ct);
         var current = await aggregateStore.Load(streamId, streamRevision, ct);
-        var response = await handle(current.Aggregate);
+        var response = await handle(current);
         return await ProcessUpdateResponse(serviceProvider, streamId, streamRevision, command, response, ct);
     }
 
@@ -96,7 +96,7 @@ internal static class HandleUpdateOn
             ? await eventStore.GetRevision(streamId, expectedRevision.Value, ct)
             : await eventStore.GetRevision(streamId, ct);
         var current = await aggregateStore.Load(streamId, streamRevision, ct);
-        var response = handle(current.Aggregate);
+        var response = handle(current);
         await ProcessUpdateResponse(serviceProvider, streamId, streamRevision, command, response.Event, ct);
         return response.Result;
     }
@@ -118,7 +118,7 @@ internal static class HandleUpdateOn
             ? await eventStore.GetRevision(streamId, expectedRevision.Value, ct)
             : await eventStore.GetRevision(streamId, ct);
         var current = await aggregateStore.Load(streamId, streamRevision, ct);
-        var response = await handle(current.Aggregate);
+        var response = await handle(current);
         await ProcessUpdateResponse(serviceProvider, streamId, streamRevision, command, response.Event, ct);
         return response.Result;
     }
@@ -140,7 +140,7 @@ internal static class HandleUpdateOn
             ? await eventStore.GetRevision(streamId, expectedRevision.Value, ct)
             : await eventStore.GetRevision(streamId, ct);
         var current = await aggregateStore.Load(streamId, streamRevision, ct);
-        var response = await handle(current.Aggregate);
+        var response = await handle(current);
         await ProcessUpdateResponse(serviceProvider, streamId, streamRevision, command, response.Event, ct);
         return response.Result;
     }

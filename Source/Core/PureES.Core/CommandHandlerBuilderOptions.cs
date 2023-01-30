@@ -33,7 +33,10 @@ public record CommandHandlerBuilderOptions
 
     #region Event Envelope
 
-    public Func<Type, bool>? IsEventEnvelope { get; init; }
+    /// <summary>
+    /// A delegate that indicates whether a parameter is a strongly typed event envelope parameter
+    /// </summary>
+    public Func<Type, bool>? IsStronglyTypedEventEnvelope { get; init; }
 
     /// <summary>
     ///     Returns the underlying Event type

@@ -59,7 +59,7 @@ public class UpdatedWhenTests
             Event = envelope
         };
 
-        using var sp = new ServiceCollection()
+        await using var sp = new ServiceCollection()
             .AddSingleton(svc)
             .BuildServiceProvider();
 
@@ -88,7 +88,7 @@ public class UpdatedWhenTests
     private static async Task InvokeUpdatedWhenGeneric<TAggregate>() where TAggregate : notnull
     {
         var svc = new AggregateService();
-        using var sp = new ServiceCollection()
+        await using var sp = new ServiceCollection()
             .AddSingleton(svc)
             .BuildServiceProvider();
 

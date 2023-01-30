@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -29,7 +30,7 @@ public class FactoryExpBuilderTests
         where TCreated : notnull
     {
         var svc = new AggregateService();
-        using var sp = new ServiceCollection()
+        await using var sp = new ServiceCollection()
             .AddSingleton(svc)
             .BuildServiceProvider();
 
@@ -41,7 +42,7 @@ public class FactoryExpBuilderTests
             Expression.Constant(default(CancellationToken)));
 
         var func = Expression.Lambda<Func<IAsyncEnumerable<EventEnvelope>,
-            ValueTask<LoadedAggregate<TAggregate>>>>(exp, param).Compile();
+            ValueTask<TAggregate>>>(exp, param).Compile();
 
         EventEnvelope CreateEnvelope<TEvent>() where TEvent : notnull => new(Guid.NewGuid(),
             Guid.NewGuid().ToString(),
@@ -50,17 +51,20 @@ public class FactoryExpBuilderTests
             TestAggregates.NewEvent<TEvent>(),
             Metadata.New());
 
-        var created = CreateEnvelope<TCreated>();
-        var updated1 = CreateEnvelope<Updated1>();
-        var updated2 = CreateEnvelope<Updated2>();
-
-        var agg = await func(new[] {created, updated1, updated2}.AsAsyncEnumerable());
-
-        Assert.NotNull(agg);
-        Assert.Equal((ulong) 3, agg.Version);
-
-        TestAggregates.AssertEqual<TCreated>(agg.Aggregate, created);
-        TestAggregates.AssertEqual<Updated1>(agg.Aggregate, updated1);
-        TestAggregates.AssertEqual<Updated2>(agg.Aggregate, updated2);
+        var events = new[]
+        {
+            CreateEnvelope<TCreated>(), 
+            CreateEnvelope<Updated1>(), 
+            CreateEnvelope<Updated2>()
+        };
+        
+        Assert.All(Enumerable.Range(0, events.Length), i =>
+        {
+            var agg = func(events.Take(i + 1).AsAsyncEnumerable())
+                .AsTask().GetAwaiter().GetResult();
+            var @event = events[i];
+            TestAggregates.AssertEqual(agg, @event);
+            TestAggregates.AssertWhen(agg, @event);
+        });
     }
 }

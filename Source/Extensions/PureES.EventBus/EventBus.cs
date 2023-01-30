@@ -1,9 +1,11 @@
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Linq.Expressions;
 using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using PureES.Core;
 
@@ -14,27 +16,24 @@ internal class EventBus : IEventBus
     private static readonly ConcurrentDictionary<Type, Func<EventBus, EventEnvelope, CancellationToken, Task>>
         PublishHandlers = new();
 
-    private readonly EventHandlerCollection _eventHandlers;
     private readonly ILogger<EventBus> _logger;
     private readonly IOptions<EventBusOptions> _options;
     private readonly IServiceProvider _services;
 
     public EventBus(IServiceProvider services,
-        EventHandlerCollection eventHandlers,
         IOptions<EventBusOptions> options,
-        ILogger<EventBus> logger)
+        ILogger<EventBus>? logger = null)
     {
         _services = services;
-        _eventHandlers = eventHandlers;
         _options = options;
-        _logger = logger;
+        _logger = logger ?? NullLogger<EventBus>.Instance;
     }
 
-    public Func<IServiceProvider, IEventHandler<TEvent, TMetadata>>[] GetRegisteredEventHandlers<TEvent, TMetadata>()
+    public IEnumerable<Func<IServiceProvider, IEventHandler<TEvent, TMetadata>>> GetRegisteredEventHandlers<TEvent, TMetadata>()
         where TEvent : notnull
         where TMetadata : notnull =>
-        _eventHandlers.Get<TEvent, TMetadata>() ??
-        Array.Empty<Func<IServiceProvider, IEventHandler<TEvent, TMetadata>>>();
+        _services.GetService<IEnumerable<Func<IServiceProvider, IEventHandler<TEvent, TMetadata>>>>() 
+            ?? Enumerable.Empty<Func<IServiceProvider, IEventHandler<TEvent, TMetadata>>>();
 
     public Task Publish(EventEnvelope envelope, CancellationToken ct)
     {
@@ -63,8 +62,8 @@ internal class EventBus : IEventBus
         where TEvent : notnull
         where TMetadata : notnull
     {
-        var factories = bus.GetRegisteredEventHandlers<TEvent, TMetadata>();
-        foreach (var factory in factories)
+        var handlers = bus.GetRegisteredEventHandlers<TEvent, TMetadata>();
+        foreach (var handler in handlers)
         {
             await using var scope = bus._services.CreateAsyncScope();
             var eventProps = new {envelope.StreamId, envelope.StreamPosition, Type = typeof(TEvent)};
@@ -72,7 +71,7 @@ internal class EventBus : IEventBus
             try
             {
                 bus._logger.LogDebug("Handling projection for event {@Event}", eventProps);
-                await factory(scope.ServiceProvider).Handle(new EventEnvelope<TEvent, TMetadata>(envelope), ct);
+                await handler(scope.ServiceProvider).Handle(new EventEnvelope<TEvent, TMetadata>(envelope), ct);
                 var elapsedMs = GetElapsedMilliseconds(start, Stopwatch.GetTimestamp());
                 bus._logger.LogInformation(
                     "Successfully handled projection for event {@Event}. Elapsed: {Elapsed:0.0000} ms", eventProps,
@@ -88,10 +87,7 @@ internal class EventBus : IEventBus
                 //This allows suppressing exceptions if that is desired
             }
         }
-
-        ;
     }
-
 
     private static double GetElapsedMilliseconds(long start, long stop) =>
         (stop - start) * 1000 / (double) Stopwatch.Frequency;
