@@ -73,7 +73,8 @@ internal class EventBus : IEventBus
                 bus._logger.LogDebug("Handling projection for event {@Event}", eventProps);
                 await handler(scope.ServiceProvider).Handle(new EventEnvelope<TEvent, TMetadata>(envelope), ct);
                 var elapsedMs = GetElapsedMilliseconds(start, Stopwatch.GetTimestamp());
-                bus._logger.LogInformation(
+                var level = elapsedMs > bus._options.Value.TargetLength ? LogLevel.Warning : LogLevel.Information;
+                bus._logger.Log(level,
                     "Successfully handled projection for event {@Event}. Elapsed: {Elapsed:0.0000} ms", eventProps,
                     elapsedMs);
             }

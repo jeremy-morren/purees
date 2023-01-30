@@ -16,7 +16,13 @@ public static class EventBusServiceCollectionExtensions
     public static IServiceCollection AddEventBus(this IServiceCollection services,
         Action<EventBusOptions>? configureOptions = null)
     {
-        services.Configure<EventBusOptions>(o => configureOptions?.Invoke(o));
+        services.AddOptions<EventBusOptions>()
+            .Configure(o => configureOptions?.Invoke(o))
+            .Validate(o =>
+            {
+                o.Validate();
+                return true;
+            });
         
         services.TryAddSingleton<IEventBus, EventBus>();
 

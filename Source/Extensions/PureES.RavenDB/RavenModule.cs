@@ -1,9 +1,6 @@
-﻿using System.Diagnostics.CodeAnalysis;
-using System.Reflection;
-using System.Security.Cryptography.X509Certificates;
+﻿using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using Newtonsoft.Json;
 using Raven.Client.Documents;
 using Raven.Client.Documents.Conventions;
 using Raven.Client.Documents.Operations;
@@ -25,15 +22,14 @@ public static class RavenModule
     public static IServiceCollection AddRavenDB(this IServiceCollection services,
         Action<RavenDBOptions> configureOptions)
     {
+        if (services == null) throw new ArgumentNullException(nameof(services));
+        if (configureOptions == null) throw new ArgumentNullException(nameof(configureOptions));
+        
         services.AddOptions<RavenDBOptions>()
-            .Configure(o => configureOptions?.Invoke(o))
+            .Configure(configureOptions.Invoke)
             .Validate(o =>
             {
-                if (string.IsNullOrWhiteSpace(o.Database))
-                    throw new InvalidOperationException("RavenDB database is required");
-                // ReSharper disable once ConstantConditionalAccessQualifier
-                if ((o.Urls?.Length ?? 0) == 0)
-                    throw new InvalidOperationException("RavenDB url is required");
+                o.Validate();
                 return true;
             });
 
@@ -44,11 +40,9 @@ public static class RavenModule
                 var options = sp.GetRequiredService<IOptions<RavenDBOptions>>().Value;
                 return new DocumentStore
                     {
-                        Urls = options.Urls,
+                        Urls = options.Urls.ToArray(),
                         Database = options.Database,
-                        Certificate = !string.IsNullOrEmpty(options.Certificate)
-                            ? new X509Certificate2(options.Certificate)
-                            : null,
+                        Certificate = options.GetCertificate(),
                         Conventions =
                         {
                             FindCollectionName = t =>
@@ -120,14 +114,4 @@ public static class RavenModule
         };
         return store;
     }
-}
-
-[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")]
-public class RavenDBOptions
-{
-    public string[] Urls { get; set; } = null!;
-    public string Database { get; set; } = null!;
-    public string? Certificate { get; set; }
-
-    public Action<JsonSerializer>? ConfigureSerializer { get; set; }
 }
