@@ -73,7 +73,7 @@ internal class EventBus : IEventBus
                 bus._logger.LogDebug("Handling projection for event {@Event}", eventProps);
                 await handler(scope.ServiceProvider).Handle(new EventEnvelope<TEvent, TMetadata>(envelope), ct);
                 var elapsedMs = GetElapsedMilliseconds(start, Stopwatch.GetTimestamp());
-                var level = elapsedMs > bus._options.Value.TargetLength ? LogLevel.Warning : LogLevel.Information;
+                var level = bus._options.Value.GetLogLevel(envelope, null, elapsedMs);
                 bus._logger.Log(level,
                     "Successfully handled projection for event {@Event}. Elapsed: {Elapsed:0.0000} ms", eventProps,
                     elapsedMs);
@@ -81,7 +81,8 @@ internal class EventBus : IEventBus
             catch (Exception e)
             {
                 var elapsedMs = GetElapsedMilliseconds(start, Stopwatch.GetTimestamp());
-                bus._logger.LogError(e, "Error processing projection for event {@Event}. Elapsed: {Elapsed:0.0000} ms",
+                var level = bus._options.Value.GetLogLevel(envelope, e, elapsedMs);
+                bus._logger.Log(level, e, "Error processing projection for event {@Event}. Elapsed: {Elapsed:0.0000} ms",
                     eventProps, elapsedMs);
                 if (bus._options.Value.PropagateEventHandlerExceptions)
                     throw;
