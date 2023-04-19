@@ -1,4 +1,5 @@
-﻿using EventStore.Client;
+﻿using System.Text.Json;
+using EventStore.Client;
 using Microsoft.Extensions.Logging;
 
 // ReSharper disable InconsistentNaming
@@ -38,10 +39,24 @@ public class EventStoreDBOptions
     /// </summary>
     public bool EnableLogging { get; set; } = true;
 
+    /// <summary>
+    /// Gets or sets the JSON serializer options to use
+    /// when deserializing events & metadata
+    /// </summary>
+    public JsonSerializerOptions? JsonSerializerOptions { get; set; } = null;
+
+    /// <summary>
+    /// Gets or sets the type to deserialize metadata as
+    /// </summary>
+    public Type MetadataType { get; set; } = typeof(JsonElement?);
+
     public void Validate()
     {
         if (Nodes == null! || Nodes.Count == 0)
             throw new Exception("EventStore Nodes(s) are required");
+
+        if (MetadataType == null)
+            throw new Exception("Metadata type is required");
     }
 
     public EventStoreClientSettings CreateSettings(ILoggerFactory loggerFactory)

@@ -9,6 +9,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\..\Core\PureES.Core.Abstractions\PureES.Core.Abstractions.csproj" />
+        <ProjectReference Include="..\PureES.EventBus\PureES.EventBus.csproj" />
     </ItemGroup>
 
     <ItemGroup>

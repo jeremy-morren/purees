@@ -45,7 +45,7 @@ public sealed class EventStreamBlock : ITargetBlock<EventEnvelope>
             EnsureOrdered = true,
             MaxDegreeOfParallelism = 1,
 
-            //This creates backpressure
+            //This creates backpressure on block.SendAsync
             BoundedCapacity = options.BoundedCapacity
         });
 
@@ -86,7 +86,7 @@ public sealed class EventStreamBlock : ITargetBlock<EventEnvelope>
             return queue.StreamId;
         }, new ExecutionDataflowBlockOptions
         {
-            BoundedCapacity = options.MaxDegreeOfParallelism,
+            BoundedCapacity = 1, //Do not buffer anything, this creates backpressure
             CancellationToken = ct,
 
             //The worker process in parallel
@@ -112,9 +112,9 @@ public sealed class EventStreamBlock : ITargetBlock<EventEnvelope>
         {
             CancellationToken = ct,
 
-            //Order is unimportant, since we are locking on _queues anyway
-            EnsureOrdered = false,
-            MaxDegreeOfParallelism = 1 //We are synchronizing anyway
+            BoundedCapacity = DataflowBlockOptions.Unbounded, //The backpressure is all above, we can buffer as much as we like here
+            EnsureOrdered = false, //Order is unimportant, since we are locking on _queues anyway
+            MaxDegreeOfParallelism = 1 //We are synchronizing anyway, so this doesn't actually make any difference
         });
 
         producer.LinkTo(worker, new DataflowLinkOptions
@@ -128,9 +128,7 @@ public sealed class EventStreamBlock : ITargetBlock<EventEnvelope>
 
         _target = producer;
 
-        //We don't actually need to wait on cleanup to complete
-        //It will all be Garbage Collected anyway
-        Completion = worker.Completion;
+        Completion = cleanup.Completion;
     }
 
     public DataflowMessageStatus OfferMessage(DataflowMessageHeader messageHeader, EventEnvelope messageValue,

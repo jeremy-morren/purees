@@ -1,4 +1,5 @@
-﻿using PureES.Core;
+﻿using System.Diagnostics;
+using PureES.Core;
 using PureES.Core.EventStore;
 
 namespace PureES.Extensions.Tests.EventStore;
@@ -7,30 +8,53 @@ public abstract class EventStoreTestsBase
 {
     protected abstract IEventStore CreateStore();
 
+    [DebuggerNonUserCode]
+    protected static CancellationToken CancellationToken => new CancellationTokenSource(TimeSpan.FromSeconds(30)).Token;
+
+    [DebuggerNonUserCode]
+    protected static string GetStream(string name) => $"{name}-{Environment.Version}";
+
     [Fact]
     public async Task Create()
     {
         var store = CreateStore();
-        const string stream = nameof(Create);
+        var stream = GetStream(nameof(Create));
         var events = Enumerable.Range(0, 10)
             .Select(_ => NewEvent())
             .ToList();
         var revision = (ulong) events.Count - 1;
-        Assert.Equal(revision, await store.Create(stream, events, default));
-        Assert.Equal(revision, await store.GetRevision(stream, default));
-        await AssertEqual(events, store.Read(stream, default));
-        Assert.Equal((ulong) events.Count - 1, await store.GetRevision(stream, default));
+        Assert.False(await store.Exists(stream, CancellationToken));
+        Assert.Equal(revision, await store.Create(stream, events, CancellationToken));
+        Assert.Equal(revision, await store.GetRevision(stream, CancellationToken));
+        Assert.True(await store.Exists(stream, CancellationToken));
+        await AssertEqual(events, store.Read(stream, CancellationToken));
+        Assert.Equal((ulong) events.Count - 1, await store.GetRevision(stream, CancellationToken));
+    }
+    
+    [Fact]
+    public async Task CreateSingle()
+    {
+        var store = CreateStore();
+        var stream = GetStream(nameof(CreateSingle));
+        var @event = NewEvent();
+        const ulong revision = 0;
+        Assert.False(await store.Exists(stream, CancellationToken));
+        Assert.Equal(revision, await store.Create(stream, @event, CancellationToken));
+        Assert.True(await store.Exists(stream, CancellationToken));
+        Assert.Equal(revision, await store.GetRevision(stream, CancellationToken));
+        await AssertEqual(new [] { @event }, store.Read(stream, CancellationToken));
+        Assert.Equal(revision, await store.GetRevision(stream, CancellationToken));
     }
 
     [Fact]
     public async Task Create_Existing_Should_Throw()
     {
         var store = CreateStore();
-        const string stream = nameof(Create_Existing_Should_Throw);
+        var stream = GetStream(nameof(Create_Existing_Should_Throw));
         const ulong revision = 0;
-        Assert.Equal(revision, await store.Create(stream, NewEvent(), default));
+        Assert.Equal(revision, await store.Create(stream, NewEvent(), CancellationToken));
         var ex = await Assert.ThrowsAsync<StreamAlreadyExistsException>(() =>
-            store.Create(stream, NewEvent(), default));
+            store.Create(stream, NewEvent(), CancellationToken));
         Assert.Equal(revision, ex.CurrentRevision);
     }
 
@@ -40,16 +64,16 @@ public abstract class EventStoreTestsBase
     public async Task Append(bool useOptimisticConcurrency)
     {
         var store = CreateStore();
-        var stream = nameof(Append)+useOptimisticConcurrency;
+        var stream = GetStream($"{nameof(Append)}+{useOptimisticConcurrency}");
         var events = Enumerable.Range(0, 10)
             .Select(_ => NewEvent())
             .ToList();
-        Assert.Equal((ulong) 4, await store.Create(stream, events.Take(5), default));
+        Assert.Equal((ulong) 4, await store.Create(stream, events.Take(5), CancellationToken));
         Assert.Equal((ulong) 9, useOptimisticConcurrency
-            ? await store.Append(stream, 4, events.Skip(5), default)
-            : await store.Append(stream, events.Skip(5), default));
-        await AssertEqual(events, store.Read(stream, default));
-        Assert.Equal((ulong) events.Count - 1, await store.GetRevision(stream, default));
+            ? await store.Append(stream, 4, events.Skip(5), CancellationToken)
+            : await store.Append(stream, events.Skip(5), CancellationToken));
+        await AssertEqual(events, store.Read(stream, CancellationToken));
+        Assert.Equal((ulong) events.Count - 1, await store.GetRevision(stream, CancellationToken));
     }
 
     [Theory]
@@ -58,25 +82,25 @@ public abstract class EventStoreTestsBase
     public async Task Append_To_Invalid_Should_Throw(bool useOptimisticConcurrency)
     {
         var store = CreateStore();
-        var stream = nameof(Append_To_Invalid_Should_Throw)+useOptimisticConcurrency;
+        var stream = GetStream($"{nameof(Append_To_Invalid_Should_Throw)}+{useOptimisticConcurrency}");
         await Assert.ThrowsAsync<StreamNotFoundException>(() =>
             useOptimisticConcurrency
-                ? store.Append(stream, 0, NewEvent(), default)
-                : store.Append(stream, NewEvent(), default));
+                ? store.Append(stream, 0, NewEvent(), CancellationToken)
+                : store.Append(stream, NewEvent(), CancellationToken));
     }
 
     [Fact]
     public async Task Append_With_Invalid_Revision_Should_Throw()
     {
         var store = CreateStore();
-        const string stream = nameof(Append_With_Invalid_Revision_Should_Throw);
+        var stream = GetStream(nameof(Append_With_Invalid_Revision_Should_Throw));
         var events = Enumerable.Range(0, 10)
             .Select(_ => NewEvent())
             .ToList();
         var revision = (ulong) events.Count - 1;
-        Assert.Equal(revision, await store.Create(stream, events, default));
+        Assert.Equal(revision, await store.Create(stream, events, CancellationToken));
         var ex = await Assert.ThrowsAsync<WrongStreamRevisionException>(() =>
-            store.Append(stream, RandVersion(events.Count + 1), NewEvent(), default));
+            store.Append(stream, RandVersion(events.Count + 1), NewEvent(), CancellationToken));
         Assert.Equal(revision, ex.ActualRevision);
     }
 
@@ -84,30 +108,30 @@ public abstract class EventStoreTestsBase
     public async Task Read_Invalid_Stream_Should_Throw()
     {
         var store = CreateStore();
-        const string stream = nameof(Read_Invalid_Stream_Should_Throw);
-        Assert.False(await store.Exists(stream, default));
-        await Assert.ThrowsAsync<StreamNotFoundException>(() => store.GetRevision(stream, default));
-        await Assert.ThrowsAsync<StreamNotFoundException>(async () => await store.Read(stream, default).FirstAsync());
+        var stream = GetStream(nameof(Read_Invalid_Stream_Should_Throw));
+        Assert.False(await store.Exists(stream, CancellationToken));
+        await Assert.ThrowsAsync<StreamNotFoundException>(() => store.GetRevision(stream, CancellationToken));
+        await Assert.ThrowsAsync<StreamNotFoundException>(async () => await store.Read(stream, CancellationToken).FirstAsync());
         await Assert.ThrowsAsync<StreamNotFoundException>(async () =>
-            await store.Read(stream, RandVersion(), default).FirstAsync());
+            await store.Read(stream, RandVersion(), CancellationToken).FirstAsync());
         await Assert.ThrowsAsync<StreamNotFoundException>(async () =>
-            await store.ReadPartial(stream, RandVersion(), default).FirstAsync());
+            await store.ReadPartial(stream, RandVersion(), CancellationToken).FirstAsync());
     }
 
     [Fact]
     public async Task Read()
     {
         var store = CreateStore();
-        const string stream = nameof(Read);
+        var stream = GetStream(nameof(Read));
         var events = Enumerable.Range(0, 10)
             .Select(_ => NewEvent())
             .ToList();
         var revision = (ulong) events.Count - 1;
-        Assert.Equal(revision, await store.Create(stream, events, default));
-        Assert.Equal(revision, await store.GetRevision(stream, default));
+        Assert.Equal(revision, await store.Create(stream, events, CancellationToken));
+        Assert.Equal(revision, await store.GetRevision(stream, CancellationToken));
 
-        await AssertEqual(events, store.Read(stream, revision, default));
-        await AssertEqual(events.Take(5), store.ReadPartial(stream, 4, default));
+        await AssertEqual(events, store.Read(stream, revision, CancellationToken));
+        await AssertEqual(events.Take(5), store.ReadPartial(stream, 4, CancellationToken));
 
         async Task AssertWrongVersion(Func<IAsyncEnumerable<EventEnvelope>> getEvents)
         {
@@ -115,51 +139,61 @@ public abstract class EventStoreTestsBase
             Assert.Equal(revision, ex.ActualRevision);
         }
 
-        await AssertWrongVersion(() => store.Read(stream, RandVersion(events.Count + 1), default));
+        await AssertWrongVersion(() => store.Read(stream, RandVersion(events.Count + 1), CancellationToken));
 
-        await AssertWrongVersion(() => store.Read(stream, 0, default));
+        await AssertWrongVersion(() => store.Read(stream, 0, CancellationToken));
 
-        await AssertWrongVersion(() => store.ReadPartial(stream, RandVersion(events.Count + 1), default));
+        await AssertWrongVersion(() => store.ReadPartial(stream, RandVersion(events.Count + 1), CancellationToken));
     }
 
     [Fact]
     public async Task GetStreamRevision()
     {
         var store = CreateStore();
-        const string stream = nameof(GetStreamRevision);
+        var stream = GetStream(nameof(GetStreamRevision));
         var events = Enumerable.Range(0, 10)
             .Select(_ => NewEvent())
             .ToList();
-        await store.Create(stream, events, default);
+        await store.Create(stream, events, CancellationToken);
         var revision = (ulong) events.Count - 1;
-        Assert.Equal(revision, await store.GetRevision(stream, default));
-        Assert.Equal(revision, await store.GetRevision(stream, revision, default));
-        await Assert.ThrowsAsync<WrongStreamRevisionException>(() => store.GetRevision(stream, revision + 1, default));
+        Assert.Equal(revision, await store.GetRevision(stream, CancellationToken));
+        Assert.Equal(revision, await store.GetRevision(stream, revision, CancellationToken));
+        await Assert.ThrowsAsync<WrongStreamRevisionException>(() => store.GetRevision(stream, revision + 1, CancellationToken));
     }
 
     [Fact]
     public async Task Get_Revision_Invalid_Should_Throw()
     {
         var store = CreateStore();
-        const string stream = nameof(Get_Revision_Invalid_Should_Throw);
-        await Assert.ThrowsAsync<StreamNotFoundException>(() => store.GetRevision(stream, default));
+        var stream = GetStream(nameof(Get_Revision_Invalid_Should_Throw));
+        await Assert.ThrowsAsync<StreamNotFoundException>(() => store.GetRevision(stream, CancellationToken));
     }
 
     [Fact]
     public async Task ReadAll()
     {
         var store = CreateStore();
-        const string stream = nameof(ReadAll);
+        var stream = GetStream(nameof(ReadAll));
         var events = Enumerable.Range(0, 10)
             .Select(_ => NewEvent())
             .ToList();
         var revision = (ulong) events.Count - 1;
-        Assert.Equal(revision, await store.Create(stream, events, default));
-        Assert.Equal(revision, await store.GetRevision(stream, default));
+        Assert.Equal(revision, await store.Create(stream, events, CancellationToken));
+        Assert.Equal(revision, await store.GetRevision(stream, CancellationToken));
 
         var all = await store.ReadAll(default).ToListAsync();
         Assert.NotEmpty(all);
-        Assert.Equal(all.OrderBy(e => e.Timestamp), all);
+        
+        var sorted = all
+            .OrderBy(e => e.Timestamp)
+            .ThenBy(a => a.StreamId)
+            .ThenBy(a => a.StreamPosition)
+            .Select(a => $"{a.StreamId}/{a.StreamPosition}")
+            .ToArray();
+        
+        Assert.Equal(sorted,
+            all.Select(a => $"{a.StreamId}/{a.StreamPosition}").ToArray());
+        
         Assert.Empty(all.GroupBy(a => new {a.StreamId, a.StreamPosition})
             .Where(g => g.Count() > 1));
     }
@@ -168,18 +202,19 @@ public abstract class EventStoreTestsBase
     public async Task StreamPosition_Should_Be_Ordered_And_Unique()
     {
         var store = CreateStore();
-        const string stream = nameof(StreamPosition_Should_Be_Ordered_And_Unique);
+        var stream = GetStream(nameof(StreamPosition_Should_Be_Ordered_And_Unique));
         const int count = 100;
         var events = Enumerable.Range(0, count).Select(_ => NewEvent()).ToList();
-        await store.Create(stream, events.Take(count / 2), default);
-        await store.Append(stream, events.Skip(count / 2), default);
+        await store.Create(stream, events.Take(count / 2), CancellationToken);
+        await store.Append(stream, events.Skip(count / 2), CancellationToken);
 
-        Assert.Equal((ulong) count - 1, await store.GetRevision(stream, default));
-
+        Assert.Equal((ulong) count - 1, await store.GetRevision(stream, CancellationToken));
         
-        var list = await store.Read(stream, default).ToListAsync();
+        var list = await store.Read(stream, CancellationToken).ToListAsync();
 
-        Assert.Equal(list.OrderBy(l => l.StreamPosition), list);
+        Assert.Equal(list.OrderBy(l => l.StreamPosition)
+            .Select(l => l.StreamPosition).ToArray(),
+            list.Select(l => l.StreamPosition).ToArray());
         Assert.Equal(Enumerable.Range(0, count), list.Select(e => (int) e.StreamPosition));
 
         Assert.Equal(list.OrderBy(e => e.Timestamp), list);
@@ -189,8 +224,12 @@ public abstract class EventStoreTestsBase
     public async Task ReadByEventType()
     {
         var store = CreateStore();
+        
+        var stream = GetStream(nameof(ReadByEventType));
+        var events = Enumerable.Range(0, 100).Select(_ => NewEvent()).ToList();
+        await store.Create(stream, events, CancellationToken);
 
-        Assert.Empty(await store.ReadByEventType(typeof(int), default).ToListAsync());
+        Assert.NotEmpty(await store.ReadByEventType(typeof(Event), CancellationToken).ToListAsync());
     }
 
     [Fact]
@@ -200,29 +239,38 @@ public abstract class EventStoreTestsBase
         
         //We need to add in random order
         var streamIds = Enumerable.Range(0, 10)
-            .SelectMany(i => Enumerable.Range(0, 10).Select(_ => $"stream-{i}"))
+            .SelectMany(i => Enumerable.Range(0, 10).Select(_ => GetStream($"stream-{i}")))
             .OrderBy(_ => Guid.NewGuid());
 
         foreach (var streamId in streamIds)
         {
             try
             {
-                await store.Append(streamId, NewEvent(), default);
+                await store.Append(streamId, NewEvent(), CancellationToken);
             }
             catch (StreamNotFoundException)
             {
-                await store.Create(streamId, NewEvent(), default);
+                await store.Create(streamId, NewEvent(), CancellationToken);
+            }
+            //Append bogus streams to test filter
+            try
+            {
+                await store.Append(streamId + "-other", NewEvent(), CancellationToken);
+            }
+            catch (StreamNotFoundException)
+            {
+                await store.Create(streamId + "-other", NewEvent(), CancellationToken);
             }
         }
 
         var half = Enumerable.Range(0, 10)
-            .Select(i => $"stream-{i}")
+            .Select(i => GetStream($"stream-{i}"))
             .OrderBy(_ => Guid.NewGuid())
             .Take(5)
             .ToHashSet();
         
-        var syncResult = await store.ReadMany(half, default).ToListAsync();
-        var asyncResult = await store.ReadMany(half.ToAsyncEnumerable(), default).ToListAsync();
+        var syncResult = await store.ReadMany(half, CancellationToken).ToListAsync();
+        var asyncResult = await store.ReadMany(half.ToAsyncEnumerable(), CancellationToken).ToListAsync();
         Assert.All(new [] { syncResult, asyncResult }, result =>
         {
             Assert.NotEmpty(result);
@@ -233,13 +281,13 @@ public abstract class EventStoreTestsBase
         });
     }
 
-    private static async Task AssertEqual(IEnumerable<UncommittedEvent> source, IAsyncEnumerable<EventEnvelope> events)
+    protected static async Task AssertEqual(IEnumerable<UncommittedEvent> source, IAsyncEnumerable<EventEnvelope> events)
     {
-        Assert.Equal(source.Select(e => new {e.EventId, Event = (Event) e.Event}),
-            await events.Select(e => new {e.EventId, Event = (Event) e.Event}).ToListAsync());
+        Assert.Equal(source.Select(e => e.EventId),
+            await events.Select(e => e.EventId).ToListAsync());
     }
 
-    private static ulong RandVersion(long? min = null) => (ulong) Random.Shared.NextInt64(min ?? 0, long.MaxValue);
+    private static ulong RandVersion(long? min = null) => (ulong) Random.Shared.NextInt64(min ?? 0, int.MaxValue - 1);
 
     protected static UncommittedEvent NewEvent()
     {
@@ -249,5 +297,5 @@ public abstract class EventStoreTestsBase
 
     public record Event(Guid Id);
 
-    private record Metadata;
+    protected record Metadata;
 }

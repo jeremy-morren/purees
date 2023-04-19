@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection.Extensions;
+using PureES.Core.EventStore;
 
 // ReSharper disable MemberCanBePrivate.Global
 
@@ -58,6 +59,20 @@ public static class ServiceCollectionExtensions
             o.AddAssembly(entryAssembly);
             o.BuilderOptions = options;
         });
+        return services;
+    }
+    
+    
+    public static IServiceCollection AddBasicEventTypeMap(this IServiceCollection services, 
+        Action<BasicEventTypeMap> configure)
+    {
+        services.AddSingleton<IEventTypeMap>(_ =>
+        {
+            var map = new BasicEventTypeMap();
+            configure(map);
+            return map;
+        });
+
         return services;
     }
 }

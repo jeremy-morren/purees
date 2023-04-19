@@ -1,0 +1,3 @@
+is_global = true
+build_property.RootNamespace = HealthChecks.EventStoreDB.Grpc
+build_property.ProjectDir = C:\Users\jerem\source\repos\PBCC\PureES\EventStore\HealthChecks\

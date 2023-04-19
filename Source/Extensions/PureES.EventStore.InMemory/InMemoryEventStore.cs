@@ -4,8 +4,8 @@ using Microsoft.Extensions.Internal;
 using ProtoBuf;
 using PureES.Core;
 using PureES.Core.EventStore;
-using PureES.Core.EventStore.Serialization;
 using PureES.EventStore.InMemory.Serialization;
+using PureES.EventStore.InMemory.Subscription;
 
 // ReSharper disable MemberCanBeProtected.Global
 
@@ -16,17 +16,20 @@ internal class InMemoryEventStore : IInMemoryEventStore
     private readonly List<(string StreamId, int StreamPosition)> _all = new();
     private readonly Dictionary<string, List<EventRecord>> _events = new();
     private readonly IEventTypeMap _eventTypeMap;
+    private readonly InMemoryEventStoreSubscriptionToAll? _subscription;
 
-    private readonly IInMemoryEventStoreSerializer _serializer;
+    private readonly InMemoryEventStoreSerializer _serializer;
     private readonly ISystemClock _systemClock;
 
-    public InMemoryEventStore(IInMemoryEventStoreSerializer serializer,
+    public InMemoryEventStore(InMemoryEventStoreSerializer serializer,
         ISystemClock systemClock,
-        IEventTypeMap eventTypeMap)
+        IEventTypeMap eventTypeMap,
+        InMemoryEventStoreSubscriptionToAll? subscription = null)
     {
         _serializer = serializer;
         _systemClock = systemClock;
         _eventTypeMap = eventTypeMap;
+        _subscription = subscription;
     }
 
     //Implementation of IEventSTore
@@ -110,13 +113,12 @@ internal class InMemoryEventStore : IInMemoryEventStore
     
     public Task<ulong> Append(string streamId, UncommittedEvent @event, CancellationToken _)
         => Append(streamId, ImmutableArray.Create(@event), _);
-    
-    
 
     private ulong AppendStream(string streamId, IEnumerable<UncommittedEvent> events)
     {
         var timestamp = _systemClock.UtcNow;
         var current = _events[streamId];
+        var toPublish = new List<EventRecord>();
         foreach (var e in events)
         {
             var record = _serializer.Serialize(e, streamId, timestamp);
@@ -126,8 +128,10 @@ internal class InMemoryEventStore : IInMemoryEventStore
 
             current.Add(record);
             _all.Add((streamId, streamPos));
+            toPublish.Add(record);
         }
 
+        _subscription?.Publish(toPublish);
         return (ulong) (current.Count - 1);
     }
     

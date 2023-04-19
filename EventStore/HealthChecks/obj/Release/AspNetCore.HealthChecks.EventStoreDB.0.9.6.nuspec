@@ -1,0 +1,18 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
+  <metadata>
+    <id>AspNetCore.HealthChecks.EventStoreDB</id>
+    <version>0.9.6</version>
+    <authors>AspNetCore.HealthChecks.EventStoreDB</authors>
+    <description>Package Description</description>
+    <dependencies>
+      <group targetFramework="net6.0">
+        <dependency id="EventStore.Client.Grpc" version="22.0.0" exclude="Build,Analyzers" />
+        <dependency id="Microsoft.Extensions.Diagnostics.HealthChecks" version="6.0.9" exclude="Build,Analyzers" />
+      </group>
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="C:\Users\jerem\source\repos\PBCC\PureES\Source\Extensions\AspNetCore.HealthChecks.EventStoreDB\bin\Release\net6.0\AspNetCore.HealthChecks.EventStoreDB.dll" target="lib\net6.0\AspNetCore.HealthChecks.EventStoreDB.dll" />
+  </files>
+</package>

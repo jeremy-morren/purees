@@ -2,8 +2,6 @@
 using EventStore.Client;
 using PureES.Core;
 using PureES.Core.EventStore;
-using PureES.Core.EventStore.Serialization;
-using PureES.EventStoreDB.Serialization;
 using StreamNotFoundException = PureES.Core.EventStore.StreamNotFoundException;
 
 namespace PureES.EventStoreDB;
@@ -11,11 +9,11 @@ namespace PureES.EventStoreDB;
 internal class EventStoreDBClient : IEventStore
 {
     private readonly EventStoreClient _eventStoreClient;
-    private readonly IEventStoreDBSerializer _serializer;
+    private readonly EventStoreDBSerializer _serializer;
     private readonly IEventTypeMap _typeMap;
 
     public EventStoreDBClient(EventStoreClient eventStoreClient,
-        IEventStoreDBSerializer serializer,
+        EventStoreDBSerializer serializer,
         IEventTypeMap typeMap)
     {
         _eventStoreClient = eventStoreClient;

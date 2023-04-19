@@ -1,0 +1,5 @@
+C:\Users\jerem\source\repos\PBCC\PureES\EventStore\HealthChecks\obj\Debug\netcoreapp3.1\HealthChecks.EventStoreDB.Grpc.csproj.AssemblyReference.cache
+C:\Users\jerem\source\repos\PBCC\PureES\EventStore\HealthChecks\obj\Debug\netcoreapp3.1\HealthChecks.EventStoreDB.Grpc.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\jerem\source\repos\PBCC\PureES\EventStore\HealthChecks\obj\Debug\netcoreapp3.1\HealthChecks.EventStoreDB.Grpc.AssemblyInfoInputs.cache
+C:\Users\jerem\source\repos\PBCC\PureES\EventStore\HealthChecks\obj\Debug\netcoreapp3.1\HealthChecks.EventStoreDB.Grpc.AssemblyInfo.cs
+C:\Users\jerem\source\repos\PBCC\PureES\EventStore\HealthChecks\obj\Debug\netcoreapp3.1\HealthChecks.EventStoreDB.Grpc.csproj.CoreCompileInputs.cache

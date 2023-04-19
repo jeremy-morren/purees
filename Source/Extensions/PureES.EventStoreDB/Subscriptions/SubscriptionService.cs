@@ -7,7 +7,6 @@ using Microsoft.Extensions.Options;
 using PureES.Core;
 using PureES.EventBus;
 using PureES.EventBus.DataFlow;
-using PureES.EventStoreDB.Serialization;
 
 namespace PureES.EventStoreDB.Subscriptions;
 
@@ -18,12 +17,12 @@ internal abstract class SubscriptionService : BackgroundService, ISubscription
     private readonly EventStoreClient _eventStoreClient;
     private readonly ILogger _logger;
     private readonly SubscriptionOptions _options;
-    private readonly IEventStoreDBSerializer _serializer;
+    private readonly EventStoreDBSerializer _serializer;
 
     protected SubscriptionService(
         EventStoreClient eventStoreClient,
         IEventBus eventBus,
-        IEventStoreDBSerializer serializer,
+        EventStoreDBSerializer serializer,
         ILoggerFactory loggerFactory,
         IOptionsFactory<SubscriptionOptions> optionsFactory)
     {

@@ -1,0 +1,12 @@
+C:\Users\jerem\source\repos\PBCC\PureES\EventStore\HealthChecks\obj\Debug\net7.0\HealthChecks.EventStoreDB.Grpc.csproj.AssemblyReference.cache
+C:\Users\jerem\source\repos\PBCC\PureES\EventStore\HealthChecks\obj\Debug\net7.0\HealthChecks.EventStoreDB.Grpc.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\jerem\source\repos\PBCC\PureES\EventStore\HealthChecks\obj\Debug\net7.0\HealthChecks.EventStoreDB.Grpc.AssemblyInfoInputs.cache
+C:\Users\jerem\source\repos\PBCC\PureES\EventStore\HealthChecks\obj\Debug\net7.0\HealthChecks.EventStoreDB.Grpc.AssemblyInfo.cs
+C:\Users\jerem\source\repos\PBCC\PureES\EventStore\HealthChecks\obj\Debug\net7.0\HealthChecks.EventStoreDB.Grpc.csproj.CoreCompileInputs.cache
+C:\Users\jerem\source\repos\PBCC\PureES\EventStore\HealthChecks\bin\Debug\net7.0\HealthChecks.EventStoreDB.Grpc.deps.json
+C:\Users\jerem\source\repos\PBCC\PureES\EventStore\HealthChecks\bin\Debug\net7.0\HealthChecks.EventStoreDB.Grpc.dll
+C:\Users\jerem\source\repos\PBCC\PureES\EventStore\HealthChecks\bin\Debug\net7.0\HealthChecks.EventStoreDB.Grpc.pdb
+C:\Users\jerem\source\repos\PBCC\PureES\EventStore\HealthChecks\obj\Debug\net7.0\HealthChecks.EventStoreDB.Grpc.dll
+C:\Users\jerem\source\repos\PBCC\PureES\EventStore\HealthChecks\obj\Debug\net7.0\refint\HealthChecks.EventStoreDB.Grpc.dll
+C:\Users\jerem\source\repos\PBCC\PureES\EventStore\HealthChecks\obj\Debug\net7.0\HealthChecks.EventStoreDB.Grpc.pdb
+C:\Users\jerem\source\repos\PBCC\PureES\EventStore\HealthChecks\obj\Debug\net7.0\ref\HealthChecks.EventStoreDB.Grpc.dll

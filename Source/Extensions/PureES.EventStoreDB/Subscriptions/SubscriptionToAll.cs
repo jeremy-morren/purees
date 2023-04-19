@@ -2,7 +2,6 @@ using EventStore.Client;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PureES.EventBus;
-using PureES.EventStoreDB.Serialization;
 
 namespace PureES.EventStoreDB.Subscriptions;
 
@@ -11,7 +10,7 @@ internal class SubscriptionToAll : SubscriptionService
     public SubscriptionToAll(
         EventStoreClient eventStoreClient,
         IEventBus eventBus,
-        IEventStoreDBSerializer serializer,
+        EventStoreDBSerializer serializer,
         ILoggerFactory loggerFactory,
         IOptionsFactory<SubscriptionOptions> optionsFactory)
         : base(eventStoreClient, eventBus, serializer, loggerFactory, optionsFactory)

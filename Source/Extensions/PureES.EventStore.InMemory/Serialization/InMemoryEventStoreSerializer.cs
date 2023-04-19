@@ -1,32 +1,36 @@
-﻿using PureES.Core;
+﻿using System.Text.Json;
+using Microsoft.Extensions.Options;
+using PureES.Core;
 using PureES.Core.EventStore;
-using PureES.Core.EventStore.Serialization;
 
 namespace PureES.EventStore.InMemory.Serialization;
 
-internal class InMemoryEventStoreSerializer<TMetadata> : IInMemoryEventStoreSerializer
-    where TMetadata : notnull
+internal class InMemoryEventStoreSerializer
 {
-    private readonly IEventStoreSerializer _serializer;
     private readonly IEventTypeMap _typeMap;
+    private readonly InMemoryEventStoreOptions _options;
 
     public InMemoryEventStoreSerializer(IEventTypeMap typeMap,
-        IEventStoreSerializer serializer)
+        IOptions<InMemoryEventStoreOptions> options)
     {
         _typeMap = typeMap;
-        _serializer = serializer;
+        _options = options.Value;
     }
 
     public EventEnvelope Deserialize(EventRecord record)
     {
         const LazyThreadSafetyMode threadMode = LazyThreadSafetyMode.ExecutionAndPublication;
         var metadata = new Lazy<object?>(() => 
-            record.Metadata != null ? _serializer.Deserialize(record.Metadata, typeof(TMetadata)) : null, 
+            record.Metadata != null 
+                ? JsonSerializer.Deserialize(record.Metadata, _options.MetadataType, _options.JsonSerializerOptions)
+                : null, 
             threadMode);
-        var @event = new Lazy<object>(() => 
-            _serializer.Deserialize(record.Data, 
-                _typeMap.TryGetType(record.EventType, out var eventType) ? eventType : null) 
-            ?? throw new ArgumentException($"Event data is null for event {record.EventType}"), 
+        var @event = new Lazy<object>(() =>
+            {
+                var type = _typeMap.GetCLRType(record.EventType);
+                return JsonSerializer.Deserialize(record.Event, type, _options.JsonSerializerOptions)
+                       ?? throw new InvalidOperationException($"Event data is null for event {record.EventId}");
+            }, 
             threadMode);
         return new EventEnvelope(record.EventId,
             record.StreamId,
@@ -38,17 +42,18 @@ internal class InMemoryEventStoreSerializer<TMetadata> : IInMemoryEventStoreSeri
 
     public EventRecord Serialize(UncommittedEvent record, string streamId, DateTimeOffset created)
     {
-        var @event = _serializer.Serialize(record.Event, out var contentType);
-        var metadata = record.Metadata != null ? _serializer.Serialize(record.Metadata, out _) : null;
+        var @event = JsonSerializer.SerializeToUtf8Bytes(record.Event, _options.JsonSerializerOptions);
+        var metadata = record.Metadata != null 
+            ? JsonSerializer.SerializeToUtf8Bytes(record.Metadata, _options.JsonSerializerOptions)
+            : null;
         return new EventRecord
         {
             StreamId = streamId,
             EventId = record.EventId,
             Created = created.UtcDateTime,
             EventType = _typeMap.GetTypeName(record.Event.GetType()),
-            Data = @event,
-            Metadata = metadata,
-            ContentType = contentType
+            Event = @event,
+            Metadata = metadata
         };
     }
 }
