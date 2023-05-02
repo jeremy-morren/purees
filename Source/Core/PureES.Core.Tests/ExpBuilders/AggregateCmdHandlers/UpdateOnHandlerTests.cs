@@ -55,7 +55,7 @@ public class UpdateOnHandlerTests
 
         using var sp = Services.Build(s => s
             .AddSingleton(eventStore.Object)
-            .AddSingleton(PureESServices.Build(typeof(Aggregate), new CommandHandlerBuilderOptions()))
+            .AddSingleton(PureESServices.Build(typeof(Aggregate), new PureESBuilderOptions()))
             .AddEventEnricher((c, e) =>
             {
                 Assert.Equal(cmd, c);
@@ -69,7 +69,7 @@ public class UpdateOnHandlerTests
                 return currentRevision;
             }));
 
-        var builder = new UpdateOnHandlerExpBuilder(new CommandHandlerBuilderOptions());
+        var builder = new UpdateOnHandlerExpBuilder(new PureESBuilderOptions());
         var exp = builder.BuildUpdateOnExpression(typeof(Aggregate),
             typeof(Aggregate).GetMethod(methodName, BindingFlags.Static | BindingFlags.Public)!,
             Expression.Constant(cmd),
@@ -111,14 +111,14 @@ public class UpdateOnHandlerTests
         using var sp = Services.Build(s => s
             .AddSingleton(eventStore.Object)
             .AddSingleton(eventEnricher.Object)
-            .AddSingleton(PureESServices.Build(typeof(Aggregate), new CommandHandlerBuilderOptions()))
+            .AddSingleton(PureESServices.Build(typeof(Aggregate), new PureESBuilderOptions()))
             .AddOptimisticConcurrency(c =>
             {
                 Assert.Equal(cmd, c);
                 return currentRevision;
             }));
 
-        var builder = new UpdateOnHandlerExpBuilder(new CommandHandlerBuilderOptions());
+        var builder = new UpdateOnHandlerExpBuilder(new PureESBuilderOptions());
         var exp = builder.BuildUpdateOnExpression(typeof(Aggregate),
             typeof(Aggregate).GetMethod(methodName, BindingFlags.Static | BindingFlags.Public)!,
             Expression.Constant(cmd),
@@ -180,7 +180,7 @@ public class UpdateOnHandlerTests
 
         using var sp = Services.Build(s => s
             .AddSingleton(eventStore.Object)
-            .AddSingleton(PureESServices.Build(typeof(Aggregate), new CommandHandlerBuilderOptions()))
+            .AddSingleton(PureESServices.Build(typeof(Aggregate), new PureESBuilderOptions()))
             .AddEventEnricher((c, e) =>
             {
                 Assert.Equal(cmd, c);
@@ -194,7 +194,7 @@ public class UpdateOnHandlerTests
                 return currentRevision;
             }));
 
-        var builder = new UpdateOnHandlerExpBuilder(new CommandHandlerBuilderOptions());
+        var builder = new UpdateOnHandlerExpBuilder(new PureESBuilderOptions());
         var exp = builder.BuildUpdateOnExpression(typeof(Aggregate),
             typeof(Aggregate).GetMethod(methodName, BindingFlags.Static | BindingFlags.Public)!,
             Expression.Constant(cmd),

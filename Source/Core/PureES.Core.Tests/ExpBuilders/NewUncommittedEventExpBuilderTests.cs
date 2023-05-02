@@ -14,7 +14,7 @@ public class NewUncommittedEventExpBuilderTests
         var eventId = Expression.Constant(Guid.NewGuid(), typeof(Guid));
         var @event = Expression.Constant(new object(), typeof(object));
         var metadata = Expression.Constant(new object(), typeof(object));
-        var exp = new NewUncommittedEventExpBuilder(new CommandHandlerBuilderOptions())
+        var exp = new NewUncommittedEventExpBuilder(new PureESBuilderOptions())
             .New(eventId, @event, metadata);
         var func = Expression.Lambda<Func<UncommittedEvent>>(exp).Compile();
         var @new = func();
@@ -29,7 +29,7 @@ public class NewUncommittedEventExpBuilderTests
         var eventId = Expression.Constant(Guid.NewGuid(), typeof(Guid));
         var @event = Expression.Constant(0, typeof(int));
         var metadata = Expression.Constant(string.Empty, typeof(string));
-        var exp = new NewUncommittedEventExpBuilder(new CommandHandlerBuilderOptions())
+        var exp = new NewUncommittedEventExpBuilder(new PureESBuilderOptions())
             .New(eventId, @event, metadata);
         var func = Expression.Lambda<Func<UncommittedEvent>>(exp).Compile();
         var @new = func();
@@ -43,7 +43,7 @@ public class NewUncommittedEventExpBuilderTests
     {
         var @event = Expression.Constant(new object(), typeof(object));
         var metadata = Expression.Constant(new object(), typeof(object));
-        var exp = new NewUncommittedEventExpBuilder(new CommandHandlerBuilderOptions())
+        var exp = new NewUncommittedEventExpBuilder(new PureESBuilderOptions())
             .New(@event, metadata);
         var func = Expression.Lambda<Func<UncommittedEvent>>(exp).Compile();
         var @new = func();

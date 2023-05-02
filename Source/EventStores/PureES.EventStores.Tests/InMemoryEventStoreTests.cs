@@ -1,0 +1,74 @@
+﻿using System.Diagnostics.CodeAnalysis;
+using Microsoft.Extensions.Internal;
+using PureES.Core.EventStore;
+using PureES.EventStore.InMemory;
+
+namespace PureES.EventStores.Tests;
+
+public class InMemoryEventStoreTests : EventStoreTestsBase
+{
+    private readonly TestInMemoryEventStore _store;
+
+    public InMemoryEventStoreTests() => _store = new TestInMemoryEventStore();
+
+    protected override IEventStore CreateStore() => _store;
+
+    [Fact]
+    public void SaveAndLoad()
+    {
+        var source = new TestInMemoryEventStore();
+        Setup(source).GetAwaiter().GetResult();
+
+        AssertEqual(source, source);
+
+        using var ms = new MemoryStream();
+        source.Save(ms);
+        ms.Seek(0, SeekOrigin.Begin);
+
+        var destination = new TestInMemoryEventStore();
+        destination.Load(ms);
+
+        AssertEqual(source, destination);
+        AssertEqual(destination, destination);
+    }
+
+    private static void AssertEqual(IInMemoryEventStore left, IInMemoryEventStore right)
+    {
+        Assert.Equal(left.ReadAll().Count, right.ReadAll().Count);
+        Assert.Equal(left.ReadAll().Select(e => new {e.StreamId, e.StreamPosition, e.EventId, e.Timestamp}),
+            right.ReadAll().Select(e => new {e.StreamId, e.StreamPosition, e.EventId, e.Timestamp}));
+
+        Assert.All(left.ReadAll().Concat(right.ReadAll()), 
+            e => Assert.Equal(DateTimeKind.Utc, e.Timestamp.Kind));
+    }
+
+    private static async Task Setup(IEventStore eventStore)
+    {
+        var data = Enumerable.Range(0, 10)
+            .Select(i => $"stream-{i}")
+            .SelectMany(stream => Enumerable.Range(0, 10)
+                .Select(e => (stream, NewEvent())))
+            .OrderBy(p => p.Item2.EventId);
+        foreach (var (stream, e) in data)
+            if (await eventStore.Exists(stream, default))
+            {
+                var revision = await eventStore.GetRevision(stream, default);
+                await eventStore.Append(stream, revision, e, default);
+            }
+            else
+            {
+                await eventStore.Create(stream, e, default);
+            }
+    }
+
+    [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
+    private class TestInMemoryEventStore : InMemoryEventStore
+    {
+        public TestInMemoryEventStore()
+            : base(TestSerializer.InMemoryEventStoreSerializer,
+                new SystemClock(),
+                TestSerializer.EventTypeMap)
+        {
+        }
+    }
+}

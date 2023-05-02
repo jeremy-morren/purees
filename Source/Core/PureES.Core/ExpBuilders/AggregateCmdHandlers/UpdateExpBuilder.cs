@@ -4,9 +4,9 @@ namespace PureES.Core.ExpBuilders.AggregateCmdHandlers;
 
 internal class UpdateExpBuilder
 {
-    private readonly CommandHandlerBuilderOptions _options;
+    private readonly PureESBuilderOptions _options;
 
-    public UpdateExpBuilder(CommandHandlerBuilderOptions options) => _options = options;
+    public UpdateExpBuilder(PureESBuilderOptions options) => _options = options;
 
     public Expression InvokeUpdateHandler(Type aggregateType,
         MethodInfo methodInfo,

@@ -2,9 +2,9 @@
 
 internal class NewEventEnvelopeExpBuilder
 {
-    private readonly CommandHandlerBuilderOptions _options;
+    private readonly PureESBuilderOptions _options;
 
-    public NewEventEnvelopeExpBuilder(CommandHandlerBuilderOptions options) => _options = options;
+    public NewEventEnvelopeExpBuilder(PureESBuilderOptions options) => _options = options;
 
     public Expression New(Type envelopeType, Expression sourceEnvelope)
     {
@@ -22,12 +22,9 @@ internal class NewEventEnvelopeExpBuilder
     private void ValidateEnvelope(Type envelopeType)
     {
         var ex = new ArgumentException($"Invalid EventEnvelope type {envelopeType}");
-        if (_options.IsStronglyTypedEventEnvelope != null)
-        {
-            if (!_options.IsStronglyTypedEventEnvelope(envelopeType))
-                throw ex;
+        if (_options.IsStronglyTypedEventEnvelope != null
+            && _options.IsStronglyTypedEventEnvelope(envelopeType))
             return;
-        }
 
         var args = envelopeType.GetGenericArguments();
         if (args.Length != 2) throw ex;

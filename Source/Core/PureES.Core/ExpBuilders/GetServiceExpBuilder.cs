@@ -10,9 +10,9 @@ namespace PureES.Core.ExpBuilders;
 /// </summary>
 internal class GetServiceExpBuilder
 {
-    private readonly CommandHandlerBuilderOptions _options;
+    private readonly PureESBuilderOptions _options;
 
-    public GetServiceExpBuilder(CommandHandlerBuilderOptions options) => _options = options;
+    public GetServiceExpBuilder(PureESBuilderOptions options) => _options = options;
 
 
     public Expression GetRequiredService(Expression provider, Type serviceType)

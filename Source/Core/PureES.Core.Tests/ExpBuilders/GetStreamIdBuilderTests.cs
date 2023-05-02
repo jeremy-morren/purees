@@ -11,7 +11,7 @@ public class GetStreamIdBuilderTests
     public void ConstantStreamId()
     {
         var cmd = new ConstantStreamIdCommand();
-        var exp = new GetStreamIdExpBuilder(new CommandHandlerBuilderOptions())
+        var exp = new GetStreamIdExpBuilder(new PureESBuilderOptions())
             .GetStreamId(Expression.Constant(cmd));
         var func = Expression.Lambda<Func<string>>(exp).Compile();
         Assert.Equal(ConstantStreamIdCommand.StreamId, func());
@@ -21,7 +21,7 @@ public class GetStreamIdBuilderTests
     public void StringStreamId()
     {
         var cmd = new StringStreamIdCommand();
-        var exp = new GetStreamIdExpBuilder(new CommandHandlerBuilderOptions())
+        var exp = new GetStreamIdExpBuilder(new PureESBuilderOptions())
             .GetStreamId(Expression.Constant(cmd));
         var func = Expression.Lambda<Func<string>>(exp).Compile();
         Assert.Equal(cmd.Id, func());
@@ -31,7 +31,7 @@ public class GetStreamIdBuilderTests
     public void NullStringStreamId()
     {
         var cmd = new StringStreamIdCommand() {Id = null};
-        var exp = new GetStreamIdExpBuilder(new CommandHandlerBuilderOptions())
+        var exp = new GetStreamIdExpBuilder(new PureESBuilderOptions())
             .GetStreamId(Expression.Constant(cmd));
         var func = Expression.Lambda<Func<string>>(exp).Compile();
         var ex = Assert.Throws<NullReferenceException>(() => func());
@@ -42,7 +42,7 @@ public class GetStreamIdBuilderTests
     public void ByPropertyName()
     {
         var cmd = Command.New();
-        var exp = new GetStreamIdExpBuilder(new CommandHandlerBuilderOptions())
+        var exp = new GetStreamIdExpBuilder(new PureESBuilderOptions())
             .GetStreamId(Expression.Constant(cmd));
         var func = Expression.Lambda<Func<string>>(exp).Compile();
         Assert.Equal(cmd.Id.StreamId, func());
@@ -54,7 +54,7 @@ public class GetStreamIdBuilderTests
     [Fact]
     public void Custom_AggregateId()
     {
-        var builder = new GetStreamIdExpBuilder(new CommandHandlerBuilderOptions
+        var builder = new GetStreamIdExpBuilder(new PureESBuilderOptions
         {
             GetAggregateIdProperty = t =>
                 t == typeof(Command) ? t.GetProperty(nameof(Command.OtherId)) : null
@@ -71,7 +71,7 @@ public class GetStreamIdBuilderTests
     [Fact]
     public void Custom_StreamId()
     {
-        var builder = new GetStreamIdExpBuilder(new CommandHandlerBuilderOptions
+        var builder = new GetStreamIdExpBuilder(new PureESBuilderOptions
         {
             GetStreamIdProperty = t =>
                 t == typeof(AggId) ? t.GetProperty(nameof(AggId.OtherStream)) : null
@@ -88,7 +88,7 @@ public class GetStreamIdBuilderTests
     [Fact]
     public void Custom_AggregateId_And_StreamId()
     {
-        var builder = new GetStreamIdExpBuilder(new CommandHandlerBuilderOptions
+        var builder = new GetStreamIdExpBuilder(new PureESBuilderOptions
         {
             GetAggregateIdProperty = t =>
                 t == typeof(Command) ? t.GetProperty(nameof(Command.OtherId)) : null,

@@ -16,7 +16,7 @@ public class NewEventEnvelopeExpBuilderTests
             DateTime.UtcNow,
             Event.New(),
             Metadata.New());
-        var builder = new NewEventEnvelopeExpBuilder(new CommandHandlerBuilderOptions());
+        var builder = new NewEventEnvelopeExpBuilder(new PureESBuilderOptions());
         var exp = builder.New(typeof(EventEnvelope<Event, Metadata>),
             Expression.Constant(current));
         var func = Expression.Lambda<Func<EventEnvelope<Event, Metadata>>>(exp).Compile();

@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Options;
 using PureES.Core.ExpBuilders;
+using PureES.Core.ExpBuilders.EventHandlers;
 
 namespace PureES.Core;
 
@@ -11,25 +12,31 @@ internal class PureESServices : IServiceProvider
 
     private PureESServices(IServiceProvider services) => _services = services;
 
-    public PureESServices(IOptions<CommandHandlerOptions> options)
+    public PureESServices(IOptions<PureESOptions> options)
         : this(BuildServiceProvider(options.Value))
     {
+        
     }
 
     public object? GetService(Type serviceType) => _services.GetService(serviceType);
 
-    private static IServiceProvider BuildServiceProvider(CommandHandlerOptions options)
+    private static IServiceProvider BuildServiceProvider(PureESOptions options)
     {
         var services = new ServiceCollection();
+        
         var aggregateTypes = options.Assemblies
             .SelectMany(t => t.GetExportedTypes())
             .Where(t => t.GetCustomAttribute(typeof(AggregateAttribute)) != null);
         foreach (var t in aggregateTypes)
             AddAggregateServices(services, t, options.BuilderOptions);
+        
+        services.AddSingleton(_ =>
+            new EventHandlerServicesBuilder(options).BuildEventHandlers());
+        
         return services.BuildServiceProvider();
     }
 
-    public static PureESServices Build(Type aggregateType, CommandHandlerBuilderOptions options)
+    public static PureESServices Build(Type aggregateType, PureESBuilderOptions options)
     {
         var services = new ServiceCollection();
         AddAggregateServices(services, aggregateType, options);
@@ -38,7 +45,7 @@ internal class PureESServices : IServiceProvider
 
     private static void AddAggregateServices(IServiceCollection services,
         Type aggregateType,
-        CommandHandlerBuilderOptions options)
+        PureESBuilderOptions options)
     {
         var builder = new CommandServicesBuilder(options);
         builder.AddCommandHandlers(aggregateType, services);

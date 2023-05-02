@@ -6,9 +6,9 @@ namespace PureES.Core.ExpBuilders;
 
 internal class NewUncommittedEventExpBuilder
 {
-    private readonly CommandHandlerBuilderOptions _options;
+    private readonly PureESBuilderOptions _options;
 
-    public NewUncommittedEventExpBuilder(CommandHandlerBuilderOptions options) => _options = options;
+    public NewUncommittedEventExpBuilder(PureESBuilderOptions options) => _options = options;
 
     public Expression New(Expression @event, Expression metadata)
     {

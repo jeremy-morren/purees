@@ -9,7 +9,7 @@ namespace PureES.Core.EventStore;
 public class BasicEventTypeMap : IEventTypeMap
 {
     private readonly Dictionary<string, Type> _types = new();
-
+    
     public Type GetCLRType(string typeName) => _types.TryGetValue(typeName, out var type)
         ? type
         : throw new ArgumentOutOfRangeException(nameof(typeName), typeName, "Unable to resolve CLR type");
@@ -35,6 +35,17 @@ public class BasicEventTypeMap : IEventTypeMap
             AddType(t);
     }
 
+
+    /// <summary>
+    /// Configure whether or not <see cref="AddType"/> throws
+    /// an exception if 2 types with duplicate names are found
+    /// (default <see langword="false" />
+    /// </summary>
+    /// <remarks>
+    /// When <see langword="true"/>, the first type is registered
+    /// </remarks>
+    public bool ThrowOnDuplicateTypeName { get; set; } = false;
+
     /// <summary>
     ///     Adds a type to the map
     /// </summary>
@@ -46,6 +57,7 @@ public class BasicEventTypeMap : IEventTypeMap
     {
         var str = GetTypeName(type);
         if (_types.TryAdd(str, type)) return;
-        throw new InvalidOperationException($"Duplicate type '{str}'");
+        if (ThrowOnDuplicateTypeName)
+            throw new InvalidOperationException($"Duplicate type '{str}'");
     }
 }

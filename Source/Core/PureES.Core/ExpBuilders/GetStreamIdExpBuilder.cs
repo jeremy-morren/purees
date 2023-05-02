@@ -14,9 +14,9 @@ internal class GetStreamIdExpBuilder
     public const string StreamIdProperty = "StreamId";
     private static readonly NullabilityInfoContext NullContext = new();
 
-    private readonly CommandHandlerBuilderOptions _options;
+    private readonly PureESBuilderOptions _options;
 
-    public GetStreamIdExpBuilder(CommandHandlerBuilderOptions options) => _options = options;
+    public GetStreamIdExpBuilder(PureESBuilderOptions options) => _options = options;
 
     public Expression GetStreamId(Expression cmdParam)
     {

@@ -7,9 +7,9 @@ namespace PureES.Core.ExpBuilders.WhenHandlers;
 /// </summary>
 internal class WhenExpBuilder
 {
-    private readonly CommandHandlerBuilderOptions _options;
+    private readonly PureESBuilderOptions _options;
 
-    public WhenExpBuilder(CommandHandlerBuilderOptions options) => _options = options;
+    public WhenExpBuilder(PureESBuilderOptions options) => _options = options;
 
     public Expression BuildWhenExpression(Type aggregateType,
         Expression current,

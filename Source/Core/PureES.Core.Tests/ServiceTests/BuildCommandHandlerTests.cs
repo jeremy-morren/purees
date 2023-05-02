@@ -5,11 +5,9 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using PureES.Core.EventStore;
 using PureES.Core.Tests.ExpBuilders.AggregateCmdHandlers;
 using PureES.Core.Tests.Models;
 using PureES.EventStore.InMemory;
-using PureES.EventStore.InMemory.Serialization;
 using Xunit;
 
 // ReSharper disable UnusedMember.Local
@@ -110,7 +108,7 @@ public class BuildCommandHandlerTests
                 }
             });
 
-        services.AddSingleton(PureESServices.Build(aggregateType, new CommandHandlerBuilderOptions()));
+        services.AddSingleton(PureESServices.Build(aggregateType, new PureESBuilderOptions()));
 
         return services.BuildServiceProvider();
     }

@@ -6,9 +6,9 @@ namespace PureES.Core.ExpBuilders.AggregateCmdHandlers;
 
 internal class CreateOnHandlerExpBuilder
 {
-    private readonly CommandHandlerBuilderOptions _options;
+    private readonly PureESBuilderOptions _options;
 
-    public CreateOnHandlerExpBuilder(CommandHandlerBuilderOptions options) => _options = options;
+    public CreateOnHandlerExpBuilder(PureESBuilderOptions options) => _options = options;
 
     public Expression BuildCreateOnExpression(Type aggregateType,
         MethodInfo handlerMethod,

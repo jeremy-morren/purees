@@ -21,7 +21,7 @@ namespace PureES.Core.Tests.ExpBuilders.WhenHandlers;
 
 public static class TestAggregates
 {
-    public static CommandHandlerBuilderOptions Options => new()
+    public static PureESBuilderOptions Options => new()
     {
         IsStronglyTypedEventEnvelope = type =>
         {

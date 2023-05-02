@@ -6,9 +6,9 @@ namespace PureES.Core.ExpBuilders.AggregateCmdHandlers;
 
 internal class UpdateOnHandlerExpBuilder
 {
-    private readonly CommandHandlerBuilderOptions _options;
+    private readonly PureESBuilderOptions _options;
 
-    public UpdateOnHandlerExpBuilder(CommandHandlerBuilderOptions options) => _options = options;
+    public UpdateOnHandlerExpBuilder(PureESBuilderOptions options) => _options = options;
 
     //TODO: Log matched method + aggregate
     

@@ -11,9 +11,9 @@
 /// </remarks>
 internal class FactoryExpBuilder
 {
-    private readonly CommandHandlerBuilderOptions _options;
+    private readonly PureESBuilderOptions _options;
 
-    public FactoryExpBuilder(CommandHandlerBuilderOptions options) => _options = options;
+    public FactoryExpBuilder(PureESBuilderOptions options) => _options = options;
 
     public Expression BuildExpression(Type aggregateType,
         Expression events,

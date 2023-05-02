@@ -34,9 +34,9 @@ public class GetServiceBuilderExpTests
         out Func<IServiceProvider, Service?> getService)
     {
         var param = Expression.Parameter(typeof(IServiceProvider));
-        var getRequired = new GetServiceExpBuilder(new CommandHandlerBuilderOptions())
+        var getRequired = new GetServiceExpBuilder(new PureESBuilderOptions())
             .GetRequiredService(param, typeof(Service));
-        var get = new GetServiceExpBuilder(new CommandHandlerBuilderOptions())
+        var get = new GetServiceExpBuilder(new PureESBuilderOptions())
             .GetService(param, typeof(Service));
         getRequiredService = Expression.Lambda<Func<IServiceProvider, Service>>(getRequired, param).Compile();
         getService = Expression.Lambda<Func<IServiceProvider, Service>>(get, param).Compile();

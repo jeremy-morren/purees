@@ -9,9 +9,9 @@ namespace PureES.Core.ExpBuilders;
 
 internal class CommandServicesBuilder
 {
-    private readonly CommandHandlerBuilderOptions _options;
+    private readonly PureESBuilderOptions _options;
 
-    public CommandServicesBuilder(CommandHandlerBuilderOptions options) => _options = options;
+    public CommandServicesBuilder(PureESBuilderOptions options) => _options = options;
 
     public void AddCommandHandlers(Type aggregateType, IServiceCollection services)
     {

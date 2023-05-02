@@ -36,7 +36,7 @@ public class UpdateOnTests
         var cmd = Rand.NextInt();
         var ct = new CancellationTokenSource().Token;
 
-        var builder = new UpdateExpBuilder(new CommandHandlerBuilderOptions());
+        var builder = new UpdateExpBuilder(new PureESBuilderOptions());
         var exp = builder.InvokeUpdateHandler(typeof(TestAggregate),
             TestAggregate.UpdateMethod,
             Expression.Constant(agg),
@@ -57,7 +57,7 @@ public class UpdateOnTests
         var cmd = Rand.NextInt();
         var ct = new CancellationTokenSource().Token;
 
-        var builder = new UpdateExpBuilder(new CommandHandlerBuilderOptions());
+        var builder = new UpdateExpBuilder(new PureESBuilderOptions());
         var exp = builder.InvokeUpdateHandler(typeof(TestAggregate),
             TestAggregate.UpdateWithSvcMethod,
             Expression.Constant(agg),
@@ -77,7 +77,7 @@ public class UpdateOnTests
         var cmd = Rand.NextInt();
         var ct = new CancellationTokenSource().Token;
 
-        var builder = new UpdateExpBuilder(new CommandHandlerBuilderOptions());
+        var builder = new UpdateExpBuilder(new PureESBuilderOptions());
         var exp = builder.InvokeUpdateHandler(typeof(TestAggregate),
             TestAggregate.UpdateAsyncMethod,
             Expression.Constant(agg),
