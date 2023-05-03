@@ -6,8 +6,8 @@ namespace PureES.EventBus;
 
 public class EventBusOptions
 {
-    private static readonly Func<EventEnvelope, Exception?, double, LogLevel> DefaultGetLogLevel = 
-        (_, e, _) => e != null ? LogLevel.Error :LogLevel.Information;
+    private static readonly Func<EventEnvelope, double, LogLevel> DefaultGetLogLevel = 
+        (_, elapsed) => elapsed > 60_000 ? LogLevel.Warning : LogLevel.Debug;
 
     /// <summary>
     /// Gets or sets the maximum length that event handlers should run before timing out.
@@ -26,13 +26,14 @@ public class EventBusOptions
     public bool PropagateEventHandlerExceptions { get; set; } = false;
 
     /// <summary>
-    /// A delegate that takes the event envelope, the exception (if errored) and the elapsed milliseconds
+    /// A delegate that takes the event envelope and the elapsed milliseconds
     /// and returns the desired log level
     /// </summary>
     /// <remarks>
-    /// By default, <see cref="LogLevel.Information"/> is used for success and <see cref="LogLevel.Error"/> is used for failure
+    /// By default, <see cref="LogLevel.Warning" /> is returned if the handler took longer than 1 minute,
+    /// otherwise <see cref="LogLevel.Debug"/>
     /// </remarks>
-    public Func<EventEnvelope, Exception?, double, LogLevel> GetLogLevel { get; set; } = DefaultGetLogLevel;
+    public Func<EventEnvelope, double, LogLevel> GetLogLevel { get; set; } = DefaultGetLogLevel;
     
     /// <summary>
     ///     Gets or sets the maximum number of event streams that may be processed simultaneously.
