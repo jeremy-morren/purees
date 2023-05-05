@@ -76,7 +76,10 @@ public class CosmosEventStoreOptions
     /// Gets or sets the JSON serializer options to use
     /// when deserializing events & metadata
     /// </summary>
-    public JsonSerializerOptions JsonSerializerOptions { get; } = new();
+    public JsonSerializerOptions JsonSerializerOptions { get; } = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
 
     /// <summary>
     /// Gets or sets the type to deserialize metadata as
