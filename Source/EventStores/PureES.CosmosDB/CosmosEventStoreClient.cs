@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using Azure.Identity;
 using Microsoft.Extensions.Options;
 using PureES.CosmosDB.Serialization;
 
@@ -38,25 +39,31 @@ internal class CosmosEventStoreClient
 
         clientOptions.Serializer = Serializer;
 
-        Client = string.IsNullOrEmpty(_options.ConnectionString)
-            ? new CosmosClient(_options.AccountEndpoint, _options.AccountKey, clientOptions)
-            : new CosmosClient(_options.ConnectionString, clientOptions);
+        if (!string.IsNullOrEmpty(_options.ConnectionString))
+            Client = new CosmosClient(_options.ConnectionString, clientOptions);
+        else if (_options.UseManagedIdentity)
+            Client = new CosmosClient(_options.AccountEndpoint!, new DefaultAzureCredential(), clientOptions);
+        else
+            Client = new CosmosClient(_options.AccountEndpoint!, _options.AccountKey!, clientOptions);
     }
 
     public const string HttpClientName = "CosmosEventStore";
 
-    private Database? _database;
-    private Container? _container;
+    private Task<Container>? _container;
     
-    public async ValueTask<Container> GetEventStoreContainerAsync(CancellationToken ct)
+    public Task<Container> GetEventStoreContainerAsync(CancellationToken ct)
     {
-        if (_container != null) return _container;
-        
-        _database ??= await Client.CreateDatabaseIfNotExistsAsync(_options.Database,
+        _container ??= CreateContainerIfNotExists(ct);
+        return _container;
+    }
+
+    private async Task<Container> CreateContainerIfNotExists(CancellationToken ct)
+    {
+        Database database = await Client.CreateDatabaseIfNotExistsAsync(_options.Database,
             _options.DatabaseThroughput,
             cancellationToken: ct);
         
-        var container = _database.DefineContainer(_options.Container, "/eventStreamId");
+        var container = database.DefineContainer(_options.Container, "/eventStreamId");
 
         var builder = container.WithIndexingPolicy();
 
@@ -102,7 +109,6 @@ internal class CosmosEventStoreClient
             .Attach();
 
         container = builder.Attach();
-        _container = await container.CreateIfNotExistsAsync(_options.ContainerThroughput, ct);
-        return _container;
+        return await container.CreateIfNotExistsAsync(_options.ContainerThroughput, ct);
     }
 }

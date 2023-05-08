@@ -27,7 +27,7 @@ public class CosmosEventStoreOptions
     /// <remarks>
     /// This must reference the API for NoSQL endpoint. Will be ignored if <see cref="ConnectionString"/> is set
     /// </remarks>
-    public string? AccountEndpoint { get; set; } = null!;
+    public string? AccountEndpoint { get; set; }
 
     /// <summary>
     /// Gets or sets the cosmos account key or resource token to use to create the client.
@@ -35,8 +35,14 @@ public class CosmosEventStoreOptions
     /// <remarks>
     /// Will be ignored if <see cref="ConnectionString"/> is set
     /// </remarks>
-    public string? AccountKey { get; set; } = null!;
+    public string? AccountKey { get; set; }
 
+    /// <summary>
+    /// Indicates whether Azure Managed identity should be used
+    /// instead of <see cref="AccountKey"/>
+    /// </summary>
+    public bool UseManagedIdentity { get; set; }
+    
     /// <summary>
     /// Gets or sets a flag indicating whether the server TLS certificate should be verified
     /// </summary>
@@ -106,7 +112,7 @@ public class CosmosEventStoreOptions
                     throw new Exception("Invalid Cosmos EventStore account endpoint", e);
                 }
 
-                if (string.IsNullOrWhiteSpace(AccountKey))
+                if (!UseManagedIdentity && string.IsNullOrWhiteSpace(AccountKey))
                     throw new Exception("Cosmos EventStore account key is required");
             }
         }

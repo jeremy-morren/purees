@@ -38,6 +38,7 @@ public static class CosmosServiceCollectionExtensions
                 var handler = new SocketsHttpHandler();
                 if (!options.VerifyTLSCert)
                     handler.SslOptions.RemoteCertificateValidationCallback = (_, _, _, _) => true;
+                
                 return handler;
             });
 
