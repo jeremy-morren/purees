@@ -1,5 +1,6 @@
-﻿using System.Text.Json;
-using Azure.Identity;
+﻿using System.Net;
+using System.Text.Json;
+using Microsoft.Azure.Cosmos.Fluent;
 using Microsoft.Extensions.Options;
 using PureES.CosmosDB.Serialization;
 
@@ -7,7 +8,6 @@ namespace PureES.CosmosDB;
 
 internal class CosmosEventStoreClient
 {
-
     public readonly CosmosSystemTextJsonSerializer Serializer;
     
     private readonly CosmosEventStoreOptions _options;
@@ -24,9 +24,7 @@ internal class CosmosEventStoreClient
         if (!_options.VerifyTLSCert)
             clientOptions.ServerCertificateCustomValidationCallback = (_, _, _) => true;
         
-        clientOptions.HttpClientFactory = options.Value.HttpClientFactory != null 
-            ? () => options.Value.HttpClientFactory(services)
-            : () => httpClientFactory.CreateClient(HttpClientName);
+        clientOptions.HttpClientFactory = () => httpClientFactory.CreateClient(HttpClientName);
         
         clientOptions.SerializerOptions = null;
         
@@ -39,12 +37,9 @@ internal class CosmosEventStoreClient
 
         clientOptions.Serializer = Serializer;
 
-        if (!string.IsNullOrEmpty(_options.ConnectionString))
-            Client = new CosmosClient(_options.ConnectionString, clientOptions);
-        else if (_options.UseManagedIdentity)
-            Client = new CosmosClient(_options.AccountEndpoint!, new DefaultAzureCredential(), clientOptions);
-        else
-            Client = new CosmosClient(_options.AccountEndpoint!, _options.AccountKey!, clientOptions);
+        Client = !string.IsNullOrEmpty(_options.ConnectionString) 
+            ? new CosmosClient(_options.ConnectionString, clientOptions) 
+            : new CosmosClient(_options.AccountEndpoint!, _options.AccountKey!, clientOptions);
     }
 
     public const string HttpClientName = "CosmosEventStore";
@@ -62,9 +57,26 @@ internal class CosmosEventStoreClient
         Database database = await Client.CreateDatabaseIfNotExistsAsync(_options.Database,
             _options.DatabaseThroughput,
             cancellationToken: ct);
-        
-        var container = database.DefineContainer(_options.Container, "/eventStreamId");
 
+        const string partitionKeyPath = "/eventStreamId";
+
+        var containerDef = DefineContainer(database.DefineContainer(_options.Container, partitionKeyPath)).Build();
+
+        var container = database.GetContainer(_options.Container);
+            
+        var response = await container.ReadContainerStreamAsync(cancellationToken: ct);
+
+        if (response.IsSuccessStatusCode)
+            return await container.ReplaceContainerAsync(containerDef, cancellationToken: ct);
+
+        if (response.StatusCode != HttpStatusCode.NotFound)
+            response.EnsureSuccessStatusCode(); //Throw if not 404
+
+        return await database.CreateContainerAsync(containerDef, _options.ContainerThroughput, cancellationToken: ct);
+    }
+
+    private static ContainerBuilder DefineContainer(ContainerBuilder container)
+    {
         var builder = container.WithIndexingPolicy();
 
         builder = builder.WithIndexingMode(IndexingMode.Consistent)
@@ -108,7 +120,6 @@ internal class CosmosEventStoreClient
             .Path("/eventStreamPosition", CompositePathSortOrder.Ascending)
             .Attach();
 
-        container = builder.Attach();
-        return await container.CreateIfNotExistsAsync(_options.ContainerThroughput, ct);
+        return builder.Attach();
     }
 }
