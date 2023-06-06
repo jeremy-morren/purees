@@ -46,16 +46,23 @@ internal class FactoryExpBuilder
         await using var enumerator = events.GetAsyncEnumerator(ct);
         if (!await enumerator.MoveNextAsync())
             throw new ArgumentException("Provided events list is empty");
-        //TODO: handle exceptions in when methods
-        var aggregate = await createWhen(enumerator.Current);
-        aggregate = await when(aggregate, enumerator.Current); //Call after every method
-        while (await enumerator.MoveNextAsync())
+        try
         {
-            ct.ThrowIfCancellationRequested();
-            aggregate = await updateWhen(aggregate, enumerator.Current);
+            //TODO: handle exceptions in when methods
+            var aggregate = await createWhen(enumerator.Current);
             aggregate = await when(aggregate, enumerator.Current); //Call after every method
+            while (await enumerator.MoveNextAsync())
+            {
+                ct.ThrowIfCancellationRequested();
+                aggregate = await updateWhen(aggregate, enumerator.Current);
+                aggregate = await when(aggregate, enumerator.Current); //Call after every method
+            }
+            return aggregate;
         }
-        return aggregate;
+        catch (Exception e)
+        {
+            throw new AggregateLoadException(enumerator.Current, typeof(T), e);
+        }
     }
 
     private Expression BuildCreatedWhen(Type aggregateType, Expression serviceProvider, Expression cancellationToken)
