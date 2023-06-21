@@ -210,25 +210,6 @@ internal class InMemoryEventStore : IInMemoryEventStore
             return list.ToAsyncEnumerable();
         }
     }
-
-    public IAsyncEnumerable<EventEnvelope> ReadByEventType(Type eventType, CancellationToken cancellationToken)
-    {
-        lock (_events)
-        {
-            var name = _eventTypeMap.GetTypeName(eventType);
-            var list = new List<EventEnvelope>();
-            foreach (var (streamId, streamIndex) in _all)
-            {
-                var record = _events[streamId][streamIndex];
-                if (record.EventType != name)
-                    continue;
-                var env = _serializer.Deserialize(record);
-                list.Add(env);
-            }
-
-            return list.ToAsyncEnumerable();
-        }
-    }
     
     private List<EventEnvelope> ReadInternal(string streamId)
     {
@@ -269,6 +250,37 @@ internal class InMemoryEventStore : IInMemoryEventStore
         {
             cancellationToken.ThrowIfCancellationRequested();
             yield return e;
+        }
+    }
+
+    public IAsyncEnumerable<EventEnvelope> ReadByEventType(Type eventType, CancellationToken cancellationToken)
+    {
+        lock (_events)
+        {
+            var name = _eventTypeMap.GetTypeName(eventType);
+            var list = new List<EventEnvelope>();
+            foreach (var (streamId, streamIndex) in _all)
+            {
+                var record = _events[streamId][streamIndex];
+                if (record.EventType != name)
+                    continue;
+                var env = _serializer.Deserialize(record);
+                list.Add(env);
+            }
+
+            return list.ToAsyncEnumerable();
+        }
+    }
+
+    public Task<ulong> CountByEventType(Type eventType, CancellationToken cancellationToken)
+    {
+        lock (_events)
+        {
+            var name = _eventTypeMap.GetTypeName(eventType);
+            var count = _events.Values
+                .SelectMany(v => v)
+                .Count(r => r.EventType == name);
+            return Task.FromResult((ulong)count);
         }
     }
 

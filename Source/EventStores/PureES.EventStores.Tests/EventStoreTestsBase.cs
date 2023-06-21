@@ -231,6 +231,20 @@ public abstract class EventStoreTestsBase
 
         Assert.NotEmpty(await store.ReadByEventType(typeof(Event), CancellationToken).ToListAsync());
     }
+    
+    [Fact]
+    public async Task CountByEventType()
+    {
+        var store = CreateStore();
+        
+        
+        var stream = GetStream(nameof(CountByEventType));
+        const int count = 100;
+        var events = Enumerable.Range(0, count).Select(_ => NewEvent()).ToList();
+        await store.Create(stream, events, CancellationToken);
+
+        Assert.Equal((ulong) count, await store.CountByEventType(typeof(Event), CancellationToken));
+    }
 
     [Fact]
     public async Task ReadManyShouldReturnInChronologicalOrder()

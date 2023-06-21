@@ -327,24 +327,6 @@ internal class CosmosEventStore : IEventStore
             throw new WrongStreamRevisionException(streamId, requiredRevision, revision);
     }
 
-    public async IAsyncEnumerable<EventEnvelope> ReadByEventType(Type eventType, [EnumeratorCancellation] CancellationToken cancellationToken)
-    {
-        var container = await _client.GetEventStoreContainerAsync(cancellationToken);
-
-        var queryDef =
-            new QueryDefinition(
-                    "select * from c where c.eventType = @eventType ORDER BY c._ts, c.created, c.eventStreamId, c.eventStreamPosition")
-                .WithParameter("@eventType", _typeMap.GetTypeName(eventType));
-
-        using var iterator = container.GetItemQueryIterator<CosmosEvent>(queryDef);
-        while (iterator.HasMoreResults)
-        {
-            var result = await iterator.ReadNextAsync(cancellationToken);
-            foreach (var e in result)
-                yield return _serializer.Deserialize(e);
-        }
-    }
-
     public async IAsyncEnumerable<EventEnvelope> ReadMany(IEnumerable<string> streams, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var queryDef =
@@ -382,4 +364,38 @@ internal class CosmosEventStore : IEventStore
                 yield return _serializer.Deserialize(e);
         }
     }
+    
+    #region By Type
+
+    public async IAsyncEnumerable<EventEnvelope> ReadByEventType(Type eventType, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var container = await _client.GetEventStoreContainerAsync(cancellationToken);
+
+        var queryDef =
+            new QueryDefinition(
+                    "select * from c where c.eventType = @eventType ORDER BY c._ts, c.created, c.eventStreamId, c.eventStreamPosition")
+                .WithParameter("@eventType", _typeMap.GetTypeName(eventType));
+
+        using var iterator = container.GetItemQueryIterator<CosmosEvent>(queryDef);
+        while (iterator.HasMoreResults)
+        {
+            var result = await iterator.ReadNextAsync(cancellationToken);
+            foreach (var e in result)
+                yield return _serializer.Deserialize(e);
+        }
+    }
+
+    public async Task<ulong> CountByEventType(Type eventType, CancellationToken cancellationToken)
+    {var container = await _client.GetEventStoreContainerAsync(cancellationToken);
+
+        var queryDef =
+            new QueryDefinition("select count(1) as v from c where c.eventType = @eventType")
+                .WithParameter("@eventType", _typeMap.GetTypeName(eventType));
+
+        using var iterator = container.GetItemQueryIterator<Dictionary<string, ulong>>(queryDef);
+        var result = await iterator.ReadNextAsync(cancellationToken);
+        return result.Single()["v"];
+    }
+
+    #endregion
 }

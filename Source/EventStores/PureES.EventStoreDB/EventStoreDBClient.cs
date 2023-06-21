@@ -213,11 +213,15 @@ internal class EventStoreDBClient : IEventStore
                 new StreamRevision(requiredRevision),
                 new StreamRevision(count));
     }
+    #endregion
+    
+    #region By Event Type
 
+    //See https://developers.eventstore.com/server/v21.10/projections.html#by-event-type
+    
     public async IAsyncEnumerable<EventEnvelope> ReadByEventType(Type eventType,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        //See https://developers.eventstore.com/server/v21.10/projections.html#by-event-type
         var streamId = $"$et-{_typeMap.GetTypeName(eventType)}";
         var records = _eventStoreClient.ReadStreamAsync(Direction.Forwards,
             streamId,
@@ -230,6 +234,21 @@ internal class EventStoreDBClient : IEventStore
             yield break;
         await foreach (var r in records.WithCancellation(cancellationToken))
             yield return _serializer.Deserialize(r.Event);
+    }
+
+    public async Task<ulong> CountByEventType(Type eventType, CancellationToken cancellationToken)
+    {
+        var streamId = $"$et-{_typeMap.GetTypeName(eventType)}";
+        var records = _eventStoreClient.ReadStreamAsync(Direction.Backwards,
+            streamId,
+            StreamPosition.End,
+            resolveLinkTos: false,
+            cancellationToken: cancellationToken);
+        if (await records.ReadState == ReadState.StreamNotFound)
+            return 0; //None
+
+        var record = await records.FirstAsync(cancellationToken);
+        return record.Event.EventNumber.ToUInt64();
     }
 
     #endregion

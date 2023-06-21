@@ -13,9 +13,7 @@ internal class CosmosEventStoreClient
     private readonly CosmosEventStoreOptions _options;
     public readonly CosmosClient Client;
 
-    public CosmosEventStoreClient(IOptions<CosmosEventStoreOptions> options, 
-        IHttpClientFactory httpClientFactory,
-        IServiceProvider services)
+    public CosmosEventStoreClient(IOptions<CosmosEventStoreOptions> options, IHttpClientFactory httpClientFactory)
     {
         _options = options.Value;
 

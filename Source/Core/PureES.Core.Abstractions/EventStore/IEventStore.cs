@@ -174,17 +174,6 @@ public interface IEventStore
         CancellationToken cancellationToken);
 
     /// <summary>
-    ///     Loads events by <c>EventType</c>
-    /// </summary>
-    /// <param name="eventType">Type of event to query</param>
-    /// <param name="cancellationToken"></param>
-    /// <returns>
-    ///     An <see cref="IAsyncEnumerable{T}" /> of <see cref="EventEnvelope" />
-    ///     from the events in the stream in the order in which they were added
-    /// </returns>
-    public IAsyncEnumerable<EventEnvelope> ReadByEventType(Type eventType, CancellationToken cancellationToken);
-
-    /// <summary>
     /// Reads multiple streams, returning events in chronological order
     /// </summary>
     /// <param name="streams">The streams to read</param>
@@ -199,4 +188,26 @@ public interface IEventStore
     /// <param name="cancellationToken"></param>
     /// <returns>A combined stream of events, in chronological order</returns>
     public IAsyncEnumerable<EventEnvelope> ReadMany(IAsyncEnumerable<string> streams, CancellationToken cancellationToken);
+
+    /// <summary>
+    ///     Loads events by <c>EventType</c>
+    /// </summary>
+    /// <param name="eventType">Type of event to query</param>
+    /// <param name="cancellationToken"></param>
+    /// <returns>
+    ///     An <see cref="IAsyncEnumerable{T}" /> of <see cref="EventEnvelope" />
+    ///     from the events in the stream in the order in which they were added
+    /// </returns>
+    public IAsyncEnumerable<EventEnvelope> ReadByEventType(Type eventType, CancellationToken cancellationToken);
+    
+    /// <summary>
+    ///     Counts events by <c>EventType</c>
+    /// </summary>
+    /// <param name="eventType">Type of event to query</param>
+    /// <param name="cancellationToken"></param>
+    /// <returns>
+    ///     An <see cref="IAsyncEnumerable{T}" /> of <see cref="EventEnvelope" />
+    ///     from the events in the stream in the order in which they were added
+    /// </returns>
+    public Task<ulong> CountByEventType(Type eventType, CancellationToken cancellationToken);
 }
