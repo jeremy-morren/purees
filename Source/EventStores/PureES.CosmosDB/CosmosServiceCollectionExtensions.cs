@@ -11,7 +11,7 @@ namespace PureES.CosmosDB;
 public static class CosmosServiceCollectionExtensions
 {
     public static IServiceCollection AddCosmosEventStore(this IServiceCollection services,
-        Action<IServiceProvider, CosmosEventStoreOptions> configureOptions)
+        Action<CosmosEventStoreOptions> configureOptions)
     {
         services.TryAddSingleton<ISystemClock, SystemClock>();
         
@@ -23,14 +23,12 @@ public static class CosmosServiceCollectionExtensions
         services.AddSingleton<IEventStore, CosmosEventStore>();
         
         services.AddOptions<CosmosEventStoreOptions>()
+            .Configure(configureOptions)
             .Validate(o =>
             {
                 o.Validate();
                 return true;
             });
-
-        services.AddSingleton<IConfigureOptions<CosmosEventStoreOptions>>(sp =>
-            new ConfigureOptions<CosmosEventStoreOptions>(o => configureOptions(sp, o)));
 
         services.AddHttpClient(CosmosEventStoreClient.HttpClientName)
             .ConfigurePrimaryHttpMessageHandler(sp =>
@@ -46,10 +44,6 @@ public static class CosmosServiceCollectionExtensions
 
         return services;
     }
-
-    public static IServiceCollection AddCosmosEventStore(this IServiceCollection services,
-        Action<CosmosEventStoreOptions> configureOptions) =>
-        AddCosmosEventStore(services, (_, o) => configureOptions(o));
 
     public static IServiceCollection AddCosmosEventStoreSubscriptionToAll(this IServiceCollection services,
         Action<CosmosEventStoreSubscriptionOptions>? configureOptions = null)
