@@ -1,0 +1,12 @@
+<Project>
+    <Target Name="SetSourceRevisionId" BeforeTargets="InitializeSourceControlInformation;BeforeBuild">
+        <Exec Command="git -C &quot;$(MSBuildProjectDirectory)&quot; describe --long --always --exclude=* --abbrev=10" 
+              ConsoleToMSBuild="True" 
+              IgnoreExitCode="false"
+              EchoOff="true"
+              LogStandardErrorAsError="true"
+              StandardOutputImportance="low" >
+            <Output PropertyName="SourceRevisionId" TaskParameter="ConsoleOutput"/>
+        </Exec>
+    </Target>
+</Project>
