@@ -39,13 +39,9 @@ public class EventBus : IEventBus
         var onHandled = new ActionBlock<EventEnvelope>(OnEventHandled, 
             new ExecutionDataflowBlockOptions()
             {
-                // EnsureOrdered = true,
-                // BoundedCapacity = DataflowBlockOptions.Unbounded, //No backpressure after handle
-                // MaxDegreeOfParallelism = 1 //Handle 1 at a time
-                //
-                EnsureOrdered = false,
+                EnsureOrdered = true,
                 BoundedCapacity = DataflowBlockOptions.Unbounded, //No backpressure after handle
-                MaxDegreeOfParallelism = DataflowBlockOptions.Unbounded //Handle 1 at a time
+                MaxDegreeOfParallelism = 1 //Handle 1 at a time
             });
         handler.LinkTo(onHandled, new DataflowLinkOptions() {PropagateCompletion = true});
         Completion = onHandled.Completion;

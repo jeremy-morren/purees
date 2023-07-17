@@ -67,7 +67,7 @@ internal class CosmosEventStoreSubscriptionToAll : IEventStoreSubscription
                 onChangesDelegate: HandleChangesAsync)
             .WithInstanceName(_options.InstanceName)
             .WithLeaseContainer(leaseContainer)
-            .WithPollInterval(TimeSpan.FromSeconds(_options.PollIntervalSeconds));
+            .WithPollInterval(_options.PollInterval);
 
         if (_options.RestartFromBeginning)
             builder.WithStartTime(DateTime.SpecifyKind(DateTime.MinValue, DateTimeKind.Utc));

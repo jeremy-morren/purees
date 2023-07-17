@@ -14,10 +14,10 @@ public class CosmosEventStoreSubscriptionOptions
     /// Gets or sets the poll interval (in seconds) of the change feed processor
     /// </summary>
     /// <remarks>Defaults to 1 second</remarks>
-    public double PollIntervalSeconds
+    public double PollIntervalMilliseconds
     {
-        get => PollInterval.TotalSeconds;
-        set => PollInterval = TimeSpan.FromSeconds(value);
+        get => PollInterval.TotalMilliseconds;
+        set => PollInterval = TimeSpan.FromMilliseconds(value);
     }
 
     /// <summary>

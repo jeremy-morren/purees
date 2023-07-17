@@ -1,6 +1,5 @@
 ﻿using PureES.Core;
 using PureES.Core.EventStore;
-using PureES.EventStores.Tests.Cosmos;
 
 namespace PureES.EventStores.Tests;
 

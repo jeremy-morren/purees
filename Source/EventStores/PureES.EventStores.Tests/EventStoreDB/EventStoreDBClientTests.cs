@@ -1,6 +1,4 @@
-﻿using PureES.Core;
-using PureES.Core.EventStore;
-using PureES.EventStoreDB;
+﻿using PureES.EventStoreDB;
 
 namespace PureES.EventStores.Tests.EventStoreDB;
 
