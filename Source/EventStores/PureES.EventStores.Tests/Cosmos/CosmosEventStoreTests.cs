@@ -6,12 +6,14 @@ using PureES.CosmosDB.Subscription;
 
 namespace PureES.EventStores.Tests.Cosmos;
 
-public class CosmosEventStoreTests : EventStoreTestsBase, IClassFixture<CosmosTestFixture>
+public class CosmosEventStoreTests : EventStoreTestsBase
 {
-    private readonly CosmosTestFixture _fixture;
+    protected override async Task<EventStoreTestHarness> CreateStore(string testName, CancellationToken ct)
+    {
+        var harness = await CosmosTestHarness.Create(testName, ct);
+        return new EventStoreTestHarness(harness, harness.GetRequiredService<IEventStore>());
+    }
 
-    public CosmosEventStoreTests(CosmosTestFixture fixture) => _fixture = fixture;
-    protected override IEventStore CreateStore() => _fixture.GetRequiredService<IEventStore>();
 
     //TODO: Assert that restartFromBeginning actually does result in replay
     [Theory]
@@ -19,8 +21,11 @@ public class CosmosEventStoreTests : EventStoreTestsBase, IClassFixture<CosmosTe
     [InlineData(true)]
     public async Task StartSubscription(bool restartFromBeginning)
     {
-        await using var harness = new CosmosTestFixture(services =>
-            services.AddCosmosEventStoreSubscriptionToAll(o => o.RestartFromBeginning = restartFromBeginning));
+        var name = $"{nameof(StartSubscription)}+{restartFromBeginning}+{Environment.Version}";
+        await using var harness = await CosmosTestHarness.Create(name,
+            services => services
+                .AddCosmosEventStoreSubscriptionToAll(o => o.RestartFromBeginning = restartFromBeginning),
+            default);
         
         var subscription = (CosmosEventStoreSubscriptionToAll)harness.GetServices<IHostedService>()
             .Single(s => s.GetType() == typeof(CosmosEventStoreSubscriptionToAll));
@@ -38,8 +43,8 @@ public class CosmosEventStoreTests : EventStoreTestsBase, IClassFixture<CosmosTe
     [Fact]
     public async Task Bulk_Create()
     {
-        var store = CreateStore();
-        var stream = GetStream(nameof(Bulk_Create));
+        await using var store = await GetStore();
+        const string stream = nameof(Bulk_Create);
         var events = Enumerable.Range(0, 10_000)
             .Select(_ => NewEvent())
             .ToList();
@@ -48,15 +53,15 @@ public class CosmosEventStoreTests : EventStoreTestsBase, IClassFixture<CosmosTe
         Assert.Equal(revision, await store.Create(stream, events, CancellationToken));
         Assert.Equal(revision, await store.GetRevision(stream, CancellationToken));
         Assert.True(await store.Exists(stream, CancellationToken));
-        await AssertEqual(events, store.Read(stream, CancellationToken));
+        await AssertEqual(events, d => store.Read(d, stream, CancellationToken));
         Assert.Equal((ulong) events.Count - 1, await store.GetRevision(stream, CancellationToken));
     }
     
     [Fact]
     public async Task Bulk_Create_With_Large_Event()
     {
-        var store = CreateStore();
-        var stream = GetStream(nameof(Bulk_Create_With_Large_Event));
+        await using var store = await GetStore();
+        const string stream = nameof(Bulk_Create_With_Large_Event);
         var events = Enumerable.Range(0, 25)
             .Select(_ => NewLargeEvent())
             .ToList();
@@ -65,7 +70,7 @@ public class CosmosEventStoreTests : EventStoreTestsBase, IClassFixture<CosmosTe
         Assert.Equal(revision, await store.Create(stream, events, CancellationToken));
         Assert.Equal(revision, await store.GetRevision(stream, CancellationToken));
         Assert.True(await store.Exists(stream, CancellationToken));
-        await AssertEqual(events, store.Read(stream, CancellationToken));
+        await AssertEqual(events, d => store.Read(d, stream, CancellationToken));
         Assert.Equal((ulong) events.Count - 1, await store.GetRevision(stream, CancellationToken));
     }
     
@@ -74,8 +79,8 @@ public class CosmosEventStoreTests : EventStoreTestsBase, IClassFixture<CosmosTe
     [InlineData(false)]
     public async Task Bulk_Append(bool useOptimisticConcurrency)
     {
-        var store = CreateStore();
-        var stream = GetStream($"{nameof(Bulk_Append)}+{useOptimisticConcurrency}");
+        await using var store = await GetStore($"{nameof(Bulk_Append)}+{useOptimisticConcurrency}+{Environment.Version}");
+        const string stream = nameof(Bulk_Append);
         var events = Enumerable.Range(0, 10_000)
             .Select(_ => NewEvent())
             .ToList();
@@ -85,7 +90,7 @@ public class CosmosEventStoreTests : EventStoreTestsBase, IClassFixture<CosmosTe
         Assert.Equal((ulong) events.Count - 1, useOptimisticConcurrency
             ? await store.Append(stream, create - 1, events.Skip(create), CancellationToken)
             : await store.Append(stream, events.Skip(create), CancellationToken));
-        await AssertEqual(events, store.Read(stream, CancellationToken));
+        await AssertEqual(events, d => store.Read(d, stream, CancellationToken));
         
         Assert.Equal((ulong) events.Count - 1, await store.GetRevision(stream, CancellationToken));
     }
@@ -95,8 +100,8 @@ public class CosmosEventStoreTests : EventStoreTestsBase, IClassFixture<CosmosTe
     [InlineData(false)]
     public async Task Bulk_Append_With_Large_Event(bool useOptimisticConcurrency)
     {
-        var store = CreateStore();
-        var stream = GetStream($"{nameof(Bulk_Append_With_Large_Event)}+{useOptimisticConcurrency}");
+        await using var store = await GetStore($"{nameof(Bulk_Append_With_Large_Event)}+{useOptimisticConcurrency}+{Environment.Version}");
+        const string stream = nameof(Bulk_Append_With_Large_Event);
         var events = Enumerable.Range(0, 25)
             .Select(_ => NewLargeEvent())
             .ToList();
@@ -106,7 +111,7 @@ public class CosmosEventStoreTests : EventStoreTestsBase, IClassFixture<CosmosTe
         Assert.Equal((ulong) events.Count - 1, useOptimisticConcurrency
             ? await store.Append(stream, create - 1, events.Skip(create), CancellationToken)
             : await store.Append(stream, events.Skip(create), CancellationToken));
-        await AssertEqual(events, store.Read(stream, CancellationToken));
+        await AssertEqual(events, d => store.Read(d, stream, CancellationToken));
         
         Assert.Equal((ulong) events.Count - 1, await store.GetRevision(stream, CancellationToken));
     }
@@ -118,4 +123,6 @@ public class CosmosEventStoreTests : EventStoreTestsBase, IClassFixture<CosmosTe
     }
 
     private record LargeEvent(byte[] Data);
+    
+    
 }

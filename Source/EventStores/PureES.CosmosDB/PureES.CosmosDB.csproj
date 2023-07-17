@@ -21,6 +21,7 @@
     
     <ItemGroup>
         <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.32.3" />
+        <PackageReference Include="System.Linq.Async" Version="6.0.1" />
         <Using Include="Microsoft.Azure.Cosmos" />
         
         <None Include="ThirdPartyNotice.txt" Visible="false" />

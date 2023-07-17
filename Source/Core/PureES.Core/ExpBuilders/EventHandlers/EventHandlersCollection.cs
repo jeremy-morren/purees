@@ -6,13 +6,13 @@ internal class EventHandlersCollection : IEventHandlersCollection
 
     public EventHandlersCollection(PureESServices services) => _services = services;
 
-    public Func<EventEnvelope, IServiceProvider, CancellationToken, Task>[] GetEventHandlers(Type eventType)
+    public EventHandlerDelegate[] GetEventHandlers(Type eventType)
     {
         var handlers = _services
-            .GetRequiredService<Dictionary<Type, Func<EventEnvelope, IServiceProvider, CancellationToken, Task>[]>>();
-        
+            .GetRequiredService<Dictionary<Type, EventHandlerDelegate[]>>();
+
         if (handlers.TryGetValue(eventType, out var delegates))
             return delegates;
-        return Array.Empty<Func<EventEnvelope, IServiceProvider, CancellationToken, Task>>();
+        return Array.Empty<EventHandlerDelegate>();
     }
 }

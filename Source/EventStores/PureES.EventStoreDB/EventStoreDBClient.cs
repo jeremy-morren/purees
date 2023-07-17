@@ -1,8 +1,14 @@
-﻿using System.Runtime.CompilerServices;
+﻿// ReSharper disable IdentifierTypo
+
+
+using System.Runtime.CompilerServices;
 using EventStore.Client;
 using PureES.Core;
 using PureES.Core.EventStore;
+using Direction = PureES.Core.EventStore.Direction;
 using StreamNotFoundException = PureES.Core.EventStore.StreamNotFoundException;
+using EsdbDirection = EventStore.Client.Direction;
+// ReSharper disable ArrangeMethodOrOperatorBody
 
 namespace PureES.EventStoreDB;
 
@@ -23,7 +29,7 @@ internal class EventStoreDBClient : IEventStore
 
     public async Task<bool> Exists(string streamId, CancellationToken cancellationToken)
     {
-        var result = _eventStoreClient.ReadStreamAsync(Direction.Forwards,
+        var result = _eventStoreClient.ReadStreamAsync(EsdbDirection.Forwards,
             streamId,
             StreamPosition.Start,
             1,
@@ -33,7 +39,7 @@ internal class EventStoreDBClient : IEventStore
 
     public async Task<ulong> GetRevision(string streamId, CancellationToken cancellationToken)
     {
-        var records = _eventStoreClient.ReadStreamAsync(Direction.Backwards,
+        var records = _eventStoreClient.ReadStreamAsync(EsdbDirection.Backwards,
             streamId,
             StreamPosition.End,
             1,
@@ -130,23 +136,52 @@ internal class EventStoreDBClient : IEventStore
     
     #region Read
 
-    public async IAsyncEnumerable<EventEnvelope> ReadAll([EnumeratorCancellation] CancellationToken cancellationToken)
+    private static EsdbDirection ToEsdbDirection(Direction direction) => direction switch
     {
-        var records = _eventStoreClient.ReadAllAsync(Direction.Forwards,
+        Direction.Forwards => EsdbDirection.Forwards,
+        Direction.Backwards => EsdbDirection.Backwards,
+        _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
+    };
+    
+    private static StreamPosition ToStreamPosition(Direction direction) => direction switch
+    {
+        Direction.Forwards => StreamPosition.Start,
+        Direction.Backwards => StreamPosition.End,
+        _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
+    };
+
+    public async IAsyncEnumerable<EventEnvelope> ReadAll(Direction direction,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var records = _eventStoreClient.ReadAllAsync(ToEsdbDirection(direction),
             Position.Start,
             resolveLinkTos: true,
             cancellationToken: cancellationToken);
         await foreach (var record in records.WithCancellation(cancellationToken))
             yield return _serializer.Deserialize(record.Event);
     }
-
-    /// <inheritdoc />
-    public async IAsyncEnumerable<EventEnvelope> Read(string streamId,
+    
+    public async IAsyncEnumerable<EventEnvelope> ReadAll(Direction direction,
+        ulong maxCount,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var records = _eventStoreClient.ReadStreamAsync(Direction.Forwards,
+        var records = _eventStoreClient.ReadAllAsync(ToEsdbDirection(direction),
+            Position.Start,
+            resolveLinkTos: true,
+            maxCount: (long)maxCount,
+            cancellationToken: cancellationToken);
+        await foreach (var record in records.WithCancellation(cancellationToken))
+            yield return _serializer.Deserialize(record.Event);
+    }
+
+    /// <inheritdoc />
+    public async IAsyncEnumerable<EventEnvelope> Read(Direction direction,
+        string streamId,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var records = _eventStoreClient.ReadStreamAsync(ToEsdbDirection(direction),
             streamId,
-            StreamPosition.Start,
+            ToStreamPosition(direction),
             resolveLinkTos: true,
             cancellationToken: cancellationToken);
         if (await records.ReadState == ReadState.StreamNotFound)
@@ -155,13 +190,14 @@ internal class EventStoreDBClient : IEventStore
             yield return _serializer.Deserialize(record.Event);
     }
 
-    public async IAsyncEnumerable<EventEnvelope> Read(string streamId,
+    public async IAsyncEnumerable<EventEnvelope> Read(Direction direction,
+        string streamId,
         ulong expectedRevision,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var records = _eventStoreClient.ReadStreamAsync(Direction.Forwards,
+        var records = _eventStoreClient.ReadStreamAsync(ToEsdbDirection(direction),
             streamId,
-            StreamPosition.Start,
+            ToStreamPosition(direction),
             resolveLinkTos: true,
             cancellationToken: cancellationToken);
         if (await records.ReadState == ReadState.StreamNotFound)
@@ -184,13 +220,14 @@ internal class EventStoreDBClient : IEventStore
                 new StreamRevision(count));
     }
 
-    public async IAsyncEnumerable<EventEnvelope> ReadPartial(string streamId,
+    public async IAsyncEnumerable<EventEnvelope> ReadPartial(Direction direction,
+        string streamId,
         ulong requiredRevision,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var records = _eventStoreClient.ReadStreamAsync(Direction.Forwards,
+        var records = _eventStoreClient.ReadStreamAsync(ToEsdbDirection(direction),
             streamId,
-            StreamPosition.Start,
+            ToStreamPosition(direction),
             resolveLinkTos: true,
             maxCount: (long) (requiredRevision + 1),
             cancellationToken: cancellationToken);
@@ -213,19 +250,17 @@ internal class EventStoreDBClient : IEventStore
                 new StreamRevision(requiredRevision),
                 new StreamRevision(count));
     }
-    #endregion
-    
-    #region By Event Type
 
     //See https://developers.eventstore.com/server/v21.10/projections.html#by-event-type
-    
-    public async IAsyncEnumerable<EventEnvelope> ReadByEventType(Type eventType,
+
+    public async IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction,
+        Type eventType,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var streamId = $"$et-{_typeMap.GetTypeName(eventType)}";
-        var records = _eventStoreClient.ReadStreamAsync(Direction.Forwards,
+        var records = _eventStoreClient.ReadStreamAsync(ToEsdbDirection(direction),
             streamId,
-            StreamPosition.Start,
+            ToStreamPosition(direction),
             resolveLinkTos: true,
             cancellationToken: cancellationToken);
         //If the stream isn't found, that means no events have been posted of the specified type
@@ -234,36 +269,95 @@ internal class EventStoreDBClient : IEventStore
             yield break;
         await foreach (var r in records.WithCancellation(cancellationToken))
             yield return _serializer.Deserialize(r.Event);
+
+    }
+    
+    public async IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction,
+        Type eventType,
+        ulong maxCount,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var streamId = $"$et-{_typeMap.GetTypeName(eventType)}";
+        var records = _eventStoreClient.ReadStreamAsync(ToEsdbDirection(direction),
+            streamId,
+            ToStreamPosition(direction),
+            maxCount: (long)maxCount,
+            resolveLinkTos: true,
+            cancellationToken: cancellationToken);
+        //If the stream isn't found, that means no events have been posted of the specified type
+        //Hence we should return an empty stream
+        if (await records.ReadState == ReadState.StreamNotFound)
+            yield break;
+        await foreach (var r in records.WithCancellation(cancellationToken))
+            yield return _serializer.Deserialize(r.Event);
+
     }
 
+    #endregion
+    
+    #region Count
+
+    public Task<ulong> Count(CancellationToken cancellationToken)
+    {
+        //Don't know how to do this
+        //The below is probably inadvisable
+
+        // var records = _eventStoreClient.ReadAllAsync(EsdbDirection.Forwards,
+        //     Position.Start,
+        //     resolveLinkTos: false,
+        //     cancellationToken: cancellationToken);
+        
+        //return (ulong)await records.LongCountAsync(cancellationToken);
+        
+        return Task.FromException<ulong>(new NotImplementedException());
+    }
+    
     public async Task<ulong> CountByEventType(Type eventType, CancellationToken cancellationToken)
     {
         var streamId = $"$et-{_typeMap.GetTypeName(eventType)}";
-        var records = _eventStoreClient.ReadStreamAsync(Direction.Backwards,
+        var records = _eventStoreClient.ReadStreamAsync(EsdbDirection.Forwards,
             streamId,
-            StreamPosition.End,
+            StreamPosition.Start,
+            maxCount: 1,
             resolveLinkTos: false,
             cancellationToken: cancellationToken);
         if (await records.ReadState == ReadState.StreamNotFound)
             return 0; //None
-
-        var record = await records.FirstAsync(cancellationToken);
-        return record.Event.EventNumber.ToUInt64();
+        
+        var result = await records.FirstAsync(cancellationToken);
+        return result.Event.EventNumber.ToUInt64();
     }
 
     #endregion
     
     #region Read Multiple
 
-    public IAsyncEnumerable<EventEnvelope> ReadMany(IEnumerable<string> streams, 
+    public IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMultiple(Direction direction,
+        IEnumerable<string> streams,
+        CancellationToken cancellationToken = default)
+    {
+        return streams
+            .Select(s => Read(direction, s, cancellationToken))
+            .ToAsyncEnumerable();
+    }
+
+    public IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMultiple(Direction direction,
+        IAsyncEnumerable<string> streams,
+        CancellationToken cancellationToken = default)
+    {
+        return streams.Select(s => Read(direction, s, cancellationToken));
+    }
+
+    public IAsyncEnumerable<EventEnvelope> ReadMany(Direction direction,
+        IEnumerable<string> streams, 
         CancellationToken cancellationToken)
     {
         //Ensure we get only distinct streams
         var enumerators = streams.Distinct().SelectAwait(async stream =>
         {
-            var readResult = _eventStoreClient.ReadStreamAsync(direction: Direction.Forwards,
+            var readResult = _eventStoreClient.ReadStreamAsync(direction: ToEsdbDirection(direction),
                 streamName: stream,
-                revision: StreamPosition.Start,
+                revision: ToStreamPosition(direction),
                 resolveLinkTos: true,
                 cancellationToken: cancellationToken);
             if (await readResult.ReadState == ReadState.StreamNotFound)
@@ -273,14 +367,16 @@ internal class EventStoreDBClient : IEventStore
         return Merge(enumerators, cancellationToken);
     }
 
-    public IAsyncEnumerable<EventEnvelope> ReadMany(IAsyncEnumerable<string> streams, CancellationToken cancellationToken)
+    public IAsyncEnumerable<EventEnvelope> ReadMany(Direction direction,
+        IAsyncEnumerable<string> streams, 
+        CancellationToken cancellationToken)
     {
         //Ensure we get only distinct streams
         var enumerators = streams.Distinct().SelectAwait(async stream =>
         {
-            var readResult = _eventStoreClient.ReadStreamAsync(direction: Direction.Forwards,
+            var readResult = _eventStoreClient.ReadStreamAsync(direction: ToEsdbDirection(direction),
                 streamName: stream,
-                revision: StreamPosition.Start,
+                revision: ToStreamPosition(direction),
                 resolveLinkTos: true,
                 cancellationToken: cancellationToken);
             if (await readResult.ReadState == ReadState.StreamNotFound)

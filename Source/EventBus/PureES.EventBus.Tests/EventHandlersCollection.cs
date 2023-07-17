@@ -8,20 +8,20 @@ public class EventHandlersCollection : IEventHandlersCollection
 
     public EventHandlersCollection(Dictionary<Type, Action<EventEnvelope>[]> handlers) => _handlers = handlers;
 
-    public Func<EventEnvelope, IServiceProvider, CancellationToken, Task>[] GetEventHandlers(Type eventType)
+    public EventHandlerDelegate[] GetEventHandlers(Type eventType)
     {
         if (!_handlers.TryGetValue(eventType, out var delegates))
-            return Array.Empty<Func<EventEnvelope, IServiceProvider, CancellationToken, Task>>();
+            return Array.Empty<EventHandlerDelegate>();
 
-        var arr = new Func<EventEnvelope, IServiceProvider, CancellationToken, Task>[delegates.Length];
+        var arr = new EventHandlerDelegate[delegates.Length];
         for (var i = 0; i < delegates.Length; i++)
         {
             var action = delegates[i];
-            arr[i] = (e, _, _) =>
+            arr[i] = new EventHandlerDelegate(string.Empty, (e, _, _) =>
             {
                 action(e);
                 return Task.CompletedTask;
-            };
+            });
         }
 
         return arr;

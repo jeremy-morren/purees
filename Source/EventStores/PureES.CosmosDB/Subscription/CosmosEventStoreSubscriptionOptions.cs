@@ -14,7 +14,17 @@ public class CosmosEventStoreSubscriptionOptions
     /// Gets or sets the poll interval (in seconds) of the change feed processor
     /// </summary>
     /// <remarks>Defaults to 1 second</remarks>
-    public double PollInterval { get; set; } = 1;
+    public double PollIntervalSeconds
+    {
+        get => PollInterval.TotalSeconds;
+        set => PollInterval = TimeSpan.FromSeconds(value);
+    }
+
+    /// <summary>
+    /// Gets or sets the poll interval of the change feed processor
+    /// </summary>
+    /// <remarks>Defaults to 1 second</remarks>
+    public TimeSpan PollInterval { get; set; } = TimeSpan.FromSeconds(1);
 
     /// <summary>
     /// The name of the CosmosDB lease container to use for the change feed processor. Defaults to subscription name
@@ -46,7 +56,7 @@ public class CosmosEventStoreSubscriptionOptions
 
     public void Validate()
     {
-        if (PollInterval <= 0)
+        if (PollInterval.Ticks <= 0)
             throw new Exception("Poll interval must be greater than 0");
         
         if (LeaseContainerName == string.Empty)

@@ -44,8 +44,9 @@ internal class CosmosEventStoreClient
 
     private Task<Container>? _container;
     
-    public Task<Container> GetEventStoreContainerAsync(CancellationToken ct)
+    public Task<Container> GetEventStoreContainerAsync()
     {
+        var ct = new CancellationTokenSource(TimeSpan.FromMinutes(1)).Token;
         _container ??= CreateContainerIfNotExists(ct);
         return _container;
     }

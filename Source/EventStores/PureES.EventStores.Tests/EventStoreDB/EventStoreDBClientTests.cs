@@ -1,14 +1,16 @@
-﻿using PureES.Core.EventStore;
+﻿using PureES.Core;
+using PureES.Core.EventStore;
 using PureES.EventStoreDB;
 
 namespace PureES.EventStores.Tests.EventStoreDB;
 
-public class EventStoreDBClientTests : EventStoreTestsBase, IClassFixture<EventStoreTestHarness>
+public class EventStoreDBClientTests : EventStoreTestsBase
 {
-    private readonly EventStoreTestHarness _harness;
+    protected override async Task<EventStoreTestHarness> CreateStore(string testName, CancellationToken ct)
+    {
+        var harness = await EventStoreDBTestHarness.Create(ct);
 
-    public EventStoreDBClientTests(EventStoreTestHarness harness) => _harness = harness;
-
-    protected override IEventStore CreateStore() =>
-        new EventStoreDBClient(_harness.Client, TestSerializer.EventStoreDBSerializer, TestSerializer.EventTypeMap);
+        return new EventStoreTestHarness(harness,
+            new EventStoreDBClient(harness.Client, TestSerializer.EventStoreDBSerializer, TestSerializer.EventTypeMap));
+    }
 }

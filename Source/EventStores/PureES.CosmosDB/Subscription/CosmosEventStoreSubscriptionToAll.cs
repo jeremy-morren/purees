@@ -44,7 +44,7 @@ internal class CosmosEventStoreSubscriptionToAll : IEventStoreSubscription
 
     public async Task<ChangeFeedProcessor> CreateProcessor(CancellationToken cancellationToken)
     {
-        var eventStoreContainer = await _client.GetEventStoreContainerAsync(cancellationToken);
+        var eventStoreContainer = await _client.GetEventStoreContainerAsync();
 
         if (_options.RestartFromBeginning)
         {
@@ -67,7 +67,7 @@ internal class CosmosEventStoreSubscriptionToAll : IEventStoreSubscription
                 onChangesDelegate: HandleChangesAsync)
             .WithInstanceName(_options.InstanceName)
             .WithLeaseContainer(leaseContainer)
-            .WithPollInterval(TimeSpan.FromSeconds(_options.PollInterval));
+            .WithPollInterval(TimeSpan.FromSeconds(_options.PollIntervalSeconds));
 
         if (_options.RestartFromBeginning)
             builder.WithStartTime(DateTime.SpecifyKind(DateTime.MinValue, DateTimeKind.Utc));

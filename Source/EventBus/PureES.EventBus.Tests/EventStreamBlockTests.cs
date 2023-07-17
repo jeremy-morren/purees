@@ -42,6 +42,13 @@ public class EventStreamBlockTests
             BufferSize = count
         });
 
+        var all = new List<EventEnvelope>();
+        var target = new ActionBlock<EventEnvelope>(all.Add);
+        block.LinkTo(target, new DataflowLinkOptions()
+        {
+            PropagateCompletion = true
+        });
+
         var ct = new CancellationTokenSource(TimeSpan.FromSeconds(1)).Token;
 
         foreach (var e in envelopes)
@@ -57,7 +64,7 @@ public class EventStreamBlockTests
             completions[id].SetResult();
 
         block.Complete();
-        await block.Completion;
+        await target.Completion;
 
         //Ensure all streams were processed
         Assert.All(completions.Keys, s => Assert.Contains(s, result.Keys));
@@ -65,5 +72,16 @@ public class EventStreamBlockTests
         //Ensure the events were processed in order
         Assert.All(result.Values, l =>
             Assert.Equal(Enumerable.Range(0, l.Count), l));
+        
+        //Ensure all events reached target
+        Assert.All(envelopes, e => Assert.Contains(e, all));
+        
+        //Assert all are in stream order
+        Assert.All(all.SkipLast(1).Zip(all.Skip(1)), pair =>
+        {
+            var (a, b) = pair;
+            if (a.StreamId == b.StreamId)
+                Assert.Equal(a.StreamPosition, b.StreamPosition - 1);
+        });
     }
 }

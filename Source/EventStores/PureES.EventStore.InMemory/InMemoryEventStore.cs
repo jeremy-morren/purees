@@ -32,7 +32,7 @@ internal class InMemoryEventStore : IInMemoryEventStore
         _subscription = subscription;
     }
 
-    //Implementation of IEventSTore
+    //Implementation of IEventStore
     //Note that all methods have to be synchronized to maintain integrity
     
     #region Append
@@ -153,10 +153,28 @@ internal class InMemoryEventStore : IInMemoryEventStore
         }
     }
 
-    public IAsyncEnumerable<EventEnvelope> ReadAll(CancellationToken cancellationToken) =>
-        ReadAll().ToAsyncEnumerable();
+    private static IAsyncEnumerable<EventEnvelope> ReadDirection(Direction direction, List<EventEnvelope> source)
+    {
+        if (direction == Direction.Backwards)
+            source.Reverse();
+        return source.ToAsyncEnumerable();
+    }
+    
+    private static IAsyncEnumerable<EventEnvelope> ReadDirection(Direction direction, ulong maxCount, List<EventEnvelope> source)
+    {
+        if (direction == Direction.Backwards)
+            source.Reverse();
+        var max = (int) maxCount;
+        return (source.Count > max ? source.Take(max) : source).ToAsyncEnumerable();
+    }
 
-    public IAsyncEnumerable<EventEnvelope> Read(string streamId, CancellationToken _)
+    public IAsyncEnumerable<EventEnvelope> ReadAll(Direction direction, CancellationToken cancellationToken) => 
+        ReadDirection(direction, (List<EventEnvelope>)ReadAll());
+    
+    public IAsyncEnumerable<EventEnvelope> ReadAll(Direction direction, ulong maxCount, CancellationToken cancellationToken) => 
+        ReadDirection(direction, maxCount, (List<EventEnvelope>)ReadAll());
+
+    public IAsyncEnumerable<EventEnvelope> Read(Direction direction, string streamId, CancellationToken _)
     {
         lock (_events)
         {
@@ -167,11 +185,11 @@ internal class InMemoryEventStore : IInMemoryEventStore
                 .Select(_serializer.Deserialize)
                 .ToList();
 
-            return list.ToAsyncEnumerable();
+            return ReadDirection(direction, list);
         }
     }
 
-    public IAsyncEnumerable<EventEnvelope> Read(string streamId, ulong expectedRevision, CancellationToken _)
+    public IAsyncEnumerable<EventEnvelope> Read(Direction direction, string streamId, ulong expectedRevision, CancellationToken _)
     {
         lock (_events)
         {
@@ -182,16 +200,20 @@ internal class InMemoryEventStore : IInMemoryEventStore
                 throw new WrongStreamRevisionException(streamId,
                     expectedRevision,
                     length);
+            
             var list = Enumerable.Range(0, events.Count)
                 .Select(i => events[i])
                 .Select(_serializer.Deserialize)
                 .ToList();
 
-            return list.ToAsyncEnumerable();
+            return ReadDirection(direction, list);
         }
     }
 
-    public IAsyncEnumerable<EventEnvelope> ReadPartial(string streamId, ulong requiredRevision, CancellationToken _)
+    public IAsyncEnumerable<EventEnvelope> ReadPartial(Direction direction, 
+        string streamId,
+        ulong requiredRevision, 
+        CancellationToken _)
     {
         lock (_events)
         {
@@ -202,8 +224,17 @@ internal class InMemoryEventStore : IInMemoryEventStore
                 throw new WrongStreamRevisionException(streamId,
                     requiredRevision,
                     length);
+
             var list = Enumerable.Range(0, (int) requiredRevision + 1)
-                .Select(i => events[i])
+                .Select(i =>
+                {
+                    return direction switch
+                    {
+                        Direction.Forwards => events[i],
+                        Direction.Backwards => events[events.Count - i - 1],
+                        _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
+                    };
+                })
                 .Select(_serializer.Deserialize)
                 .ToList();
 
@@ -211,7 +242,7 @@ internal class InMemoryEventStore : IInMemoryEventStore
         }
     }
     
-    private List<EventEnvelope> ReadInternal(string streamId)
+    private List<EventEnvelope> ReadStreamInternal(string streamId)
     {
         if (!_events.TryGetValue(streamId, out var events))
             throw new StreamNotFoundException(streamId);
@@ -221,19 +252,23 @@ internal class InMemoryEventStore : IInMemoryEventStore
             .ToList();
     }
 
-    public IAsyncEnumerable<EventEnvelope> ReadMany(IEnumerable<string> streams, CancellationToken cancellationToken)
+    public IAsyncEnumerable<EventEnvelope> ReadMany(Direction direction, 
+        IEnumerable<string> streams, 
+        CancellationToken cancellationToken)
     {
         lock (_events)
         {
-            var events = streams.SelectMany(ReadInternal)
+            var events = streams.SelectMany(ReadStreamInternal)
                 .OrderBy(e => e.Timestamp)
                 .ToList();
             cancellationToken.ThrowIfCancellationRequested();
-            return events.ToAsyncEnumerable();
+
+            return ReadDirection(direction, events);
         }
     }
 
-    public async IAsyncEnumerable<EventEnvelope> ReadMany(IAsyncEnumerable<string> streams,
+    public async IAsyncEnumerable<EventEnvelope> ReadMany(Direction direction,
+        IAsyncEnumerable<string> streams,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var list = await streams.ToListAsync(cancellationToken);
@@ -241,10 +276,12 @@ internal class InMemoryEventStore : IInMemoryEventStore
         List<EventEnvelope> events;
         lock (_events)
         {
-            events = list.SelectMany(ReadInternal)
+            events = list.SelectMany(ReadStreamInternal)
                 .OrderBy(e => e.Timestamp)
                 .ToList();
         }
+        if (direction == Direction.Backwards)
+            events.Reverse();
 
         foreach (var e in events)
         {
@@ -252,8 +289,52 @@ internal class InMemoryEventStore : IInMemoryEventStore
             yield return e;
         }
     }
+    
+    public IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMultiple(Direction direction, 
+        IEnumerable<string> streams, 
+        CancellationToken cancellationToken)
+    {
+        var result = new List<List<EventEnvelope>>();
+        lock (_events)
+        {
+            result.AddRange(streams
+                .Select(ReadStreamInternal)
+                .Select(list =>
+                {
+                    if (direction == Direction.Backwards)
+                        list.Reverse();
+                    return list;
+                }));
+        }
+        return result.Select(r => r.ToAsyncEnumerable()).ToAsyncEnumerable();
+    }
+    
+    public async IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMultiple(Direction direction,
+        IAsyncEnumerable<string> streams,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var items = await streams.ToListAsync(cancellationToken);
+        var result = new List<List<EventEnvelope>>();
+        lock (_events)
+        {
+            result.AddRange(items
+                .Select(ReadStreamInternal)
+                .Select(list =>
+                {
+                    if (direction == Direction.Backwards)
+                        list.Reverse();
+                    return list;
+                }));
+        }
 
-    public IAsyncEnumerable<EventEnvelope> ReadByEventType(Type eventType, CancellationToken cancellationToken)
+        foreach (var item in result)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            yield return item.ToAsyncEnumerable();
+        }
+    }
+
+    public IReadOnlyList<EventEnvelope> ReadByEventType(Type eventType)
     {
         lock (_events)
         {
@@ -268,9 +349,23 @@ internal class InMemoryEventStore : IInMemoryEventStore
                 list.Add(env);
             }
 
-            return list.ToAsyncEnumerable();
+            return list;
         }
     }
+
+    public IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction, Type eventType,
+        CancellationToken cancellationToken) =>
+        ReadDirection(direction, (List<EventEnvelope>) ReadByEventType(eventType));
+    
+    public IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction, 
+        Type eventType,
+        ulong maxCount,
+        CancellationToken cancellationToken) =>
+        ReadDirection(direction, maxCount, (List<EventEnvelope>) ReadByEventType(eventType));
+
+    #endregion
+    
+    #region Count
 
     public Task<ulong> CountByEventType(Type eventType, CancellationToken cancellationToken)
     {
@@ -281,6 +376,14 @@ internal class InMemoryEventStore : IInMemoryEventStore
                 .SelectMany(v => v)
                 .Count(r => r.EventType == name);
             return Task.FromResult((ulong)count);
+        }
+    }
+    
+    public Task<ulong> Count(CancellationToken cancellationToken)
+    {
+        lock (_events)
+        {
+            return Task.FromResult((ulong) _all.Count);
         }
     }
 

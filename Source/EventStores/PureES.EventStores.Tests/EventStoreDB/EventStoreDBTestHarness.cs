@@ -10,46 +10,53 @@ using EventStore.Client;
 namespace PureES.EventStores.Tests.EventStoreDB;
 
 [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
-public sealed class EventStoreTestHarness : IDisposable
+public sealed class EventStoreDBTestHarness : IAsyncDisposable
 {
     public readonly EventStoreClient Client;
     public readonly string ContainerId;
-    public readonly int Port = Random.Shared.Next(2048, 60000);
+    public readonly int Port;
 
     public readonly EventStoreClientSettings Settings;
 
-    public EventStoreTestHarness()
+    private EventStoreDBTestHarness(string containerId, int port)
     {
-        ContainerId = CreateContainer().GetAwaiter().GetResult();
+        ContainerId = containerId;
+        Port = port;
         Settings = EventStoreClientSettings.Create($"esdb://localhost:{Port}?tls=false");
         Client = new EventStoreClient(Settings);
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
-        Client.Dispose();
-        DisposeContainer().GetAwaiter().GetResult();
+        await Client.DisposeAsync();
+        await DisposeContainer(ContainerId);
+    }
+
+    public static async Task<EventStoreDBTestHarness> Create(CancellationToken ct)
+    {
+        var port = Random.Shared.Next(2048, 60000);
+        var containerId = await CreateContainer(port, ct);
+        return new EventStoreDBTestHarness(containerId, port);
     }
 
     #region Docker
 
-    private async Task<string> CreateContainer()
+    private static async Task<string> CreateContainer(int port, CancellationToken ct)
     {
-        var ct = new CancellationTokenSource(TimeSpan.FromMinutes(1)).Token;
-        var id = await Start(ct);
+        var id = await Start(port, ct);
         await WaitReady(id, ct);
         return id;
     }
 
-    private async Task DisposeContainer()
+    private static async Task DisposeContainer(string containerId)
     {
         var ct = new CancellationTokenSource(TimeSpan.FromMinutes(1)).Token;
-        await DockerClient.Containers.StopContainerAsync(ContainerId, new ContainerStopParameters(), ct);
+        await DockerClient.Containers.StopContainerAsync(containerId, new ContainerStopParameters(), ct);
     }
 
     private static readonly DockerClient DockerClient = new DockerClientConfiguration().CreateClient();
 
-    private async Task<string> Start(CancellationToken ct)
+    private static async Task<string> Start(int port, CancellationToken ct)
     {
         const string platform = "linux";
         const string image = "eventstore/eventstore";
@@ -84,7 +91,7 @@ public sealed class EventStoreTestHarness : IDisposable
                     {
                         "2113/tcp", new List<PortBinding>
                         {
-                            new() {HostPort = Port.ToString(), HostIP = "0.0.0.0"}
+                            new() {HostPort = port.ToString(), HostIP = "0.0.0.0"}
                         }
                     }
                 }

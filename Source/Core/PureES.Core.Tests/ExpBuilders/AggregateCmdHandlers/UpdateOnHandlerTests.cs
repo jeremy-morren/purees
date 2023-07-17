@@ -36,7 +36,7 @@ public class UpdateOnHandlerTests
         var nextRevision = Rand.NextULong();
         var ct = new CancellationTokenSource().Token;
 
-        eventStore.Setup(s => s.Read(cmd.Id.StreamId, currentRevision, ct))
+        eventStore.Setup(s => s.Read(Direction.Forwards, cmd.Id.StreamId, currentRevision, ct))
             .Returns(new[] {created}.AsAsyncEnumerable())
             .Verifiable("Read not called");
         eventStore.Setup(s => s.GetRevision(cmd.Id.StreamId, currentRevision, ct))
@@ -101,7 +101,7 @@ public class UpdateOnHandlerTests
 
         var eventEnricher = new Mock<IEventEnricher>();
 
-        eventStore.Setup(s => s.Read(cmd.Id.StreamId, currentRevision, ct))
+        eventStore.Setup(s => s.Read(Direction.Forwards, cmd.Id.StreamId, currentRevision, ct))
             .Returns(new[] {created}.AsAsyncEnumerable())
             .Verifiable("Read not called");
         eventStore.Setup(s => s.GetRevision(cmd.Id.StreamId, currentRevision, ct))
@@ -161,7 +161,7 @@ public class UpdateOnHandlerTests
         var nextRevision = Rand.NextULong();
         var ct = new CancellationTokenSource().Token;
 
-        eventStore.Setup(s => s.Read(cmd.Id.StreamId, currentRevision, ct))
+        eventStore.Setup(s => s.Read(Direction.Forwards, cmd.Id.StreamId, currentRevision, ct))
             .Returns(new[] {created}.AsAsyncEnumerable())
             .Verifiable("Read not called");
         eventStore.Setup(s => s.GetRevision(cmd.Id.StreamId, currentRevision, ct))

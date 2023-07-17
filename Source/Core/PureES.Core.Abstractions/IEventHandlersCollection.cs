@@ -9,5 +9,5 @@ public interface IEventHandlersCollection
     /// Gets all registered event handlers  (via <see cref="EventHandlerAttribute"/>) for an event type
     /// </summary>
     /// <param name="eventType">The event type</param>
-    Func<EventEnvelope, IServiceProvider, CancellationToken, Task>[] GetEventHandlers(Type eventType);
+    EventHandlerDelegate[] GetEventHandlers(Type eventType);
 }

@@ -1,5 +1,6 @@
 ﻿using System.Threading.Tasks.Dataflow;
 using Microsoft.Extensions.DependencyInjection;
+using Moq;
 using PureES.Core;
 using Xunit;
 
@@ -50,6 +51,27 @@ public class EventBusTests
         
         bus.Complete();
         await bus.Completion;
+    }
+
+    [Fact]
+    public async Task EventBusEvents()
+    {
+        var eventHandlers = new EventHandlersCollection(new Dictionary<Type, Action<EventEnvelope>[]>());
+
+        var events = new Mock<IEventBusEvents>();
+
+        var services = new ServiceCollection()
+            .AddSingleton(events.Object)
+            .BuildServiceProvider();
+        
+        var bus = new EventBus(new EventBusOptions(), services, eventHandlers);
+
+        var eventEnvelope = NewEnvelope();
+        await bus.SendAsync(eventEnvelope);
+        bus.Complete();
+        await bus.Completion;
+
+        events.Verify(e => e.OnEventHandled(eventEnvelope), Times.Once);
     }
 
     private static EventEnvelope NewEnvelope() => new(

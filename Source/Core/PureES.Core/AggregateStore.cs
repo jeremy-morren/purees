@@ -25,15 +25,15 @@ public sealed class AggregateStore<TAggregate> : IAggregateStore<TAggregate> whe
 
     private IAsyncEnumerable<EventEnvelope> Load(string streamId,
         CancellationToken cancellationToken) =>
-        _eventStore.Read(streamId, cancellationToken);
+        _eventStore.Read(Direction.Forwards, streamId, cancellationToken);
 
     private IAsyncEnumerable<EventEnvelope> Load(string streamId,
         ulong expectedRevision, CancellationToken cancellationToken) => 
-        _eventStore.Read(streamId, expectedRevision, cancellationToken);
+        _eventStore.Read(Direction.Forwards, streamId, expectedRevision, cancellationToken);
 
     private IAsyncEnumerable<EventEnvelope> LoadPartial(string streamId,
         ulong requiredRevision, CancellationToken cancellationToken) =>
-        _eventStore.ReadPartial(streamId, requiredRevision, cancellationToken);
+        _eventStore.ReadPartial(Direction.Forwards, streamId, requiredRevision, cancellationToken);
 
     ValueTask<TAggregate> IAggregateStore<TAggregate>.Create(IAsyncEnumerable<EventEnvelope> events, 
         CancellationToken cancellationToken) => _factory(events, _serviceProvider, cancellationToken);

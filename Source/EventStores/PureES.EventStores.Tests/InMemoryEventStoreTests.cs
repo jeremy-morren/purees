@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Internal;
+using Moq;
 using PureES.Core.EventStore;
 using PureES.EventStore.InMemory;
 
@@ -7,11 +8,8 @@ namespace PureES.EventStores.Tests;
 
 public class InMemoryEventStoreTests : EventStoreTestsBase
 {
-    private readonly TestInMemoryEventStore _store;
-
-    public InMemoryEventStoreTests() => _store = new TestInMemoryEventStore();
-
-    protected override IEventStore CreateStore() => _store;
+    protected override Task<EventStoreTestHarness> CreateStore(string testName, CancellationToken ct) =>
+        Task.FromResult(new EventStoreTestHarness(new Mock<IAsyncDisposable>().Object, new TestInMemoryEventStore()));
 
     [Fact]
     public void SaveAndLoad()
@@ -62,7 +60,7 @@ public class InMemoryEventStoreTests : EventStoreTestsBase
     }
 
     [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
-    private class TestInMemoryEventStore : InMemoryEventStore
+    private sealed class TestInMemoryEventStore : InMemoryEventStore
     {
         public TestInMemoryEventStore()
             : base(TestSerializer.InMemoryEventStoreSerializer,

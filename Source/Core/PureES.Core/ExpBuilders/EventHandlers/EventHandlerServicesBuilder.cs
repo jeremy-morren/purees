@@ -27,25 +27,26 @@ public class EventHandlerServicesBuilder
             services.TryAddTransient(wrappingType);
     }
     
-    public Dictionary<Type, Func<EventEnvelope, IServiceProvider, CancellationToken, Task>[]> BuildEventHandlers()
+    public Dictionary<Type, EventHandlerDelegate[]> BuildEventHandlers()
     {
         var builder = new EventHandlerExpBuilder(_options.BuilderOptions);
 
-        var handlers = new Dictionary<Type, Func<EventEnvelope, IServiceProvider, CancellationToken, Task>[]>();
+        var handlers = new Dictionary<Type, EventHandlerDelegate[]>();
     
         foreach (var method in GetEventHandlers())
         {
             var func = builder.BuildEventHandlerFactory(method).Compile();
+            var name = $"{method.DeclaringType?.FullName}+{method.Name}";
             var type = GetEventType(method);
             if (handlers.TryGetValue(type, out var array))
             {
                 Array.Resize(ref array, array.Length + 1);
-                array[^1] = func;
+                array[^1] = new EventHandlerDelegate(name, func);
                 handlers[type] = array;
             }
             else
             {
-                handlers.Add(GetEventType(method), new[] {func});
+                handlers.Add(GetEventType(method), new[] {new EventHandlerDelegate(name, func)});
             }
         }
 

@@ -2,12 +2,15 @@
 using Microsoft.Extensions.Logging;
 using PureES.Core;
 
+// ReSharper disable PropertyCanBeMadeInitOnly.Global
+
 namespace PureES.EventBus;
+
 
 public class EventBusOptions
 {
-    private static readonly Func<EventEnvelope, double, LogLevel> DefaultGetLogLevel = 
-        (_, elapsed) => elapsed > 60_000 ? LogLevel.Warning : LogLevel.Debug;
+    private static readonly Func<EventEnvelope, TimeSpan, LogLevel> DefaultGetLogLevel = 
+        (_, elapsed) => elapsed.TotalSeconds > 30 ? LogLevel.Warning : LogLevel.Information;
 
     /// <summary>
     /// Gets or sets the maximum length that event handlers should run before timing out.
@@ -33,7 +36,7 @@ public class EventBusOptions
     /// By default, <see cref="LogLevel.Warning" /> is returned if the handler took longer than 1 minute,
     /// otherwise <see cref="LogLevel.Debug"/>
     /// </remarks>
-    public Func<EventEnvelope, double, LogLevel> GetLogLevel { get; set; } = DefaultGetLogLevel;
+    public Func<EventEnvelope, TimeSpan, LogLevel> GetLogLevel { get; set; } = DefaultGetLogLevel;
     
     /// <summary>
     ///     Gets or sets the maximum number of event streams that may be processed simultaneously.
@@ -46,4 +49,9 @@ public class EventBusOptions
     ///     The default is <c>1</c>
     /// </summary>
     public int BufferSize { get; set; } = 1;
+
+    /// <summary>
+    /// Gets or sets a delegate that will be called after an event is handled (i.e. all event handlers are invoked)
+    /// </summary>
+    public Func<EventEnvelope, IServiceProvider, Task>? OnEventHandled { get; set; }
 }
