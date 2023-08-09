@@ -1,10 +1,13 @@
 ﻿using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+
+// ReSharper disable UnusedMember.Global
 
 namespace PureES.CosmosDB;
 
 /// <summary>
-/// An event which has not been committed
+/// An event stored inside Cosmos
 /// </summary>
 [JsonSerializable(typeof(CosmosEvent))]
 internal record CosmosEvent(Guid EventId,
@@ -12,8 +15,8 @@ internal record CosmosEvent(Guid EventId,
     string EventStreamId,
     ulong EventStreamPosition,
     string EventType,
-    JsonElement Event,
-    JsonElement? Metadata)
+    JsonNode? Event,
+    JsonNode? Metadata)
 {
     public string Id => $"{EventStreamId}|{EventStreamPosition}";
 }

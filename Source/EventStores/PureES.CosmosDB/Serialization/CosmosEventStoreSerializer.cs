@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json.Linq;
 using PureES.Core;
@@ -21,7 +22,8 @@ internal class CosmosEventStoreSerializer : ICosmosEventStoreSerializer
     {
         const LazyThreadSafetyMode threadMode = LazyThreadSafetyMode.ExecutionAndPublication;
         var metadata = new Lazy<object?>(() => 
-                cosmosEvent.Metadata?.Deserialize(_options.MetadataType, _options.JsonSerializerOptions), threadMode);
+                cosmosEvent.Metadata.Deserialize(_options.MetadataType, _options.JsonSerializerOptions), 
+            threadMode);
         var @event = new Lazy<object>(() =>
         {
             var type = _typeMap.GetCLRType(cosmosEvent.EventType);
@@ -38,17 +40,17 @@ internal class CosmosEventStoreSerializer : ICosmosEventStoreSerializer
 
     public CosmosEvent Serialize(UncommittedEvent @event, string streamId, ulong streamPosition, DateTimeOffset timestamp)
     {
-        var e = JsonSerializer.Serialize(@event.Event, _options.JsonSerializerOptions);
+        var e = JsonSerializer.SerializeToNode(@event.Event, _options.JsonSerializerOptions);
         var metadata = @event.Metadata != null 
-            ? JsonSerializer.Serialize(@event.Metadata, _options.JsonSerializerOptions) 
+            ? JsonSerializer.SerializeToNode(@event.Metadata, _options.JsonSerializerOptions) 
             : null;
         return new CosmosEvent(@event.EventId,
             timestamp.UtcDateTime,
             streamId,
             streamPosition,
             _typeMap.GetTypeName(@event.Event.GetType()),
-            JsonSerializer.Deserialize<JsonElement>(e),
-            metadata != null ? JsonSerializer.Deserialize<JsonElement>(metadata) : null);
+            e,
+            metadata);
     }
     
     #region Public
