@@ -1,15 +1,14 @@
 ﻿using PureES.Core.EventStore;
 
 // ReSharper disable InconsistentNaming
-// ReSharper disable UnusedAutoPropertyAccessor.Global
-// ReSharper disable MemberCanBePrivate.Global
-// ReSharper disable ConditionIsAlwaysTrueOrFalse
 
 namespace PureES.Core;
 
 /// <summary>
 ///     Represents an event persisted to <see cref="IEventStore" />
 /// </summary>
+
+[PublicAPI]
 public class EventEnvelope : IEquatable<EventEnvelope>
 {
     internal readonly Lazy<object> _event;
@@ -95,7 +94,6 @@ public class EventEnvelope : IEquatable<EventEnvelope>
     public override int GetHashCode() => 
         HashCode.Combine(Event, Metadata, EventId, StreamId, StreamPosition, Timestamp);
     
-    
     public bool Equals<TEvent, TMetadata>(EventEnvelope<TEvent, TMetadata>? other)
         where TEvent : notnull
         where TMetadata : notnull
@@ -124,6 +122,7 @@ public class EventEnvelope : IEquatable<EventEnvelope>
     #endregion
 }
 
+[PublicAPI]
 public class EventEnvelope<TEvent, TMetadata> : IEquatable<EventEnvelope<TEvent, TMetadata>>, IEquatable<EventEnvelope>
     where TEvent : notnull
 {

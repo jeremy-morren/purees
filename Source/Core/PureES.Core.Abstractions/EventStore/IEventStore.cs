@@ -1,4 +1,6 @@
-﻿namespace PureES.Core.EventStore;
+﻿using JetBrains.Annotations;
+
+namespace PureES.Core.EventStore;
 
 /// <summary>
 ///     A repository wrapping an <c>EventSourcing</c> database
@@ -6,6 +8,7 @@
 /// <remarks>
 ///     Any <c>Version</c> parameter is 0-index based
 /// </remarks>
+[PublicAPI]
 public interface IEventStore
 {
     /// <summary>

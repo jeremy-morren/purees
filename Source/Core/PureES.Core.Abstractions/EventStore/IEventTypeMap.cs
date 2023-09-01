@@ -1,8 +1,8 @@
-﻿
-// ReSharper disable InconsistentNaming
+﻿// ReSharper disable InconsistentNaming
 
 namespace PureES.Core.EventStore;
 
+[PublicAPI]
 public interface IEventTypeMap
 {
     /// <summary>

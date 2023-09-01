@@ -1,4 +1,5 @@
 ﻿using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace PureES.Core.EventStore;
 
@@ -6,6 +7,7 @@ namespace PureES.Core.EventStore;
 ///     A basic implementation o f <see cref="IEventTypeMap" />
 ///     which maps via <see cref="Type.Name" />
 /// </summary>
+[PublicAPI]
 public class BasicEventTypeMap : IEventTypeMap
 {
     private readonly Dictionary<string, Type> _types = new();
@@ -19,7 +21,7 @@ public class BasicEventTypeMap : IEventTypeMap
         //Get type name without namespace
         var name = type.Namespace == null
             ? type.FullName
-            : type.FullName?[(type.Namespace.Length + 1)..];
+            : type.FullName?.Substring(type.Namespace.Length + 1);
         return name ?? throw new InvalidOperationException($"Unable to get name for type {type}");
     }
 
@@ -53,11 +55,22 @@ public class BasicEventTypeMap : IEventTypeMap
     /// <exception cref="InvalidOperationException">
     ///     Type with identical name already added
     /// </exception>
+    [MethodImpl(MethodImplOptions.Synchronized)]
     public void AddType(Type type)
     {
         var str = GetTypeName(type);
-        if (_types.TryAdd(str, type)) return;
-        if (ThrowOnDuplicateTypeName)
-            throw new InvalidOperationException($"Duplicate type '{str}'");
+        if (_types.ContainsKey(str))
+        {
+            if (ThrowOnDuplicateTypeName)
+                throw new InvalidOperationException($"Duplicate type '{str}'");
+            return;
+        }
+        try
+        {
+            _types.Add(str, type);
+        }
+        catch (ArgumentException)
+        {
+        }
     }
 }

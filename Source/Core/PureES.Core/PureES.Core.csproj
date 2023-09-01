@@ -1,32 +1,49 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFrameworks>net6.0;net7.0;</TargetFrameworks>
+        <TargetFramework>netstandard2.0</TargetFramework>
+        
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <DebugType>embedded</DebugType>
-        <LangVersion>10</LangVersion>
+        
+        <LangVersion>11</LangVersion>
         <OutputType>library</OutputType>
+        <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+
+        <DebugType>embedded</DebugType>
+        <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
+        
+        <!-- Output will be in the analyzer (not lib) folder -->
+        <IncludeBuildOutput>false</IncludeBuildOutput>
+        <!-- Suppress related NuGet warnings about the above -->
+        <NoWarn>NU5100;NU5128</NoWarn>
     </PropertyGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\PureES.Core.Abstractions\PureES.Core.Abstractions.csproj" />
     </ItemGroup>
+    
+    <ItemGroup>
+        <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.3" PrivateAssets="All" />
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.4.0" PrivateAssets="All" />
+    </ItemGroup>
 
     <ItemGroup>
         <InternalsVisibleTo Include="$(AssemblyName).Tests" />
+        <InternalsVisibleto Include="DynamicProxyGenAssembly2" />
     </ItemGroup>
 
     <ItemGroup>
-        <FrameworkReference Include="Microsoft.AspNetCore.App" IsImplicitlyDefined="true" />
-    </ItemGroup>
-
-    <ItemGroup>
-        <Using Include="Microsoft.Extensions.DependencyInjection" />
-        <Using Include="Microsoft.Extensions.Logging" />
         <Using Include="System.Diagnostics.CodeAnalysis" />
+        
         <Using Include="System.Reflection" />
         <Using Include="System.Linq.Expressions" />
+        
+        <Using Include="PureES.Core.Generators.Symbols" />
+    </ItemGroup>
+    
+    <ItemGroup>
+        <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
     </ItemGroup>
 
 </Project>

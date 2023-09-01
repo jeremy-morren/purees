@@ -1,10 +1,11 @@
 ﻿namespace PureES.Core;
 
 /// <summary>
-///     Specifies that a method parameter should
-///     be bound using the parameter from <see cref="CommandHandler{T}" />
+/// Specifies that a method is a command handler,
+/// and that the parameter is the command
 /// </summary>
 [AttributeUsage(AttributeTargets.Parameter)]
+[PublicAPI]
 public sealed class CommandAttribute : Attribute
 {
 }

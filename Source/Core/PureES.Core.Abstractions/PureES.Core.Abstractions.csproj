@@ -1,13 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFrameworks>net6.0;net7.0;</TargetFrameworks>
+        <TargetFramework>netstandard2.0</TargetFramework>
+        <RootNamespace>PureES.Core</RootNamespace>
+        
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <RootNamespace>PureES.Core</RootNamespace>
-        <DebugType>embedded</DebugType>
-        <LangVersion>10</LangVersion>
+        <LangVersion>11</LangVersion>
         <OutputType>library</OutputType>
+        
+        <DebugType>embedded</DebugType>
+        <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
     </PropertyGroup>
 
     <PropertyGroup>
@@ -18,12 +21,13 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <FrameworkReference Include="Microsoft.AspNetCore.App" IsImplicitlyDefined="true" />
+        <PackageReference Include="JetBrains.Annotations" Version="2023.2.0" />
+        <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="7.0.0" />
+        <PackageReference Include="Microsoft.Bcl.HashCode" Version="1.1.1" />
     </ItemGroup>
-
+    
     <ItemGroup>
-        <Using Include="Microsoft.Extensions.DependencyInjection" />
-        <Using Include="Microsoft.Extensions.Logging" />
         <Using Include="System.Diagnostics.CodeAnalysis" />
+        <Using Include="JetBrains.Annotations" />
     </ItemGroup>
 </Project>

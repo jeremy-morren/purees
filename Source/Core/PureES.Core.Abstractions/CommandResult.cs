@@ -3,23 +3,24 @@
 namespace PureES.Core;
 
 /// <summary>
-///     Represents the result of a command
+///     Represents the result of a command.
 /// </summary>
-/// <param name="Event">Resultant events. Can be an <see cref="IEnumerable" /></param>
+/// <param name="Event">Command event. Can be an <see cref="IEnumerable" />.</param>
+/// <typeparam name="TEvent">Command event type</typeparam>
 /// <param name="Result">Command result</param>
-/// <typeparam name="TEvent">The event type to return. Can be nullable</typeparam>
 /// <typeparam name="TResult">
-///     Response type (corresponds to <c>TResult</c> in <see cref="ICommandHandler{TCommand}.Handle{TResult}" />).
+///     Response type (corresponds to <c>TResult</c> in <see cref="ICommandHandler{TCommand, TResult}" />).
 ///     Can be nullable.
 /// </typeparam>
 /// <remarks>
 /// <para>
 ///     Any response from a command handler other than this class will be treated as
-///     an event and <see cref="ICommandHandler{TCommand}.Handle" /> should be used.
+///     an event and <see cref="ICommandHandler{TCommand}" /> will be registered.
 /// </para>
 /// <para>
 ///     If a handler returns this class,
-///     <see cref="ICommandHandler{TCommand}.Handle{TResult}" /> should be used instead.
+///     <see cref="ICommandHandler{TCommand, TResult}" /> will be registered instead.
 /// </para>
 /// </remarks>
+[PublicAPI]
 public record CommandResult<TEvent, TResult>(TEvent Event, TResult Result);

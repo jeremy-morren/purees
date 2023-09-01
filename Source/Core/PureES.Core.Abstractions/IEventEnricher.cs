@@ -1,13 +1,14 @@
-﻿namespace PureES.Core;
+﻿using PureES.Core.EventStore;
 
+namespace PureES.Core;
+
+/// <summary>
+/// Enriches an event before persisting
+/// </summary>
 public interface IEventEnricher
 {
     /// <summary>
-    /// Creates metadata for an event emitted from a command
+    /// Enriches an event before persisting
     /// </summary>
-    /// <param name="command"></param>
-    /// <param name="event"></param>
-    /// <param name="ct"></param>
-    /// <returns></returns>
-    ValueTask<object?> GetMetadata(object command, object @event, CancellationToken ct);
+    void Enrich(UncommittedEvent @event);
 }

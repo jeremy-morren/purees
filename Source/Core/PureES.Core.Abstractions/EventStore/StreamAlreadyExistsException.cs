@@ -4,8 +4,7 @@
 /// The exception that is thrown when attempting
 /// to create a stream that already exists
 /// </summary>
-[SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
-[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")]
+[PublicAPI]
 public class StreamAlreadyExistsException : Exception
 {
     public StreamAlreadyExistsException(string stream, ulong currentRevision, Exception? innerException = null)

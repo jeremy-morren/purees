@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Options;
+﻿using System.Diagnostics.CodeAnalysis;
+using Microsoft.Extensions.Options;
 using PureES.Core.EventStore;
 using PureES.EventStore.InMemory;
 using PureES.EventStore.InMemory.Serialization;
