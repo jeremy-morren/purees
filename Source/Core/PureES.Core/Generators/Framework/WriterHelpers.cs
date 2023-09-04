@@ -1,7 +1,7 @@
 ﻿using System.CodeDom.Compiler;
 using System.ComponentModel;
 using System.Diagnostics;
-using Microsoft.CodeAnalysis;
+using JetBrains.Annotations;
 
 namespace PureES.Core.Generators.Framework;
 
@@ -102,12 +102,28 @@ internal static class WriterHelpers
     public static void WriteParameters(this IndentedWriter writer, params string[] args)
     {
         var str = string.Join(", ", args);
-        if (str.Length > 60)
+        if (str.Length > (80 - writer.GetIndent().Length))
         {
-            //Add newline after comma
-            str = string.Join($",\n{writer.GetIndent(1)}", args);
+            //Preceding newline + newline after comma
+            str = $"\n{writer.GetIndent(1)}" + string.Join($",\n{writer.GetIndent(1)}", args);
         }
-        
         writer.WriteRaw(str);
+    }
+    
+    public static void WriteLogMessage(this IndentedWriter writer,
+        string level,
+        string exception, 
+        [StructuredMessageTemplate] string message, params string[] args)
+    {
+        writer.Write($"this._logger?.Log(");
+        //ILogger.Log(LogLevel logLevel, Exception? exception, string? message, params object?[] args)
+        writer.WriteParameters(new[]
+        {
+            $"logLevel: LogEventLevel.{level}",
+            $"exception: {exception}",
+            $"message: \"{message}\"",
+        }, args);
+
+        writer.WriteRawLine(");");
     }
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using PureES.Core.Tests.Models;
+using Shouldly;
 using Xunit;
 
 namespace PureES.Core.Tests.Generators.ReflectedSymbols;

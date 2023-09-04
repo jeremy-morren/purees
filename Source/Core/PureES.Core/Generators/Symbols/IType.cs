@@ -3,8 +3,6 @@
 // ReSharper disable ReturnTypeCanBeEnumerable.Global
 // ReSharper disable UnusedMember.Global
 
-using Microsoft.CodeAnalysis;
-
 namespace PureES.Core.Generators.Symbols;
 
 internal interface IType : IToken, IEquatable<IType> 
@@ -35,12 +33,8 @@ internal interface IType : IToken, IEquatable<IType>
     public bool IsReferenceType { get; }
 
     public bool IsAbstract { get; }
-
-    public bool IsPartial { get; }
     
     public bool IsGenericType { get; }
-
-    public bool IsNullable { get; }
 
     /// <summary>
     /// Gets all attributes applied to a type

@@ -3,11 +3,11 @@ using PureES.Core.Generators.Framework;
 
 namespace PureES.Core.Generators;
 
-internal class AggregatesErrorLogWriter
+internal class PureESErrorLogWriter
 {
     private readonly IErrorLog _log;
 
-    public AggregatesErrorLogWriter(IErrorLog log)
+    public PureESErrorLogWriter(IErrorLog log)
     {
         _log = log;
     }
@@ -23,7 +23,7 @@ internal class AggregatesErrorLogWriter
     }
 
     public int ErrorCount { get; private set; }
-
+    
     public void MultipleParametersDefinedWithAttribute(IMethod method, Type attribute)
     {
         WriteError(method.Location,
@@ -76,5 +76,23 @@ internal class AggregatesErrorLogWriter
             "Invalid return type on create when method",
             "Create when method '{0}' from '{1}' does not return parent aggregate.",
             method, method.DeclaringType);
+    }
+
+    public void EventHandlerMethodHasNoParent(IMethod method)
+    {
+        WriteError(method.Location,
+            "1030",
+            "Declaring type for event handler method is null",
+            "Declaring type for method '{0}' is null",
+            method);
+    }
+
+    public void UnknownEventHandlerEventType(IMethod method)
+    {
+        WriteError(method.Location,
+            "1031",
+            "Unable to determine event type for event handler",
+            "Unable to determine event type for event handler method '{0}'",
+            method);
     }
 }

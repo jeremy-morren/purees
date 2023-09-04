@@ -1,7 +1,5 @@
 ﻿// ReSharper disable UnusedMember.Global
 
-using JetBrains.Annotations;
-
 namespace PureES.Core.EventStore;
 
 [PublicAPI]

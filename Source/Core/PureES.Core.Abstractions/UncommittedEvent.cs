@@ -1,5 +1,4 @@
-﻿using JetBrains.Annotations;
-using PureES.Core.EventStore;
+﻿using PureES.Core.EventStore;
 
 namespace PureES.Core;
 

@@ -1,6 +1,4 @@
 ﻿using System.ComponentModel;
-using System.Diagnostics;
-using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
 using PureES.Core.EventStore;
 using PureES.Core.Generators.Framework;
@@ -12,8 +10,9 @@ namespace PureES.Core.Generators;
 
 internal class CommandHandlerGenerator
 {
-    public static string Generate(Aggregate aggregate, Handler handler)
+    public static string Generate(Aggregate aggregate, Handler handler, out string filename)
     {
+        filename = $"{Namespace}.{GetClassName(handler)}";
         var generator = new CommandHandlerGenerator(aggregate, handler);
         return generator.Generate();
     }
@@ -37,18 +36,18 @@ internal class CommandHandlerGenerator
 
         _w.WriteLine();
         
-        _w.WriteLine("namespace PureES.CommandHandlers");
+        _w.WriteLine($"namespace {Namespace}");
         _w.PushBrace();
         
         _w.WriteClassAttributes(EditorBrowsableState.Never);
-        _w.WriteLine($"internal class {ClassName} : ICommandHandler<{_handler.Command.CSharpName}>");
+        _w.WriteLine($"internal class {ClassName} : {Interface}");
         _w.PushBrace();
 
         WriteConstructor();
 
         _w.WriteLine();
-        
-        WriteHelperMethods();
+
+        GeneratorHelpers.WriteGetElapsed(_w);
 
         _w.WriteLine();
 
@@ -73,7 +72,7 @@ internal class CommandHandlerGenerator
         //Write service definitions
 
         _w.WriteLine($"private readonly {StreamIdSvc} _getStreamId;");
-        _w.WriteLine($"private readonly {AggregateStoreType} __aggregateStore;");
+        _w.WriteLine($"private readonly {AggregateStoreType} _aggregateStore;");
         _w.WriteLine($"private readonly {EventStoreType} _eventStore;");
         _w.WriteLine($"private readonly {EnumerableEventEnricherType} _enrichers;");
         _w.WriteLine($"private readonly {EnumerableValidatorType} _syncValidators;");
@@ -95,7 +94,7 @@ internal class CommandHandlerGenerator
                 $"{StreamIdSvc} getStreamId",
                 $"{OptimisticConcurrencyType} optimisticConcurrency",
                 $"{EventStoreType} eventStore",
-                $"{AggregateStoreType} _aggregateStore",
+                $"{AggregateStoreType} aggregateStore",
                 $"{EnumerableEventEnricherType} enrichers = null",
                 $"{EnumerableEventEnricherType} enrichers = null",
                 $"{EnumerableValidatorType} syncValidators = null",
@@ -107,7 +106,7 @@ internal class CommandHandlerGenerator
         _w.PushBrace();
         _w.WriteLine("this._getStreamId = getStreamId ?? throw new ArgumentNullException(nameof(getStreamId))");
         _w.WriteLine("this._eventStore = eventStore ?? throw new ArgumentNullException(nameof(eventStore));");
-        _w.WriteLine("this.__aggregateStore = _aggregateStore ?? throw new ArgumentNullException(nameof(_aggregateStore));");
+        _w.WriteLine("this._aggregateStore = aggregateStore ?? throw new ArgumentNullException(nameof(aggregateStore));");
 
         _w.WriteLine("this._concurrency = concurrency;");
         _w.WriteLine("this._enrichers = enrichers;");
@@ -123,19 +122,6 @@ internal class CommandHandlerGenerator
         _w.WriteLine();
     }
 
-    private void WriteHelperMethods()
-    {
-        //Method to get elapsed time
-        var ts = $"global::{typeof(TimeSpan).FullName}";
-        
-        _w.WriteMethodAttributes();
-        _w.WriteStatement("private static double GetElapsed(long start)", () =>
-        {
-            _w.WriteLine($"double seconds = (double)({GetTimestamp} - start) / (double){ts}.{nameof(TimeSpan.TicksPerSecond)};");
-            _w.WriteLine($"return {ts}.{nameof(TimeSpan.FromSeconds)}(seconds).TotalMilliseconds;");
-        });
-    }
-
     private void WriteHandler()
     {
         var cmdType = $"typeof({_aggregate.Type.CSharpName})";
@@ -148,12 +134,12 @@ internal class CommandHandlerGenerator
             _w.WriteStatement("if (command == null)", "throw new ArgumentNullException(nameof(command));");
         }
         
-        WriteLogMessage("Debug",
+        _w.WriteLogMessage("Debug",
             "null",
             "Handling command {@Command}. Aggregate: {@Aggregate}. Method: {@Method}", 
             cmdType, aggType, method);
 
-        _w.WriteLine($"var start = {GetTimestamp};");
+        _w.WriteLine($"var start = {GeneratorHelpers.GetTimestamp};");
         
         _w.WriteStatement("try", () =>
         {
@@ -196,7 +182,7 @@ internal class CommandHandlerGenerator
 
             _w.WriteLine($"this._concurrency?.{nameof(IOptimisticConcurrency.OnUpdated)}(streamId, command, {(_handler.IsCreate ? "null" : "currentRevision")}, revision);");
             
-            WriteLogMessage("Information",
+            _w.WriteLogMessage("Information",
                 "null",
                 "Handled command {@Command}. Elapsed: {0.0000}ms. Stream {StreamId} is now at {Revision}. Aggregate: {@Aggregate}. Method: {@Method}",
                 cmdType, "GetElapsed(start)", "streamId", "revision", aggType, method);
@@ -207,7 +193,7 @@ internal class CommandHandlerGenerator
         _w.WriteStatement($"catch (global::{typeof(Exception).FullName} ex)", () =>
         {
             //Note: We write 'Information' here, so avoid duplicate error messages when it is caught by global request exception handler
-            WriteLogMessage("Information",
+            _w.WriteLogMessage("Information",
                 "ex",
                 "Error handling command {@Command}. Aggregate: {@Aggregate}. Method: {@Method}. Elapsed: {0.0000}ms",
                 cmdType, aggType, method, "GetElapsed(start)");
@@ -242,7 +228,7 @@ internal class CommandHandlerGenerator
                 if (p.HasAttribute<CommandAttribute>())
                     return "command";
                 if (p.HasFromServicesAttribute())
-                    return $"this._service{_handler.Services.IndexOf(p.Type)}";
+                    return $"this._service{_handler.Services.GetIndex(p.Type)}";
                 if (p.Type.IsCancellationToken())
                     return "cancellationToken";
                 throw new NotImplementedException("Unknown parameter");
@@ -319,26 +305,18 @@ internal class CommandHandlerGenerator
             _w.WriteLine("var streamId = this._getStreamId(command);");
         }
     }
-    
-    private void WriteLogMessage(string level, string exception, [StructuredMessageTemplate] string message, params string[] args)
-    {
-        _w.Write($"this._logger?.Log(");
-        //LogLevel logLevel, Exception? exception, string? message, params object?[] args)
-        _w.WriteParameters(new[]
-        {
-            $"logLevel: LogEventLevel.{level}",
-            $"exception: {exception}",
-            $"message: \"{message}\"",
-        }, args);
-
-        _w.WriteRawLine(");");
-    }
 
     #region Types
 
-    private string ClassName => $"{TypeNameHelpers.SanitizeName(_handler.Command.Name)}CommandHandler";
+    public const string Namespace = "PureES.CommandHandlers";
+    
+    public static string GetClassName(Handler handler) => $"{TypeNameHelpers.SanitizeName(handler.Command.Name)}CommandHandler";
 
-    private static string GetTimestamp => $"global::{typeof(Stopwatch).FullName}.{nameof(Stopwatch.GetTimestamp)}()";
+    public static string GetInterface(Handler handler) =>
+        TypeNameHelpers.GetGenericTypeName(typeof(ICommandHandler<>), handler.Command.CSharpName);
+
+    private string ClassName => GetClassName(_handler);
+    private string Interface => GetInterface(_handler);
 
     private static string EventStoreType => $"global::{typeof(IEventStore).FullName}";
     

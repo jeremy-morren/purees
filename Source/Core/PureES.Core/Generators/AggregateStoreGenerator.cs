@@ -7,8 +7,12 @@ namespace PureES.Core.Generators;
 
 internal class AggregateStoreGenerator
 {
-    public static string Generate(Aggregate aggregate) => new AggregateStoreGenerator(aggregate).GenerateInternal();
-    
+    public static string Generate(Aggregate aggregate, out string filename)
+    {
+        filename = $"{Namespace}.{GetClassName(aggregate)}";
+        return new AggregateStoreGenerator(aggregate).GenerateInternal();
+    }
+
     private readonly IndentedWriter _w = new();
 
     private readonly Aggregate _aggregate;
@@ -32,11 +36,11 @@ internal class AggregateStoreGenerator
 
         _w.WriteLine();
         
-        _w.WriteLine("namespace PureES.AggregateStores");
+        _w.WriteLine($"namespace {Namespace}");
         _w.PushBrace();
 
         _w.WriteClassAttributes(EditorBrowsableState.Never);
-        _w.WriteLine($"internal class {ClassName} : IAggregateStore<{_aggregate.Type.CSharpName}>");
+        _w.WriteLine($"internal class {ClassName} : {Interface}");
         _w.PushBrace();
         
         WriteConstructor();
@@ -207,7 +211,7 @@ internal class AggregateStoreGenerator
 
             if (p.HasFromServicesAttribute())
             {
-                var index = _services.IndexOf(p.Type);
+                var index = _services.GetIndex(p.Type);
                 return $"this._service{index}";
             }
 
@@ -224,7 +228,15 @@ internal class AggregateStoreGenerator
     
     #region Names
 
-    private string ClassName => $"{TypeNameHelpers.SanitizeName(_aggregate.Type.Name)}AggregateStore";
+    public const string Namespace = "PureES.AggregateStores";
+    
+    public static string GetClassName(Aggregate aggregate) => $"{TypeNameHelpers.SanitizeName(aggregate.Type.Name)}AggregateStore";
+
+    public static string GetInterface(Aggregate aggregate) =>
+        TypeNameHelpers.GetGenericTypeName(typeof(IAggregateStore<>), aggregate.Type.CSharpName);
+    
+    private string ClassName => GetClassName(_aggregate);
+    private string Interface => GetInterface(_aggregate);
 
     private static string EventStoreType => $"global::{typeof(IEventStore).FullName}";
 

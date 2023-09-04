@@ -25,4 +25,27 @@ internal class ReflectedMethod : ReflectedTokenBase, IMethod
     public bool IsStatic => _method.IsStatic;
 
     public override string ToString() => Name;
+    
+    #region Equality
+
+    public bool Equals(IMethod? other)
+    {
+        if (ReferenceEquals(null, other)) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return other is ReflectedMethod o && _method.Equals(o._method);
+    }
+
+    public override bool Equals(object? obj)
+    {
+        if (ReferenceEquals(null, obj)) return false;
+        if (ReferenceEquals(this, obj)) return true;
+        return obj is ReflectedMethod o && o._method.Equals(_method);
+    }
+
+    public override int GetHashCode()
+    {
+        return _method.GetHashCode();
+    }
+    
+    #endregion
 }

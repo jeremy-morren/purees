@@ -5,8 +5,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using PureES.Core.Tests.Framework;
 using Shouldly;
 
 // ReSharper disable PartialTypeWithSinglePart
@@ -88,6 +86,35 @@ public partial class TestAggregates
             service.ShouldNotBeNull();
             StreamPosition.ShouldNotBe(envelope.StreamPosition);
             return Task.CompletedTask;
+        }
+    }
+
+    public class EventHandlers
+    {
+        private readonly IServiceProvider _services;
+
+        public EventHandlers(IServiceProvider services) => _services = services;
+
+        [EventHandler]
+        public static Task OnCreated([Event] Events.Created e, CancellationToken ct)
+        {
+            e.ShouldNotBeNull();
+            return Task.CompletedTask;
+        }
+
+        [EventHandler]
+        public void OnUpdated(EventEnvelope<Events.Updated> envelope)
+        {
+            envelope.ShouldNotBeNull();
+            _services.ShouldNotBeNull();
+        }
+
+        [EventHandler]
+        public void OnCreated2(EventEnvelope<Events.Created, object> envelope, [FromServices] ILoggerFactory lf)
+        {
+            envelope.ShouldNotBeNull();
+            _services.ShouldNotBeNull();
+            lf.ShouldNotBeNull();
         }
     }
 }

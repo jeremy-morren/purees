@@ -11,6 +11,7 @@ internal static class AttributeHelpers
 
     public static bool HasAttribute<TAttribute>(this IParameter parameter) => parameter.Attributes.Any(Is<TAttribute>);
     public static bool HasAttribute<TAttribute>(this IType type) => type.Attributes.Any(Is<TAttribute>);
+    public static bool HasAttribute<TAttribute>(this IMethod method) => method.Attributes.Any(Is<TAttribute>);
 
     public static bool HasFromServicesAttribute(this IParameter parameter) =>
         parameter.Attributes.Any(IsFromServicesAttribute);

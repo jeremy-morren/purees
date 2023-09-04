@@ -1,6 +1,5 @@
 ﻿
 using System.Reflection;
-using JetBrains.Annotations;
 
 namespace PureES.Core;
 
@@ -16,6 +15,12 @@ public class PureESOptions
     /// <see cref="PropertyInfo"/> is a <see langword="string" />
     /// </remarks>
     public Func<Type, PropertyInfo> GetStreamIdProperty { get; set; } = DefaultGetStreamIdProperty;
+
+    /// <summary>
+    /// Configure whether exceptions thrown by event handlers should be re-thrown or swallowed (caught).
+    /// Default <see langword="true" />
+    /// </summary>
+    public bool PropagateEventHandlerExceptions { get; set; } = true;
 
     internal void Validate()
     {

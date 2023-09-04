@@ -1,23 +1,27 @@
 ﻿using PureES.Core.Generators.Framework;
 using PureES.Core.Generators.Models;
+using EventHandler = PureES.Core.Generators.Models.EventHandler;
 
 // ReSharper disable InvertIf
 
 namespace PureES.Core.Generators;
 
-internal class AggregateBuilder
+internal class PureESTreeBuilder
 {
-    private readonly AggregatesErrorLogWriter _log;
+    private readonly PureESErrorLogWriter _log;
 
-    private AggregateBuilder(IErrorLog log)
+    private PureESTreeBuilder(IErrorLog log)
     {
-        _log = new AggregatesErrorLogWriter(log);
+        _log = new PureESErrorLogWriter(log);
     }
 
-    public static bool Build(IType type, out Aggregate aggregate, IErrorLog log) =>
-        new AggregateBuilder(log).BuildInternal(type, out aggregate);
+    public static bool BuildAggregate(IType type, out Aggregate aggregate, IErrorLog log)
+    {
+        if (type == null) throw new ArgumentNullException(nameof(type));
+        return new PureESTreeBuilder(log).BuildAggregateInternal(type, out aggregate);
+    }
 
-    private bool BuildInternal(IType type, out Aggregate aggregate)
+    private bool BuildAggregateInternal(IType type, out Aggregate aggregate)
     {
         aggregate = null!;
         var handlers = new List<Handler>();
@@ -121,6 +125,59 @@ internal class AggregateBuilder
         };
         return true;
     }
+    
+    public static bool BuildEventHandler(IMethod method, out EventHandler handler, IErrorLog log) =>
+        new PureESTreeBuilder(log).BuildEventHandler(method, out handler);
+
+    private bool BuildEventHandler(IMethod method, out EventHandler handler)
+    {
+        handler = null!;
+
+        if (method.DeclaringType == null)
+        {
+            _log.EventHandlerMethodHasNoParent(method);
+            return false;
+        }
+
+        var services = method.Parameters
+            .Where(p => p.HasFromServicesAttribute())
+            .Select(p => p.Type)
+            .ToArray();
+
+        if (method.Parameters.Any(p => p.HasAttribute<EventAttribute>()))
+        {
+            if (!ValidateSingleAttribute<EventAttribute>(method, out var @event))
+                return false;
+            handler = new EventHandler()
+            {
+                Parent = method.DeclaringType,
+                Event = @event.Type,
+                Method = method,
+                Services = services
+            };
+            return true;
+        }
+
+        if (method.Parameters.Any(p => p.Type.IsGenericEventEnvelope()))
+        {
+            if (!ValidateAllParameters(method, p => p.Type.IsGenericEventEnvelope()))
+                return false;
+            if (!ValidateSingleEventEnvelope(method, out var @event))
+                return false;
+            handler = new EventHandler()
+            {
+                Parent = method.DeclaringType,
+                Event = @event!,
+                Method = method,
+                Services = services
+            };
+            return true;
+        }
+        //Unknown method
+        throw new NotImplementedException("Unknown event handler");
+    }
+    
+    #region Helpers
 
     /// <summary>
     /// Validates that the attribute only occurs on 1 parameter
@@ -180,11 +237,13 @@ internal class AggregateBuilder
         return valid;
     }
 
-    private bool ValidateReturnType(IMethod method, IType expected)
+    private static bool ValidateReturnType(IMethod method, IType expected)
     {
         if (method.ReturnType == null) return false;
         if (method.ReturnType.IsAsync(out var underlyingType))
             return underlyingType != null && expected.Equals(underlyingType);
         return method.ReturnType.Equals(expected);
     }
+    
+    #endregion
 }

@@ -1,5 +1,4 @@
 ﻿using System;
-using PureES.Core.Tests.Framework;
 using PureES.Core.Tests.Models;
 using Xunit;
 

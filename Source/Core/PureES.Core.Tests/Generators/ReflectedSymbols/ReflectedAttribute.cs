@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using PureES.Core.Generators.Symbols;
 
 namespace PureES.Core.Tests.Generators.ReflectedSymbols;
@@ -18,18 +19,28 @@ internal class ReflectedAttribute : ReflectedTokenBase, IAttribute
 
     public IType Type => new ReflectedType(_value.GetType());
 
-    public IType TypeParameter => new ReflectedType((Type)GetProperty());
-    public string StringParameter => (string)GetProperty();
+    public IType TypeParameter => GetProperty(t => new ReflectedType((Type)t));
+    
+    public string StringParameter => GetProperty(o => (string)o);
 
-    public string[] StringParams => (string[])GetProperty();
+    public string[] StringParams => GetProperty(o => (string[])o);
 
-    private object GetProperty()
+    private T GetProperty<T>(Func<object, T> construct)
     {
-        //We just return the first property
-        var prop = _value.GetType()
-            .GetProperties(BindingFlags.Instance | BindingFlags.Public)
-            .Single(a => a.Name != "TypeId");
-        return prop.GetValue(_value)!;
+        try
+        {
+
+            //We just return the first property
+            var prop = _value.GetType()
+                .GetProperties(BindingFlags.Instance | BindingFlags.Public)
+                .FirstOrDefault(a => a.GetCustomAttribute(typeof(CompilerGeneratedAttribute)) == null);
+            var value = prop?.GetValue(_value);
+            return value == null ? default! : construct(value);
+        }
+        catch (InvalidCastException)
+        {
+            return default!;
+        }
     }
 
     public override string? ToString() => Type.ToString();

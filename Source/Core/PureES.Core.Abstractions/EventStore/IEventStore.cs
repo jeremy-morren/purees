@@ -1,6 +1,4 @@
-﻿using JetBrains.Annotations;
-
-namespace PureES.Core.EventStore;
+﻿namespace PureES.Core.EventStore;
 
 /// <summary>
 ///     A repository wrapping an <c>EventSourcing</c> database

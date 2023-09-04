@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace PureES.Core.Tests.Framework;
+namespace PureES.Core.Tests.Models;
 
 public static class Rand
 {

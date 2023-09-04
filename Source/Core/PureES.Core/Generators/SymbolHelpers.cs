@@ -2,16 +2,8 @@
 
 namespace PureES.Core.Generators;
 
-internal static class TypeHelpers
+internal static class SymbolHelpers
 {
-    public static int IndexOf(this IReadOnlyList<IType> list, IType item)
-    {
-        for (var i = 0; i < list.Count; i++)
-            if (list[i].Equals(item))
-                return i;
-        return -1;
-    }
-    
     [Pure]
     public static bool IsNonGenericEventEnvelope(this IType type)
     {
@@ -35,6 +27,12 @@ internal static class TypeHelpers
         metadataType = null!;
         return type.BaseType != null && IsGenericEventEnvelope(type.BaseType, out eventType, out metadataType);
     }
+
+    /// <summary>
+    /// Determines if type is <see cref="EventEnvelope{TEvent,TMetadata}"/> or subclass
+    /// </summary>
+    [Pure]
+    public static bool IsGenericEventEnvelope(this IType type) => type.IsGenericEventEnvelope(out _, out _);
 
     /// <summary>
     /// Checks that a type in the inheritance hierarchy is NonGenericEventEnvelope

@@ -19,7 +19,8 @@ internal class ReflectedType : ReflectedTokenBase, IType
         bool? isPartial = null,
         bool? isNullable = null)
     {
-        _type = type;
+        _type = type ?? throw new ArgumentNullException(nameof(type));
+        
         _isPartial = isPartial;
         _isNullable = isNullable;
     }
@@ -41,11 +42,7 @@ internal class ReflectedType : ReflectedTokenBase, IType
     
     public bool IsAbstract => _type.IsAbstract;
 
-    public bool IsPartial => _isPartial ?? throw new NotImplementedException($"{nameof(_isPartial)} not set");
-
     public bool IsGenericType => _type.IsGenericType;
-
-    public bool IsNullable => _isNullable ?? throw new NotImplementedException($"{nameof(_isNullable)} not set");
 
     public IEnumerable<IAttribute> Attributes => _type.GetCustomAttributes(false)
         .Select(a => new ReflectedAttribute(a));
@@ -78,7 +75,7 @@ internal class ReflectedType : ReflectedTokenBase, IType
     {
         get
         {
-            if (!_type.IsGenericType || Nullable.GetUnderlyingType(_type) != null)
+            if (!_type.IsGenericType || Nullable.GetUnderlyingType(_type) != null || !_type.Name.Contains('`'))
                 return LangKeyword(_type);
             var n = _type.Name[.._type.Name.IndexOf('`')]; //Get name without `
             var sb = new StringBuilder($"global::{_type.Namespace}.{n}");

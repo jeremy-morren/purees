@@ -3,7 +3,7 @@
 
 namespace PureES.Core.Generators.Symbols;
 
-internal interface IMethod : IToken
+internal interface IMethod : IToken, IEquatable<IMethod>
 {
     public string Name { get; }
     

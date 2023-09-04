@@ -1,6 +1,4 @@
-﻿using PureES.Core.Tests.Framework;
-
-namespace PureES.Core.Tests.Models;
+﻿namespace PureES.Core.Tests.Models;
 
 public static class Commands
 {

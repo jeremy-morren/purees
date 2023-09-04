@@ -33,4 +33,27 @@ internal class MethodSymbol : IMethod
     public bool IsStatic => _source.IsStatic;
 
     public override string ToString() => _source.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
+    
+    #region Equality
+
+    public bool Equals(IMethod? other)
+    {
+        if (ReferenceEquals(null, other)) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return other is MethodSymbol o && _source.Equals(o._source, SymbolEqualityComparer.Default);
+    }
+
+    public override bool Equals(object? obj)
+    {
+        if (ReferenceEquals(null, obj)) return false;
+        if (ReferenceEquals(this, obj)) return true;
+        return obj is MethodSymbol o && _source.Equals(o._source, SymbolEqualityComparer.Default);
+    }
+
+    public override int GetHashCode()
+    {
+        return SymbolEqualityComparer.Default.GetHashCode(_source);
+    }
+    
+    #endregion
 }

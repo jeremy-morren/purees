@@ -1,9 +1,12 @@
 ﻿using System;
 using System.Linq;
+using FluentAssertions;
 using PureES.Core.Generators;
 using PureES.Core.Tests.Framework;
 using PureES.Core.Tests.Generators.ReflectedSymbols;
 using PureES.Core.Tests.Models;
+using Shouldly;
+using Xunit;
 using Xunit.Abstractions;
 
 namespace PureES.Core.Tests.Generators;
@@ -26,7 +29,7 @@ public class CommandHandlerGeneratorTests
     {
         var log = new FakeErrorLog();
 
-        var built = AggregateBuilder.Build(new ReflectedType(aggregateType, false), out var aggregate, log);
+        var built = PureESTreeBuilder.BuildAggregate(new ReflectedType(aggregateType, false), out var aggregate, log);
 
         log.Errors.ShouldBeEmpty();
         built.ShouldBeTrue();
@@ -35,7 +38,8 @@ public class CommandHandlerGeneratorTests
 
         var handler = aggregate.Handlers.Single(h => h.Method.Name == methodName);
 
-        var result = CommandHandlerGenerator.Generate(aggregate, handler);
+        var result = CommandHandlerGenerator.Generate(aggregate, handler, out var filename);
+        filename.ShouldNotBeNullOrWhiteSpace();
         result.ShouldNotBeNullOrEmpty();
         _output.WriteLine(result);
     }

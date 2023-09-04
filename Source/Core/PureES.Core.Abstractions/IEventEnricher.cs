@@ -1,6 +1,4 @@
-﻿using PureES.Core.EventStore;
-
-namespace PureES.Core;
+﻿namespace PureES.Core;
 
 /// <summary>
 /// Enriches an event before persisting
