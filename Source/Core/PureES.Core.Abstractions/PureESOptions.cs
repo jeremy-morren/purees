@@ -16,21 +16,21 @@ public class PureESOptions
     /// </remarks>
     public Func<Type, PropertyInfo> GetStreamIdProperty { get; set; } = DefaultGetStreamIdProperty;
 
-    /// <summary>
-    /// Configure whether exceptions thrown by event handlers should be re-thrown or swallowed (caught).
-    /// Default <see langword="true" />
-    /// </summary>
-    public bool PropagateEventHandlerExceptions { get; set; } = true;
+    public PureESEventHandlerOptions EventHandlers { get; } = new();
 
     internal void Validate()
     {
         if (GetStreamIdProperty == null!)
             throw new Exception($"{nameof(GetStreamIdProperty)} is required");
+        EventHandlers.Validate();
     }
 
     private static PropertyInfo DefaultGetStreamIdProperty(Type type)
     {
         const string prop = "StreamId";
+
+        //Efficiency: shouldn't need this
+        //if (type == typeof(string)) throw new NotImplementedException();
 
         return type.GetProperty(prop, BindingFlags.Public | BindingFlags.Instance)
                ?? throw new InvalidOperationException($"Unable to locate property {prop} on type {type}");

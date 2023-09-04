@@ -5,11 +5,11 @@ namespace PureES.Core.Generators;
 public static class TypeNameHelpers
 {
     [Pure]
-    public static string GetGenericTypeName(Type type, string genericArgument)
+    public static string GetGenericTypeName(Type type, params string[] genericArguments)
     {
         var name = type.FullName!;
         var index = name.IndexOf("`", StringComparison.Ordinal);
-        return $"global::{name.Substring(0, index)}<{genericArgument}>";
+        return $"global::{name.Substring(0, index)}<{string.Join(", ", genericArguments)}>";
     }
 
     /// <summary>

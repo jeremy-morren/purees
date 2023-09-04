@@ -53,7 +53,7 @@ public class PureESIncrementalGenerator : IIncrementalGenerator
                     aggregates.Add(aggregate);
                     
                     cs = AggregateStoreGenerator.Generate(aggregate, out filename);
-                    context.AddSource($"{filename}.g.cs", cs);
+                    context.AddSource($"{filename}.g.cs", NormalizeLineEndings(cs));
                     foreach (var handler in aggregate.Handlers)
                     {
                         cs = CommandHandlerGenerator.Generate(aggregate, handler, out filename);
@@ -74,17 +74,22 @@ public class PureESIncrementalGenerator : IIncrementalGenerator
                 foreach (var collection in eventHandlerCollections)
                 {
                     cs = EventHandlerGenerator.Generate(collection, out filename);
-                    context.AddSource($"{filename}.g.cs", cs);
+                    context.AddSource($"{filename}.g.cs", NormalizeLineEndings(cs));
                 }
                 
                 //Register DI
                 cs = DependencyInjectionGenerator.Generate(aggregates, eventHandlerCollections, out filename);
-                context.AddSource($"{filename}.g.cs", cs);
+                context.AddSource($"{filename}.g.cs", NormalizeLineEndings(cs));
             }
             catch (Exception e)
             {
                 log.WriteError(Location.None, "1000", "Fatal error", "A fatal error has occurred: '{0}'", e.ToString());
             }
         });
+    }
+
+    private static string NormalizeLineEndings(string input)
+    {
+        return input.Replace("\n", Environment.NewLine);
     }
 }

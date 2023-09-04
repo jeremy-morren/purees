@@ -1,29 +1,44 @@
-﻿using PureES.Core;
+﻿using Microsoft.Extensions.DependencyInjection;
+using PureES.Core;
 
 namespace PureES.EventBus.Tests;
 
-public class EventHandlersCollection : IEventHandlersCollection
+public class EventHandlerServices : IServiceProvider
 {
-    private readonly Dictionary<Type, Action<EventEnvelope>[]> _handlers;
+    private readonly ServiceProvider _services;
 
-    public EventHandlersCollection(Dictionary<Type, Action<EventEnvelope>[]> handlers) => _handlers = handlers;
-
-    public EventHandlerDelegate[] GetEventHandlers(Type eventType)
+    public EventHandlerServices(Dictionary<Type, Action<EventEnvelope>[]> handlers,
+        Action<IServiceCollection>? configureServices = null)
     {
-        if (!_handlers.TryGetValue(eventType, out var delegates))
-            return Array.Empty<EventHandlerDelegate>();
-
-        var arr = new EventHandlerDelegate[delegates.Length];
-        for (var i = 0; i < delegates.Length; i++)
+        var services = new ServiceCollection();
+        foreach (var pair in handlers)
         {
-            var action = delegates[i];
-            arr[i] = new EventHandlerDelegate(string.Empty, (e, _, _) =>
-            {
-                action(e);
-                return Task.CompletedTask;
-            });
+            var svc = typeof(IEventHandler<>).MakeGenericType(pair.Key);
+            var impl = typeof(EventHandler<>).MakeGenericType(pair.Key);
+            foreach (var handler in pair.Value)
+                services.AddSingleton(svc, Activator.CreateInstance(impl, new object?[] { handler })!);
         }
 
-        return arr;
+        configureServices?.Invoke(services);
+
+        _services = services.BuildServiceProvider();
+    }
+
+    public object? GetService(Type serviceType)
+    {
+        return _services.GetService(serviceType);
+    }
+    
+    private class EventHandler<TEvent> : IEventHandler<TEvent>
+    {
+        private readonly Action<EventEnvelope> _handler;
+
+        public EventHandler(Action<EventEnvelope> handler) => _handler = handler;
+
+        public Task Handle(EventEnvelope @event)
+        {
+            _handler(@event);
+            return Task.CompletedTask;
+        }
     }
 }

@@ -47,7 +47,7 @@ internal class CommandHandlerGenerator
 
         _w.WriteLine();
 
-        GeneratorHelpers.WriteGetElapsed(_w);
+        GeneratorHelpers.WriteGetElapsed(_w, false);
 
         _w.WriteLine();
 
@@ -261,7 +261,7 @@ internal class CommandHandlerGenerator
                 $"events.Add({newEvent});");
             return true;
         }
-        _w.WriteLine($"var e = new {type}() {{ Event = {source} }});");
+        _w.WriteLine($"var e = new {type}() {{ Event = {source} }};");
         return false;
     }
 

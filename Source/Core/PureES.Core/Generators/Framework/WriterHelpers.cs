@@ -2,6 +2,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using JetBrains.Annotations;
+using Microsoft.Extensions.Logging;
 
 namespace PureES.Core.Generators.Framework;
 
@@ -115,11 +116,13 @@ internal static class WriterHelpers
         string exception, 
         [StructuredMessageTemplate] string message, params string[] args)
     {
-        writer.Write($"this._logger?.Log(");
+        writer.Write("this._logger?.Log(");
+        if (!level.Contains(nameof(LogLevel)))
+            level = $"{typeof(LogLevel).FullName}.{level}";
         //ILogger.Log(LogLevel logLevel, Exception? exception, string? message, params object?[] args)
         writer.WriteParameters(new[]
         {
-            $"logLevel: LogEventLevel.{level}",
+            $"logLevel: {level}",
             $"exception: {exception}",
             $"message: \"{message}\"",
         }, args);
