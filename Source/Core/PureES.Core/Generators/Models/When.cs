@@ -1,4 +1,4 @@
-namespace PureES.Core.Generators.Aggregates.Models;
+namespace PureES.Core.Generators.Models;
 
 internal record When
 {
@@ -11,4 +11,6 @@ internal record When
     public required IMethod Method { get; init; }
 
     public required IType[] Services { get; init; }
+
+    public bool IsCreate => Method.IsStatic;
 }

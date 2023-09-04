@@ -1,4 +1,6 @@
-﻿namespace PureES.Core.Tests.Models;
+﻿using PureES.Core.Tests.Framework;
+
+namespace PureES.Core.Tests.Models;
 
 public static class Commands
 {
@@ -11,5 +13,11 @@ public static class Commands
     {
         public static Update New() => new(TestAggregateId.New(), Rand.NextInt());
         public static Update New(TestAggregateId id) => new(id, Rand.NextInt());
+    }
+    
+    [StreamId(nameof(UpdateConstantStream))]
+    public record UpdateConstantStream(int Value)
+    {
+        public static UpdateConstantStream New() => new(Rand.NextInt());
     }
 }

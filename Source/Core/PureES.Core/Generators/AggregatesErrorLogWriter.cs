@@ -1,7 +1,7 @@
 ﻿using Microsoft.CodeAnalysis;
 using PureES.Core.Generators.Framework;
 
-namespace PureES.Core.Generators.Aggregates;
+namespace PureES.Core.Generators;
 
 internal class AggregatesErrorLogWriter
 {

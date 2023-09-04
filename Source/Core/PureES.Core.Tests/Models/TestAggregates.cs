@@ -1,5 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using JetBrains.Annotations;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using PureES.Core.Tests.Framework;
 using Shouldly;
 
 // ReSharper disable PartialTypeWithSinglePart
@@ -12,7 +19,10 @@ public partial class TestAggregates
 {
     public record Metadata;
 
-    public record Result(TestAggregateId Id);
+    public class EventEnvelope<TEvent> : EventEnvelope<TEvent, Metadata> where TEvent : notnull
+    {
+        public EventEnvelope(EventEnvelope source) : base(source) {}
+    }
 
     [Aggregate, PublicAPI]
     public partial class Aggregate
@@ -23,16 +33,38 @@ public partial class TestAggregates
 
         public static Events.Created CreateOn([Command] Commands.Create cmd) => new(cmd.Id, cmd.Value);
 
-        public Events.Updated UpdateOn([Command] Commands.Update cmd, [FromServices] IServiceProvider service)
+        public Task<Events.Updated[]> UpdateOn([Command] Commands.Update cmd, [FromServices] IServiceProvider service, CancellationToken ct)
         {
             Created.ShouldNotBeNull();
             service.ShouldNotBeNull();
-            return new Events.Updated(cmd.Id, cmd.Value);
+            return Task.FromResult(new[] { new Events.Updated(cmd.Id, cmd.Value) });
+        }
+        
+        public CommandResult<Events.Updated, int[]> UpdateOnResult([Command] Commands.UpdateConstantStream cmd, [FromServices] IServiceProvider service)
+        {
+            Created.ShouldNotBeNull();
+            service.ShouldNotBeNull();
+            return new CommandResult<Events.Updated, int[]>(
+                new Events.Updated(Created.Event.Id, cmd.Value),
+                new [] { cmd.Value });
+        }
+        
+        public static IAsyncEnumerable<Events.Created> CreateOnAsyncEnumerable([Command] int[] cmd, [FromServices] ILoggerFactory lf)
+        {
+            lf.ShouldNotBeNull();
+            return AsyncEnumerable.Empty<Events.Created>();
         }
 
-        public void When(EventEnvelope envelope)
+        public void GlobalWhen(EventEnvelope envelope, CancellationToken ct)
         {
             StreamPosition = envelope.StreamPosition;
+        }
+        
+        public Task GlobalWhenAsync(EventEnvelope envelope, [FromServices] ILoggerFactory lf)
+        {
+            lf.ShouldNotBeNull();
+            StreamPosition = envelope.StreamPosition;
+            return Task.CompletedTask;
         }
 
         public static Aggregate When(EventEnvelope<Events.Created, Metadata> envelope)
@@ -48,6 +80,14 @@ public partial class TestAggregates
             e.ShouldNotBeNull();
             service.ShouldNotBeNull();
             Updated = e;
+        }
+        
+        public Task When(EventEnvelope<int> envelope, [FromServices] ILoggerFactory service)
+        {
+            envelope.ShouldNotBeNull();
+            service.ShouldNotBeNull();
+            StreamPosition.ShouldNotBe(envelope.StreamPosition);
+            return Task.CompletedTask;
         }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using PureES.Core.Tests.Framework;
 
 namespace PureES.Core.Tests.Models;
 

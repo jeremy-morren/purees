@@ -1,7 +1,9 @@
-﻿using PureES.Core.Generators.Aggregates.Models;
-using PureES.Core.Generators.Framework;
+﻿using PureES.Core.Generators.Framework;
+using PureES.Core.Generators.Models;
 
-namespace PureES.Core.Generators.Aggregates;
+// ReSharper disable InvertIf
+
+namespace PureES.Core.Generators;
 
 internal class AggregateBuilder
 {
@@ -56,12 +58,14 @@ internal class AggregateBuilder
                 {
                     Command = command.Type,
                     Method = method,
+                    StreamId = command.Type.Attributes.FirstOrDefault(a => a.Is<StreamIdAttribute>())?.StringParameter,
                     Services = services,
                     IsAsync = method.ReturnType.IsAsync(out _),
                     ReturnType = returnType,
                     EventType = returnType.IsCommandResultType(out var eventType, out _) ? eventType : returnType,
                     ResultType = returnType.IsCommandResultType(out _, out var resultType) ? resultType : null,
                 });
+                continue;
             }
             //First, check for parameter with EventAttribute
             if (method.Parameters.Any(p => p.HasAttribute<EventAttribute>()))
@@ -71,7 +75,7 @@ internal class AggregateBuilder
                     continue;
                 if (!ValidateAllParameters(method, p => p.HasAttribute<EventAttribute>()))
                     continue;
-                if (method is { IsStatic: true, ReturnType: null })
+                if (method.IsStatic && !ValidateReturnType(method, aggregate.Type))
                 {
                     _log.InvalidCreateWhenReturnType(method);
                     continue;
@@ -82,6 +86,7 @@ internal class AggregateBuilder
                     Method = method,
                     Services = services
                 });
+                continue;
             }
             if (method.Parameters.Any(p => p.Type.IsEventEnvelope()))
             {
@@ -90,7 +95,7 @@ internal class AggregateBuilder
                     continue;
                 if (!ValidateAllParameters(method, p => p.Type.IsEventEnvelope()))
                     continue;
-                if (method is { IsStatic: true, ReturnType: null })
+                if (method.IsStatic && !ValidateReturnType(method, type))
                 {
                     _log.InvalidCreateWhenReturnType(method);
                     continue;
@@ -101,8 +106,8 @@ internal class AggregateBuilder
                     Method = method,
                     Services = services
                 });
+                continue;
             }
-            
             //Don't know what the method is, ignore
         }
 
@@ -147,7 +152,7 @@ internal class AggregateBuilder
             case 0:
                 throw new NotImplementedException();
             case 1:
-                if (list[0].Type.IsGenericEventEnvelope(out var e))
+                if (list[0].Type.IsGenericEventEnvelope(out var e, out _))
                     @event = e;
                 return true;
             default:
@@ -173,5 +178,13 @@ internal class AggregateBuilder
             valid = false;
         }
         return valid;
+    }
+
+    private bool ValidateReturnType(IMethod method, IType expected)
+    {
+        if (method.ReturnType == null) return false;
+        if (method.ReturnType.IsAsync(out var underlyingType))
+            return underlyingType != null && expected.Equals(underlyingType);
+        return method.ReturnType.Equals(expected);
     }
 }

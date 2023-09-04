@@ -1,6 +1,4 @@
 ﻿using System;
-using PureES.Core.Generators.Aggregates;
-using PureES.Core.Generators.Aggregates.Models;
 using PureES.Core.Tests.Models;
 using Xunit;
 

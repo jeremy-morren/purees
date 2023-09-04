@@ -19,6 +19,7 @@ internal class ReflectedAttribute : ReflectedTokenBase, IAttribute
     public IType Type => new ReflectedType(_value.GetType());
 
     public IType TypeParameter => new ReflectedType((Type)GetProperty());
+    public string StringParameter => (string)GetProperty();
 
     public string[] StringParams => (string[])GetProperty();
 

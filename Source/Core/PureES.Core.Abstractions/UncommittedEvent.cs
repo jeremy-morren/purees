@@ -17,7 +17,7 @@ public sealed record UncommittedEvent
     /// <summary>
     /// The event belonging to this record
     /// </summary>
-    public required object Event { get; set; }
+    public required object Event { get; init; }
 
     /// <summary>
     /// The event metadata belonging to this record

@@ -77,58 +77,25 @@ internal class IndentedWriter
     }
     
     /// <summary>
-    /// Writes an indented line and increases the indent level by 1
+    /// Writes an opening brace and increases indent by 1
     /// </summary>
-    public void WriteLineThenPush(char value)
+    public void PushBrace()
     {
         WriteIndent();
-        AppendLine(value);
+        AppendLine('{');
         CurrentIndentLevel++;
-    }
-    
-    /// <summary>
-    /// Writes a line without indent
-    /// and increases the indent level by 1
-    /// </summary>
-    public void WriteLineWithoutIndentAndPush(string value)
-    {
-        AppendLine(value);
-        CurrentIndentLevel++;
-    }
-    
-    /// <summary>
-    /// Writes a line without indent and reduces the indent level by 1
-    /// </summary>
-    public void WriteRawLineAndPop(string value)
-    {
-        if (CurrentIndentLevel == 0)
-            throw new InvalidOperationException("Indent level is already at 0");
-        AppendLine(value);
-        CurrentIndentLevel--;
     }
 
     /// <summary>
-    /// Writes an indented line and reduces the indent level by 1
+    /// Writes a closing brace and reduces the indent level by 1
     /// </summary>
-    public void PopThenWriteLine(string value)
+    public void PopBrace()
     {
         if (CurrentIndentLevel == 0)
             throw new InvalidOperationException("Indent level is already at 0");
         CurrentIndentLevel--;
         WriteIndent();
-        AppendLine(value);
-    }
-    
-    /// <summary>
-    /// Writes an indented line and reduces the indent level by 1
-    /// </summary>
-    public void PopThenWriteLine(char value)
-    {
-        if (CurrentIndentLevel == 0)
-            throw new InvalidOperationException("Indent level is already at 0");
-        CurrentIndentLevel--;
-        WriteIndent();
-        AppendLine(value);
+        AppendLine('}');
     }
 
     /// <summary>

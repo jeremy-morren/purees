@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 using PureES.Core.Generators.Symbols;
 
@@ -55,10 +56,11 @@ internal class ReflectedType : ReflectedTokenBase, IType
     /// <summary>
     /// Reflects including static and non-static
     /// </summary>
-    private static IEnumerable<T> Reflect<T>(Func<BindingFlags, IEnumerable<T>> get)
+    private static IEnumerable<T> Reflect<T>(Func<BindingFlags, IEnumerable<T>> get) where T : MemberInfo
     {
         return get(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
-            .Concat(get(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance));
+            .Concat(get(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
+            .Where(i => i.GetCustomAttribute(typeof(CompilerGeneratedAttribute)) == null);
     }
     
     public IEnumerable<IProperty> Properties => Reflect(_type.GetProperties)

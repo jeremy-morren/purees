@@ -1,4 +1,4 @@
-﻿namespace PureES.Core.Generators.Aggregates.Models;
+﻿namespace PureES.Core.Generators.Models;
 
 internal record Aggregate
 {

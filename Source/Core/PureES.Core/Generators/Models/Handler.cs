@@ -1,10 +1,18 @@
-namespace PureES.Core.Generators.Aggregates.Models;
+namespace PureES.Core.Generators.Models;
 
 internal record Handler
 {
+    
     public required IType Command { get; init; }
     
     public required IMethod Method { get; init; }
+
+    public bool IsCreate => Method.IsStatic;
+    
+    /// <summary>
+    /// The stream id, if <see cref="Command"/> is decorated with <see cref="StreamIdAttribute"/>
+    /// </summary>
+    public required string? StreamId { get; init; }
 
     public required IType[] Services { get; init; }
 

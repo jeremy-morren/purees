@@ -1,4 +1,4 @@
-﻿namespace PureES.Core.Generators.Aggregates;
+﻿namespace PureES.Core.Generators;
 
 internal static class AttributeHelpers
 {

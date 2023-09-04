@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Linq;
-using PureES.Core.Generators.Aggregates;
+using PureES.Core.Generators;
+using PureES.Core.Tests.Framework;
 using PureES.Core.Tests.Generators.ReflectedSymbols;
 using PureES.Core.Tests.Models;
 using Xunit.Abstractions;
@@ -18,7 +19,9 @@ public class CommandHandlerGeneratorTests
 
     [Theory]
     [InlineData(typeof(TestAggregates.Aggregate), nameof(TestAggregates.Aggregate.CreateOn))]
+    [InlineData(typeof(TestAggregates.Aggregate), nameof(TestAggregates.Aggregate.CreateOnAsyncEnumerable))]
     [InlineData(typeof(TestAggregates.Aggregate), nameof(TestAggregates.Aggregate.UpdateOn))]
+    [InlineData(typeof(TestAggregates.Aggregate), nameof(TestAggregates.Aggregate.UpdateOnResult))]
     public void GenerateCSharp(Type aggregateType, string methodName)
     {
         var log = new FakeErrorLog();

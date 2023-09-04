@@ -1,7 +1,6 @@
 ﻿using System.Diagnostics.Contracts;
-using Microsoft.CodeAnalysis;
 
-namespace PureES.Core.Generators.Aggregates;
+namespace PureES.Core.Generators;
 
 internal static class TypeHelpers
 {
@@ -19,19 +18,22 @@ internal static class TypeHelpers
         return typeof(EventEnvelope).FullName!.Equals(type.FullName, StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Determines if type is <see cref="EventEnvelope{TEvent,TMetadata}"/> or subclass
+    /// </summary>
     [Pure]
-    public static bool IsGenericEventEnvelope(this IType type, out IType eventType)
+    public static bool IsGenericEventEnvelope(this IType type, out IType eventType, out IType metadataType)
     {
+        if (type.IsGenericType && type.IsGenericType(typeof(EventEnvelope<,>)))
+        {
+            var args = type.GenericArguments.ToList();
+            eventType = args[0];
+            metadataType = args[1];
+            return true;
+        }
         eventType = null!;
-        if (!type.IsGenericType || !type.IsEventEnvelope())
-            return false;
-        
-        //We assume that the event type is GenericParameters[0]
-        //This would only be a problem if the user had some very weird
-        //inheritance going on
-
-        eventType = type.GenericArguments.First();
-        return true;
+        metadataType = null!;
+        return type.BaseType != null && IsGenericEventEnvelope(type.BaseType, out eventType, out metadataType);
     }
 
     /// <summary>
@@ -40,8 +42,9 @@ internal static class TypeHelpers
     [Pure]
     public static bool IsEventEnvelope(this IType type)
     {
-        return type.IsNonGenericEventEnvelope() || 
-               (type.BaseType != null && IsEventEnvelope(type.BaseType));
+        return type.IsNonGenericEventEnvelope()
+               || type.IsGenericEventEnvelope(out _, out _)
+               || (type.BaseType != null && IsEventEnvelope(type.BaseType));
     }
 
     /// <summary>
@@ -102,8 +105,14 @@ internal static class TypeHelpers
 
     private static bool IsGenericType(this IType type, Type other)
     {
+        if (!other.IsGenericType) throw new NotImplementedException();
+        if (!type.IsGenericType) return false;
+        
+        if (type.GenericArguments.Count() != other.GetGenericArguments().Length)
+            return false;
+        
         var name = other.FullName!;
-        //Remove bit after `
+        //Remove anything after `
         var index = name.IndexOf('`');
         return type.FullName.StartsWith(name.Substring(0, index), StringComparison.Ordinal);
     }
