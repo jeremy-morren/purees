@@ -36,7 +36,6 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\PureES.Core.Abstractions\PureES.Core.Abstractions.csproj" />
         <ProjectReference Include="..\PureES.Core\PureES.Core.csproj" />
     </ItemGroup>
     

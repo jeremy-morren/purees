@@ -79,7 +79,7 @@ internal class PureESTreeBuilder
                     continue;
                 if (!ValidateAllParameters(method, p => p.HasAttribute<EventAttribute>()))
                     continue;
-                if (method.IsStatic && !ValidateReturnType(method, aggregate.Type))
+                if (method.IsStatic && !ValidateReturnType(method, type))
                 {
                     _log.InvalidCreateWhenReturnType(method);
                     continue;

@@ -9,15 +9,16 @@ internal static class GeneratorHelpers
     {
         //Method to get elapsed time
         var ts = $"global::{typeof(TimeSpan).FullName}";
+        var frequency = $"global::{typeof(Stopwatch).FullName}.{nameof(Stopwatch.Frequency)}";
         
         writer.WriteMethodAttributes();
         writer.WriteStatement("private static double GetElapsed(long start)", 
-            $"return ({GetTimestamp} - start) * 1000 / (double)Stopwatch.Frequency;");
+            $"return ({GetTimestamp} - start) * 1000 / (double){frequency};");
 
         if (!includeTimespan) return;
         writer.WriteMethodAttributes();
         writer.WriteStatement("private static TimeSpan GetElapsedTimespan(long start)", 
-            $"return {ts}.{nameof(TimeSpan.FromSeconds)}(({GetTimestamp} - start) / (double)Stopwatch.Frequency);");
+            $"return {ts}.{nameof(TimeSpan.FromSeconds)}(({GetTimestamp} - start) / (double){frequency});");
     }
 
     public static string GetTimestamp => $"global::{typeof(Stopwatch).FullName}.{nameof(Stopwatch.GetTimestamp)}()";

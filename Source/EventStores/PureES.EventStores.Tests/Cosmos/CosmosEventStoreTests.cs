@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using PureES.Core;
 using PureES.Core.EventStore;
 using PureES.CosmosDB;
 using PureES.CosmosDB.Subscription;
@@ -119,10 +120,8 @@ public class CosmosEventStoreTests : EventStoreTestsBase
     private static UncommittedEvent NewLargeEvent()
     {
         var data = new byte[1024 * 512]; //.5 MB
-        return new UncommittedEvent(Guid.NewGuid(), new LargeEvent(data), new Metadata());
+        return new UncommittedEvent() { Event = new LargeEvent(data) };
     }
 
     private record LargeEvent(byte[] Data);
-    
-    
 }

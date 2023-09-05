@@ -108,7 +108,7 @@ internal class AggregateStoreGenerator
             $"public {taskName} {nameof(IAggregateStore<int>.LoadPartial)}(string streamId, ulong requiredRevision, CancellationToken cancellationToken)",
             () =>
             {
-                _w.WriteLine($"var @events = this._eventStore.{nameof(IEventStore.ReadPartial)}({forwards}, streamId, requiredRevision, cancellationToken);");
+                _w.WriteLine($"var @events = this._eventStore.ReadPartial({forwards}, streamId, requiredRevision, cancellationToken);");
                 _w.WriteLine("return Create(@events, cancellationToken);");
             });
     }
@@ -118,15 +118,15 @@ internal class AggregateStoreGenerator
         _w.WriteMethodAttributes();
 
         _w.WriteStatement(
-            $"public async {GetTaskType(_aggregate.Type.CSharpName)} {nameof(IAggregateStore<int>.Create)}({AsyncEnumerableEventEnvelope} @events, CancellationToken cancellationToken)",
+            $"public async {GetTaskType(_aggregate.Type.CSharpName)} Create({AsyncEnumerableEventEnvelope} @events, CancellationToken cancellationToken)",
             () =>
             {
                 
                 //So that we can generate the create/update, we have to implement the MoveNext methods manually
 
-                _w.WriteStatement($"await using (var enumerator = await @events.{nameof(IAsyncEnumerable<int>.GetAsyncEnumerator)}(cancellationToken))", () =>
+                _w.WriteStatement("await using (var enumerator = @events.GetAsyncEnumerator(cancellationToken))", () =>
                 {
-                    const string moveNext = $"await enumerator.{nameof(IAsyncEnumerator<int>.MoveNextAsync)}()";
+                    const string moveNext = "await enumerator.MoveNextAsync()";
         
                     //Get the first item, or throw
                     _w.WriteStatement($"if (!{moveNext})",
@@ -243,8 +243,7 @@ internal class AggregateStoreGenerator
     private static string GetTaskType(string genericParameter) =>
         TypeNameHelpers.GetGenericTypeName(typeof(Task<>), genericParameter);
 
-    private static string AsyncEnumerableEventEnvelope => 
-        TypeNameHelpers.GetGenericTypeName(typeof(IAsyncEnumerable<>), $"global::{typeof(EventEnvelope)}");
+    private static string AsyncEnumerableEventEnvelope => ExternalTypes.IAsyncEnumerable($"global::{typeof(EventEnvelope)}");
 
     #endregion
 }

@@ -60,7 +60,7 @@ namespace PureES.AggregateStores
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         public async global::System.Threading.Tasks.Task<global::PureES.Core.Tests.Models.TestAggregates.Aggregate> Create(global::System.Collections.Generic.IAsyncEnumerable<global::PureES.Core.EventEnvelope> @events, CancellationToken cancellationToken)
         {
-            await using (var enumerator = await @events.GetAsyncEnumerator(cancellationToken))
+            await using (var enumerator = @events.GetAsyncEnumerator(cancellationToken))
             {
                 if (!await enumerator.MoveNextAsync())
                 {

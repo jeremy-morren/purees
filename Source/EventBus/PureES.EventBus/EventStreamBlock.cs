@@ -20,6 +20,7 @@ internal sealed class EventStreamBlock : ITargetBlock<EventEnvelope>, ISourceBlo
     public EventStreamBlock(Func<EventEnvelope, Task> handle,
         EventBusOptions options)
     {
+        options.Validate();
         //Producer creates/appends to queues
         var producer = new TransformBlock<EventEnvelope, EventQueue>(e =>
         {

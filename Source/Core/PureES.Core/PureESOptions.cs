@@ -1,5 +1,6 @@
 ﻿
 using System.Reflection;
+using PureES.Core.EventStore;
 
 namespace PureES.Core;
 
@@ -16,7 +17,16 @@ public class PureESOptions
     /// </remarks>
     public Func<Type, PropertyInfo> GetStreamIdProperty { get; set; } = DefaultGetStreamIdProperty;
 
+    /// <summary>
+    /// Configure Event handlers
+    /// </summary>
     public PureESEventHandlerOptions EventHandlers { get; } = new();
+
+    /// <summary>
+    /// Configure the assemblies to scan for types
+    /// </summary>
+    /// <remarks>Used by <see cref="BasicEventTypeMap"/></remarks>
+    public ISet<Assembly> Assemblies { get; } = new HashSet<Assembly>();
 
     internal void Validate()
     {

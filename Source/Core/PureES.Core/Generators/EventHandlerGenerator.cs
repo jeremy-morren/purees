@@ -1,9 +1,4 @@
 ﻿using System.ComponentModel;
-using System.Diagnostics;
-using System.Text;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
 using PureES.Core.Generators.Framework;
 using PureES.Core.Generators.Models;
 using EventHandler = PureES.Core.Generators.Models.EventHandler;
@@ -32,7 +27,7 @@ internal class EventHandlerGenerator
         _w.WriteFileHeader(false);
     
         _w.WriteLine("using System;");
-        _w.WriteLine($"using {typeof(ILogger<>).Namespace};");
+        _w.WriteLine($"using {ExternalTypes.LoggingNamespace};");
     
         _w.WriteLine();
         
@@ -78,8 +73,8 @@ internal class EventHandlerGenerator
         _w.WriteRawLine(')');
         _w.PushBrace();
     
-        _w.WriteLine($"this._options = options?.{nameof(IOptions<object>.Value)}.{nameof(PureESOptions.EventHandlers)} ?? throw new ArgumentNullException(nameof(options));");
-        _w.WriteLine($"this._logger = logger ?? {NullLogger};");
+        _w.WriteLine($"this._options = options?.Value.{nameof(PureESOptions.EventHandlers)} ?? throw new ArgumentNullException(nameof(options));");
+        _w.WriteLine($"this._logger = logger ?? {NullLoggerInstance};");
     
         for (var i = 0; i < _handlers.Services.Count; i++)
             _w.WriteLine($"this._service{i} = service{i} ?? throw new ArgumentNullException(nameof(service{i}));");
@@ -92,23 +87,33 @@ internal class EventHandlerGenerator
     
     private void WriteInvoke()
     {
-        //If no non-async handlers, method will not be async (see above)
-        var isMethodAsync =
-            _handlers.Handlers.Any(h => h.Method.ReturnType != null && h.Method.ReturnType.IsAsync(out _));
-        var async = isMethodAsync ? "async " : string.Empty;
-        
         _w.WriteMethodAttributes();
-        _w.WriteLine($"public {async}{typeof(Task).FullName} {nameof(IEventHandler<int>.Handle)}(global::{typeof(EventEnvelope)} @event)");
+
+        var task = $"global::{typeof(Task).FullName}";
+        
+        _w.WriteLine($"public async {task} {nameof(IEventHandler<int>.Handle)}(global::{typeof(EventEnvelope)} @event)");
         _w.PushBrace();
         
         _w.WriteLine($"var ct = new CancellationTokenSource(_options.{nameof(PureESEventHandlerOptions.Timeout)}).Token;");
         
         WriteStartActivity();
         
-        foreach (var handler in _handlers.Handlers)
+        //Create an array of tasks
+        //Then await Task.WhenAll
+        
+        _w.WriteLine($"var tasks = new {task}[{_handlers.Handlers.Count}];");
+        
+        for (var i = 0; i < _handlers.Handlers.Count; i++)
         {
+            var handler = _handlers.Handlers[i];
             var method = $"\"{handler.Method.Name}\"";
             _w.WriteLine($"// {handler.Method.Name} on {handler.Parent.FullName}");
+            
+            var async = handler.Method.ReturnType != null && handler.Method.ReturnType.IsAsync(out _)
+                ? "async "
+                : string.Empty;
+            _w.WriteLine($"tasks[{i}] = {task}.{nameof(Task.Run)}({async}() =>");
+            _w.PushBrace();
 
             BeginLogScope(handler);
             
@@ -127,16 +132,10 @@ internal class EventHandlerGenerator
                 var await = handler.Method.ReturnType != null && handler.Method.ReturnType.IsAsync(out _)
                     ? "await "
                     : string.Empty;
-                if (handler.Method.IsStatic)
-                {
-                    _w.Write($"{@await}{handler.Parent.CSharpName}.{handler.Method.Name}(");
-                }
-                else
-                {
-                    //use DI parent
-                    var index = _handlers.Parents.GetIndex(handler.Parent);
-                    _w.Write($"{@await}parent{index}.{handler.Method.Name}(");
-                }
+                var parent = handler.Method.IsStatic
+                    ? handler.Parent.CSharpName
+                    : $"this._parent{_handlers.Parents.GetIndex(handler.Parent)}";
+                _w.Write($"{@await}{parent}.{handler.Method.Name}(");
                 _w.WriteParameters(handler.Method.Parameters.Select(p =>
                 {
                     if (p.HasAttribute<EventAttribute>())
@@ -144,15 +143,14 @@ internal class EventHandlerGenerator
                     if (p.Type.IsGenericEventEnvelope())
                         return $"new {p.Type.CSharpName}(@event)";
                     if (p.HasFromServicesAttribute())
-                        return $"service{_handlers.Services.GetIndex(p.Type)}";
+                        return $"this._service{_handlers.Services.GetIndex(p.Type)}";
                     if (p.Type.IsCancellationToken())
                         return "ct";
                     throw new NotImplementedException("Unknown parameter");
                 }));
                 _w.WriteRawLine(");");
                 _w.WriteLine("var elapsed = GetElapsedTimespan(start);");
-                const string getLevel = $"_options.{nameof(PureESEventHandlerOptions.GetLogLevel)}";
-                _w.WriteLogMessage($"{getLevel}(elapsed)", 
+                _w.WriteLogMessage("this._options.GetLogLevel(@event, elapsed)", 
                     "null",
                     "Handled event {@StreamId}/{@StreamPosition}. Elapsed: {0.0000}ms. Event Type: {@EventType}. Event handler {@EventHandler} on {@EventHandlerParent}",
                     $"@event.{nameof(EventEnvelope.StreamId)}",
@@ -164,8 +162,7 @@ internal class EventHandlerGenerator
             });
             
             const string propagate = $"_options.{nameof(PureESEventHandlerOptions.PropagateExceptions)}";
-            const string logLevel = nameof(LogLevel);
-            const string logErrorLevel = $"{propagate} ? {logLevel}.{nameof(LogLevel.Information)} : {logLevel}.{nameof(LogLevel.Error)}";
+            const string logErrorLevel = $"{propagate} ? LogLevel.Information : LogLevel.Error";
             
             _w.WriteStatement($"catch (global::{typeof(OperationCanceledException).FullName} ex)", () =>
             {
@@ -195,11 +192,14 @@ internal class EventHandlerGenerator
             });
             
             _w.PopBrace(); //Log scope
+            
+            _w.Pop();
+            _w.WriteLine("});");  //Task.Run
+            
             _w.WriteLine();
         }
 
-        if (!isMethodAsync)
-            _w.WriteLine($"return global::{typeof(Task).FullName}.{nameof(Task.CompletedTask)};");
+        _w.WriteLine($"await {task}.{nameof(Task.WhenAll)}(tasks);");
         
         _w.PopBrace(); //Activity
         
@@ -209,14 +209,14 @@ internal class EventHandlerGenerator
     private void WriteStartActivity()
     {
         //Because this handler is called without a parent activity (i.e. not from a http request), we provide a parent activity here
-        _w.WriteLine($"using (var activity = new {ActivityType}(\"{ActivitySource}\"))");
+        _w.WriteLine($"using (var activity = new {ExternalTypes.Activity}(\"{ActivitySource}\"))");
         
         _w.PushBrace();
         
         _w.WriteLine($"activity.SetTag(\"{nameof(EventEnvelope.StreamId)}\", @event.{nameof(EventEnvelope.StreamId)});");
         _w.WriteLine($"activity.SetTag(\"{nameof(EventEnvelope.StreamPosition)}\", @event.{nameof(EventEnvelope.StreamPosition)});");
         _w.WriteLine($"activity.SetTag(\"EventType\", \"{FriendlyEventTypeName}\");");
-        _w.WriteLine($"{ActivityType}.{nameof(Activity.Current)} = activity;");
+        _w.WriteLine($"{ExternalTypes.Activity}.Current = activity;");
         _w.WriteLine("activity.Start();");
     }
 
@@ -234,9 +234,9 @@ internal class EventHandlerGenerator
             (nameof(EventEnvelope.StreamPosition), $"@event.{nameof(EventEnvelope.StreamPosition)}"),
         };
         foreach (var (key, value) in parameters)
-            _w.WriteLine($"{{ \"{key}\", {value} }}");
+            _w.WriteLine($"{{ \"{key}\", {value} }},");
         _w.Pop();
-        _w.WriteLine("})");
+        _w.WriteLine("}))");
         _w.Pop();
         _w.PushBrace();
     }
@@ -251,21 +251,16 @@ internal class EventHandlerGenerator
     public static string GetInterface(IType eventType) =>
         TypeNameHelpers.GetGenericTypeName(typeof(IEventHandler<>), eventType.CSharpName);
     
-    private string LoggerType =>
-        TypeNameHelpers.GetGenericTypeName(typeof(ILogger<>), ClassName);
+    private string LoggerType => ExternalTypes.ILogger(ClassName);
 
-    private string NullLogger =>
-        $"{TypeNameHelpers.GetGenericTypeName(typeof(NullLogger<>), ClassName)}.{nameof(NullLogger<int>.Instance)}";
+    private string NullLoggerInstance => ExternalTypes.NullLoggerInstance(ClassName);
 
-    private static string OptionsType =>
-        TypeNameHelpers.GetGenericTypeName(typeof(IOptions<>), $"global::{typeof(PureESOptions).FullName}");
+    private static string OptionsType => ExternalTypes.IOptions($"global::{typeof(PureESOptions).FullName}");
     
     private static string EventHandlerOptionsType => $"global::{typeof(PureESEventHandlerOptions).FullName}";
 
-    private string LoggerScopeType =>
+    private static string LoggerScopeType =>
         TypeNameHelpers.GetGenericTypeName(typeof(Dictionary<string, object>), "string", "object");
-    
-    private static string ActivityType => $"global::{typeof(Activity).FullName}";
 
     private string FriendlyEventTypeName => _handlers.EventType.CSharpName.Replace("global::", string.Empty);
 

@@ -1,6 +1,4 @@
 ﻿using System.ComponentModel;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
 using PureES.Core.Generators.Framework;
 using PureES.Core.Generators.Models;
 // ReSharper disable ForeachCanBePartlyConvertedToQueryUsingAnotherGetEnumerator
@@ -25,15 +23,15 @@ internal class DependencyInjectionGenerator
         IEnumerable<EventHandlerCollection> eventHandlerCollections,
         out string filename)
     {
-        filename = $"{Namespace}.{ClassName}";
+        filename = FullClassName;
         return new DependencyInjectionGenerator(aggregates, eventHandlerCollections).GenerateInternal();
     }
 
     private string GenerateInternal()
     {
         _w.WriteFileHeader(true);
-        _w.WriteLine($"using {typeof(IServiceCollection).Namespace};");
-        _w.WriteLine($"using {typeof(ServiceCollectionDescriptorExtensions).Namespace};");
+        _w.WriteLine($"using {ExternalTypes.DINamespace};");
+        _w.WriteLine($"using {ExternalTypes.DINamespace}.Extensions;"); //RemoveAll extension method
         _w.WriteLine();
         
         _w.WriteStatement($"namespace {Namespace}", () =>
@@ -48,7 +46,7 @@ internal class DependencyInjectionGenerator
     private void WriteRegisterServices()
     {
         _w.WriteMethodAttributes();
-        _w.WriteLine("public static void RegisterServices(IServiceCollection services)");
+        _w.WriteLine($"private static void {MethodName}(IServiceCollection services)");
         _w.PushBrace();
 
         _w.WriteStatement("if (services == null)", "throw new ArgumentNullException(nameof(services));");
@@ -63,9 +61,9 @@ internal class DependencyInjectionGenerator
         _w.WriteStatement("foreach (var s in services)",
             () =>
             {
-                _w.WriteLine($"registeredServices.Add(s.{nameof(ServiceDescriptor.ServiceType)});");
+                _w.WriteLine("registeredServices.Add(s.ServiceType);");
                 
-                const string implType = $"s.{nameof(ServiceDescriptor.ImplementationType)}";
+                const string implType = "s.ImplementationType";
                 
                 _w.WriteStatement($"if ({implType} != null)", $"registeredImplementations.Add({implType});");
             });
@@ -73,28 +71,27 @@ internal class DependencyInjectionGenerator
         const string registeredServices = $"registeredServices.{nameof(HashSet<int>.Contains)}";
         const string registeredImplementations = $"registeredImplementations.{nameof(HashSet<int>.Contains)}";
 
-        const string removeAll = $"services.{nameof(ServiceCollectionDescriptorExtensions.RemoveAll)}";
+        const string removeAll = "services.RemoveAll";
         
         foreach (var aggregate in _aggregates)
         {
             _w.WriteLine($"// Aggregate: {aggregate.Type.FullName}. Command handlers: {aggregate.Handlers.Length}");
             
             //Store
-            var serviceType = AggregateStoreGenerator.GetInterface(aggregate);
+            var serviceType = $"typeof({AggregateStoreGenerator.GetInterface(aggregate)})";
             
             //Remove existing if found
-            _w.WriteStatement($"if ({registeredServices}({serviceType})", $"{removeAll}({serviceType});");
+            _w.WriteStatement($"if ({registeredServices}({serviceType}))", $"{removeAll}({serviceType});");
             AddService(serviceType,
-                $"{AggregateStoreGenerator.Namespace}.{AggregateStoreGenerator.GetClassName(aggregate)}");
+                $"global::{AggregateStoreGenerator.Namespace}.{AggregateStoreGenerator.GetClassName(aggregate)}");
             
             //Handlers
             foreach (var handler in aggregate.Handlers)
             {
-
-                serviceType = CommandHandlerGenerator.GetInterface(handler);
-                _w.WriteStatement($"if ({registeredServices}({serviceType})", $"{removeAll}({serviceType});");
+                serviceType = $"typeof({CommandHandlerGenerator.GetInterface(handler)})";
+                _w.WriteStatement($"if ({registeredServices}({serviceType}))", $"{removeAll}({serviceType});");
                 AddService(serviceType,
-                    $"{CommandHandlerGenerator.Namespace}.{CommandHandlerGenerator.GetClassName(handler)}");
+                    $"global::{CommandHandlerGenerator.Namespace}.{CommandHandlerGenerator.GetClassName(handler)}");
             }
 
             _w.WriteLine();
@@ -134,18 +131,21 @@ internal class DependencyInjectionGenerator
 
     private void AddService(string serviceType, string implementationType)
     {
-        var transient = $"{nameof(ServiceLifetime)}.{ServiceLifetime.Transient}";
-        
+        if (!serviceType.StartsWith("typeof"))
+            serviceType = $"typeof({serviceType})";
         if (!implementationType.StartsWith("typeof"))
-            implementationType = $"typeof(global::{implementationType})";
+            implementationType = $"typeof({implementationType})";
         
-        _w.Write($"services.{nameof(IServiceCollection.Add)}(new {nameof(ServiceDescriptor)}(");
-        _w.WriteParameters($"{nameof(serviceType)}: {serviceType}",
-            $"{nameof(implementationType)}: {implementationType}",
-            $"serviceLifetime: {transient}");
+        _w.Write("services.Add(new ServiceDescriptor(");
+        _w.WriteParameters($"serviceType: {serviceType}",
+            $"implementationType: {implementationType}",
+            "lifetime: ServiceLifetime.Transient");
         _w.WriteRawLine("));");
     }
 
     private const string Namespace = "PureES.DependencyInjection";
     private const string ClassName = "PureESServiceCollectionExtensions";
+    
+    public const string FullClassName = $"{Namespace}.{ClassName}";
+    public const string MethodName = "Register";
 }

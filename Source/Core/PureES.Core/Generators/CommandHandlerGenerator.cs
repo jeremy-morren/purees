@@ -1,5 +1,4 @@
 ﻿using System.ComponentModel;
-using Microsoft.Extensions.Logging;
 using PureES.Core.EventStore;
 using PureES.Core.Generators.Framework;
 using PureES.Core.Generators.Models;
@@ -32,7 +31,7 @@ internal class CommandHandlerGenerator
         _w.WriteFileHeader(false);
 
         _w.WriteLine("using System.Threading.Tasks;"); //Enable WithCancellation extension method
-        _w.WriteLine("using Microsoft.Extensions.Logging;"); //Enable log extension methods
+        _w.WriteLine($"using {ExternalTypes.LoggingNamespace};"); //Enable log extension methods
 
         _w.WriteLine();
         
@@ -53,7 +52,7 @@ internal class CommandHandlerGenerator
 
         _w.WriteMethodAttributes();
 
-        var returnType = _handler.ResultType != null ? _handler.Command.CSharpName : "ulong";
+        var returnType = _handler.ResultType != null ? _handler.ResultType.CSharpName : "ulong";
         returnType = TypeNameHelpers.GetGenericTypeName(typeof(Task<>), returnType);
         _w.WriteLine(
             $"public async {returnType} Handle({_handler.Command.CSharpName} command, CancellationToken cancellationToken)");
@@ -74,7 +73,9 @@ internal class CommandHandlerGenerator
         _w.WriteLine($"private readonly {StreamIdSvc} _getStreamId;");
         _w.WriteLine($"private readonly {AggregateStoreType} _aggregateStore;");
         _w.WriteLine($"private readonly {EventStoreType} _eventStore;");
+        _w.WriteLine($"private readonly {OptimisticConcurrencyType} _concurrency;");
         _w.WriteLine($"private readonly {EnumerableEventEnricherType} _enrichers;");
+        _w.WriteLine($"private readonly {EnumerableAsyncEventEnricherType} _asyncEnrichers;");
         _w.WriteLine($"private readonly {EnumerableValidatorType} _syncValidators;");
         _w.WriteLine($"private readonly {EnumerableAsyncValidatorType} _asyncValidators;");
         _w.WriteLine($"private readonly {LoggerType} _logger;");
@@ -92,11 +93,11 @@ internal class CommandHandlerGenerator
             new[]
             {
                 $"{StreamIdSvc} getStreamId",
-                $"{OptimisticConcurrencyType} optimisticConcurrency",
                 $"{EventStoreType} eventStore",
                 $"{AggregateStoreType} aggregateStore",
+                $"{OptimisticConcurrencyType} concurrency = null",
                 $"{EnumerableEventEnricherType} enrichers = null",
-                $"{EnumerableEventEnricherType} enrichers = null",
+                $"{EnumerableAsyncEventEnricherType} asyncEnrichers = null",
                 $"{EnumerableValidatorType} syncValidators = null",
                 $"{EnumerableAsyncValidatorType} asyncValidators = null",
                 $"{LoggerType} logger = null"
@@ -104,12 +105,13 @@ internal class CommandHandlerGenerator
 
         _w.WriteRawLine(')');
         _w.PushBrace();
-        _w.WriteLine("this._getStreamId = getStreamId ?? throw new ArgumentNullException(nameof(getStreamId))");
+        _w.WriteLine("this._getStreamId = getStreamId ?? throw new ArgumentNullException(nameof(getStreamId));");
         _w.WriteLine("this._eventStore = eventStore ?? throw new ArgumentNullException(nameof(eventStore));");
         _w.WriteLine("this._aggregateStore = aggregateStore ?? throw new ArgumentNullException(nameof(aggregateStore));");
 
         _w.WriteLine("this._concurrency = concurrency;");
         _w.WriteLine("this._enrichers = enrichers;");
+        _w.WriteLine("this._asyncEnrichers = asyncEnrichers;");
         _w.WriteLine("this._syncValidators = syncValidators;");
         _w.WriteLine("this._asyncValidators = asyncValidators;");
         _w.WriteLine("this._logger = logger;");
@@ -151,7 +153,7 @@ internal class CommandHandlerGenerator
             {
                 //Get revision & Load
                 _w.WriteLine(
-                    $"var currentRevision = this._concurrency?.{nameof(IOptimisticConcurrency.GetExpectedRevision)}(streamId, command, cancellationToken) ?? await this._eventStore.{nameof(IEventStore.GetRevision)}(streamId, cancellationToken);");
+                    $"var currentRevision = this._concurrency?.{nameof(IOptimisticConcurrency.GetExpectedRevision)}(streamId, command) ?? await this._eventStore.{nameof(IEventStore.GetRevision)}(streamId, cancellationToken);");
                 _w.WriteLine($"var current = await _aggregateStore.{nameof(IAggregateStore<int>.Load)}(streamId, currentRevision, cancellationToken);");
             }
             
@@ -302,7 +304,7 @@ internal class CommandHandlerGenerator
         }
         else
         {
-            _w.WriteLine("var streamId = this._getStreamId(command);");
+            _w.WriteLine($"var streamId = this._getStreamId.{nameof(PureESStreamId<int>.GetId)}(command);");
         }
     }
 
@@ -312,8 +314,13 @@ internal class CommandHandlerGenerator
     
     public static string GetClassName(Handler handler) => $"{TypeNameHelpers.SanitizeName(handler.Command.Name)}CommandHandler";
 
-    public static string GetInterface(Handler handler) =>
-        TypeNameHelpers.GetGenericTypeName(typeof(ICommandHandler<>), handler.Command.CSharpName);
+    public static string GetInterface(Handler handler)
+    {
+        return handler.ResultType != null
+            ? TypeNameHelpers.GetGenericTypeName(typeof(ICommandHandler<,>),
+                handler.Command.CSharpName, handler.ResultType.CSharpName)
+            : TypeNameHelpers.GetGenericTypeName(typeof(ICommandHandler<>), handler.Command.CSharpName);
+    }
 
     private string ClassName => GetClassName(_handler);
     private string Interface => GetInterface(_handler);
@@ -322,8 +329,7 @@ internal class CommandHandlerGenerator
     
     private static string OptimisticConcurrencyType => $"global::{typeof(IOptimisticConcurrency).FullName}";
 
-    private string LoggerType =>
-        TypeNameHelpers.GetGenericTypeName(typeof(ILogger<>), ClassName);
+    private string LoggerType => ExternalTypes.ILogger(ClassName);
     
     private string StreamIdSvc =>
         TypeNameHelpers.GetGenericTypeName(typeof(PureESStreamId<>), _handler.Command.CSharpName);
@@ -333,6 +339,9 @@ internal class CommandHandlerGenerator
 
     private static string EnumerableEventEnricherType => 
         TypeNameHelpers.GetGenericTypeName(typeof(IEnumerable<>), $"global::{typeof(IEventEnricher).FullName}");
+    
+    private static string EnumerableAsyncEventEnricherType => 
+        TypeNameHelpers.GetGenericTypeName(typeof(IEnumerable<>), $"global::{typeof(IAsyncEventEnricher).FullName}");
 
     private string EnumerableValidatorType =>
         TypeNameHelpers.GetGenericTypeName(typeof(IEnumerable<>),

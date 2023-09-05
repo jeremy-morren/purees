@@ -22,7 +22,6 @@ internal class InMemoryEventStoreSubscriptionToAll : IHostedService, IEventStore
         IServiceProvider services,
         InMemoryEventStoreSerializer serializer,
         IOptionsFactory<InMemoryEventStoreSubscriptionOptions> optionsFactory,
-        IEventHandlersCollection eventHandlersCollection,
         ILoggerFactory? loggerFactory = null)
     {
         _serializer = serializer;
@@ -35,7 +34,6 @@ internal class InMemoryEventStoreSubscriptionToAll : IHostedService, IEventStore
 
         _eventBus = new EventBus.EventBus(options.EventBusOptions,
             services,
-            eventHandlersCollection,
             loggerFactory?.CreateLogger<EventBus.EventBus>());
         
         //Note: EventBus has buffer limitations, however we cannot block the Publish method

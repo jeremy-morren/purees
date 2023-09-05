@@ -51,7 +51,7 @@ public class PureESIncrementalGenerator : IIncrementalGenerator
                     if (!PureESTreeBuilder.BuildAggregate(type, out var aggregate, log))
                         continue;
                     aggregates.Add(aggregate);
-                    
+
                     cs = AggregateStoreGenerator.Generate(aggregate, out filename);
                     context.AddSource($"{filename}.g.cs", NormalizeLineEndings(cs));
                     foreach (var handler in aggregate.Handlers)
@@ -76,14 +76,19 @@ public class PureESIncrementalGenerator : IIncrementalGenerator
                     cs = EventHandlerGenerator.Generate(collection, out filename);
                     context.AddSource($"{filename}.g.cs", NormalizeLineEndings(cs));
                 }
-                
+
                 //Register DI
                 cs = DependencyInjectionGenerator.Generate(aggregates, eventHandlerCollections, out filename);
                 context.AddSource($"{filename}.g.cs", NormalizeLineEndings(cs));
             }
             catch (Exception e)
             {
-                log.WriteError(Location.None, "1000", "Fatal error", "A fatal error has occurred: '{0}'", e.ToString());
+                var str = e.ToString().Replace(Environment.NewLine, "\\n");
+                log.WriteError(Location.None,
+                    "1000",
+                    "Fatal error",
+                    "A fatal error has occurred: '{0}'",
+                    str);
             }
         });
     }

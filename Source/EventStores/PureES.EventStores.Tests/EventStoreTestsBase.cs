@@ -469,7 +469,12 @@ public abstract class EventStoreTestsBase
     protected static UncommittedEvent NewEvent()
     {
         var id = Guid.NewGuid();
-        return new UncommittedEvent(id, new Event(id), new Metadata());
+        return new UncommittedEvent()
+        {
+            EventId = id,
+            Event = new Event(id),
+            Metadata = new Metadata()
+        };
     }
 
     public record Event(Guid Id);

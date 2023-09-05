@@ -2,7 +2,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using PureES.Core;
 using PureES.CosmosDB.Serialization;
 using PureES.EventBus;
 
@@ -22,7 +21,6 @@ internal class CosmosEventStoreSubscriptionToAll : IEventStoreSubscription
         IOptionsFactory<CosmosEventStoreSubscriptionOptions> optionsFactory,
         
         IServiceProvider services,
-        IEventHandlersCollection eventHandlersCollection,
         ILogger<CosmosEventStoreSubscriptionToAll>? logger = null,
         ILoggerFactory? loggerFactory = null)
     {
@@ -34,7 +32,6 @@ internal class CosmosEventStoreSubscriptionToAll : IEventStoreSubscription
 
         _eventBus = new EventBus.EventBus(_options.EventBusOptions,
             services,
-            eventHandlersCollection,
             loggerFactory?.CreateLogger<EventBus.EventBus>());
     }
 

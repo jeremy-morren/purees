@@ -19,7 +19,9 @@ namespace PureES.CommandHandlers
         private readonly global::PureES.Core.PureESStreamId<global::PureES.Core.Tests.Models.Commands.Create> _getStreamId;
         private readonly global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.TestAggregates.Aggregate> _aggregateStore;
         private readonly global::PureES.Core.EventStore.IEventStore _eventStore;
+        private readonly global::PureES.Core.IOptimisticConcurrency _concurrency;
         private readonly global::System.Collections.Generic.IEnumerable<global::PureES.Core.IEventEnricher> _enrichers;
+        private readonly global::System.Collections.Generic.IEnumerable<global::PureES.Core.IAsyncEventEnricher> _asyncEnrichers;
         private readonly global::System.Collections.Generic.IEnumerable<global::PureES.Core.ICommandValidator<global::PureES.Core.Tests.Models.Commands.Create>> _syncValidators;
         private readonly global::System.Collections.Generic.IEnumerable<global::PureES.Core.IAsyncCommandValidator<global::PureES.Core.Tests.Models.Commands.Create>> _asyncValidators;
         private readonly global::Microsoft.Extensions.Logging.ILogger<CreateCommandHandler> _logger;
@@ -28,20 +30,21 @@ namespace PureES.CommandHandlers
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         public CreateCommandHandler(
             global::PureES.Core.PureESStreamId<global::PureES.Core.Tests.Models.Commands.Create> getStreamId,
-            global::PureES.Core.IOptimisticConcurrency optimisticConcurrency,
             global::PureES.Core.EventStore.IEventStore eventStore,
             global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.TestAggregates.Aggregate> aggregateStore,
+            global::PureES.Core.IOptimisticConcurrency concurrency = null,
             global::System.Collections.Generic.IEnumerable<global::PureES.Core.IEventEnricher> enrichers = null,
-            global::System.Collections.Generic.IEnumerable<global::PureES.Core.IEventEnricher> enrichers = null,
+            global::System.Collections.Generic.IEnumerable<global::PureES.Core.IAsyncEventEnricher> asyncEnrichers = null,
             global::System.Collections.Generic.IEnumerable<global::PureES.Core.ICommandValidator<global::PureES.Core.Tests.Models.Commands.Create>> syncValidators = null,
             global::System.Collections.Generic.IEnumerable<global::PureES.Core.IAsyncCommandValidator<global::PureES.Core.Tests.Models.Commands.Create>> asyncValidators = null,
             global::Microsoft.Extensions.Logging.ILogger<CreateCommandHandler> logger = null)
         {
-            this._getStreamId = getStreamId ?? throw new ArgumentNullException(nameof(getStreamId))
+            this._getStreamId = getStreamId ?? throw new ArgumentNullException(nameof(getStreamId));
             this._eventStore = eventStore ?? throw new ArgumentNullException(nameof(eventStore));
             this._aggregateStore = aggregateStore ?? throw new ArgumentNullException(nameof(aggregateStore));
             this._concurrency = concurrency;
             this._enrichers = enrichers;
+            this._asyncEnrichers = asyncEnrichers;
             this._syncValidators = syncValidators;
             this._asyncValidators = asyncValidators;
             this._logger = logger;
@@ -53,7 +56,7 @@ namespace PureES.CommandHandlers
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         private static double GetElapsed(long start)
         {
-            return (global::System.Diagnostics.Stopwatch.GetTimestamp() - start) * 1000 / (double)Stopwatch.Frequency;
+            return (global::System.Diagnostics.Stopwatch.GetTimestamp() - start) * 1000 / (double)global::System.Diagnostics.Stopwatch.Frequency;
         }
 
 
@@ -66,7 +69,7 @@ namespace PureES.CommandHandlers
                 throw new ArgumentNullException(nameof(command));
             }
             this._logger?.Log(
-                logLevel: Microsoft.Extensions.Logging.LogLevel.Debug,
+                logLevel: global::Microsoft.Extensions.Logging.LogLevel.Debug,
                 exception: null,
                 message: "Handling command {@Command}. Aggregate: {@Aggregate}. Method: {@Method}",
                 typeof(global::PureES.Core.Tests.Models.TestAggregates.Aggregate),
@@ -89,7 +92,7 @@ namespace PureES.CommandHandlers
                         await validator.Validate(command, cancellationToken);
                     }
                 }
-                var streamId = this._getStreamId(command);
+                var streamId = this._getStreamId.GetId(command);
                 var result = global::PureES.Core.Tests.Models.TestAggregates.Aggregate.CreateOn(command);
                 var revision = ulong.MaxValue;
                 if (result != null)
@@ -113,7 +116,7 @@ namespace PureES.CommandHandlers
                 }
                 this._concurrency?.OnUpdated(streamId, command, null, revision);
                 this._logger?.Log(
-                    logLevel: Microsoft.Extensions.Logging.LogLevel.Information,
+                    logLevel: global::Microsoft.Extensions.Logging.LogLevel.Information,
                     exception: null,
                     message: "Handled command {@Command}. Elapsed: {0.0000}ms. Stream {StreamId} is now at {Revision}. Aggregate: {@Aggregate}. Method: {@Method}",
                     typeof(global::PureES.Core.Tests.Models.TestAggregates.Aggregate),
@@ -127,7 +130,7 @@ namespace PureES.CommandHandlers
             catch (global::System.Exception ex)
             {
                 this._logger?.Log(
-                    logLevel: Microsoft.Extensions.Logging.LogLevel.Information,
+                    logLevel: global::Microsoft.Extensions.Logging.LogLevel.Information,
                     exception: ex,
                     message: "Error handling command {@Command}. Aggregate: {@Aggregate}. Method: {@Method}. Elapsed: {0.0000}ms",
                     typeof(global::PureES.Core.Tests.Models.TestAggregates.Aggregate),

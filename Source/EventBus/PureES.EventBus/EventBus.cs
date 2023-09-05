@@ -17,21 +17,16 @@ public class EventBus : IEventBus
     private readonly ITargetBlock<EventEnvelope> _targetBlock;
 
     private readonly ILogger<EventBus> _logger;
-    private readonly EventBusOptions _options;
     private readonly IServiceProvider _services;
 
     public EventBus(EventBusOptions options,
         IServiceProvider services,
         ILogger<EventBus>? logger = null)
     {
-        options.Validate();
-        
-        _options = options;
-        
         _services = services;
         _logger = logger ?? NullLogger<EventBus>.Instance;
         
-        var handler = new EventStreamBlock(Publish, _options);
+        var handler = new EventStreamBlock(Publish, options);
         
         _targetBlock = handler;
 
@@ -103,14 +98,14 @@ public class EventBus : IEventBus
     
     private async Task OnEventHandled(EventEnvelope envelope)
     {
+        await using var scope = _services.CreateAsyncScope();
+        var handlers = scope.ServiceProvider
+            .GetService<IEnumerable<IEventBusEvents>>()
+            ?.ToList();
+        if (handlers == null || handlers.Count == 0)
+            return;
         try
         {
-            await using var scope = _services.CreateAsyncScope();
-            var handlers = scope.ServiceProvider
-                .GetRequiredService<IEnumerable<IEventBusEvents>>()
-                .ToList();
-            if (handlers.Count == 0)
-                return;
             _logger.LogDebug("Processing OnEventHandled for {Handlers} handler(s)", handlers.Count);
             await Task.WhenAll(handlers.Select(h => h.OnEventHandled(envelope)));
             

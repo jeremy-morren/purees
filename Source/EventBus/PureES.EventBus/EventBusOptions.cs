@@ -1,7 +1,5 @@
 ﻿using System.Threading.Tasks.Dataflow;
 using JetBrains.Annotations;
-using Microsoft.Extensions.Logging;
-using PureES.Core;
 
 namespace PureES.EventBus;
 

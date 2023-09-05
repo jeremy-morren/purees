@@ -4,7 +4,7 @@ namespace PureES.Core.Generators;
 
 public static class TypeNameHelpers
 {
-    [Pure]
+    [System.Diagnostics.Contracts.Pure]
     public static string GetGenericTypeName(Type type, params string[] genericArguments)
     {
         var name = type.FullName!;
@@ -17,7 +17,7 @@ public static class TypeNameHelpers
     /// </summary>
     /// <param name="name"></param>
     /// <returns></returns>
-    [Pure]
+    [System.Diagnostics.Contracts.Pure]
     public static string SanitizeName(string name)
     {
         name = name.Replace("global::", string.Empty);

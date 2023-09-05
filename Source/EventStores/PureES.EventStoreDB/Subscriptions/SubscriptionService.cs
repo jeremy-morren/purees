@@ -5,7 +5,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using PureES.Core;
 using PureES.EventBus;
 // ReSharper disable MemberCanBePrivate.Global
 
@@ -26,7 +25,6 @@ internal abstract class SubscriptionService : BackgroundService, IEventStoreSubs
         IOptionsFactory<SubscriptionOptions> optionsFactory,
         
         IServiceProvider services,
-        IEventHandlersCollection eventHandlersCollection,
         
         ILoggerFactory? loggerFactory = null)
     {
@@ -42,7 +40,6 @@ internal abstract class SubscriptionService : BackgroundService, IEventStoreSubs
 
         _eventBus = new EventBus.EventBus(_options.EventBusOptions, 
             services,
-            eventHandlersCollection,
             loggerFactory?.CreateLogger<EventBus.EventBus>());
     }
 

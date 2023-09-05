@@ -7,5 +7,5 @@
 [PublicAPI]
 public interface IAsyncCommandValidator<in TCommand>
 {
-    Task ValidateAsync(TCommand command, CancellationToken cancellationToken);
+    Task Validate(TCommand command, CancellationToken cancellationToken);
 }

@@ -19,7 +19,7 @@ namespace PureES.DependencyInjection
 
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        public static void RegisterServices(IServiceCollection services)
+        private static void Register(IServiceCollection services)
         {
             if (services == null)
             {
@@ -37,63 +37,63 @@ namespace PureES.DependencyInjection
                 }
             }
             // Aggregate: PureES.Core.Tests.Models.TestAggregates.Aggregate. Command handlers: 4
-            if (registeredServices.Contains(global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.TestAggregates.Aggregate>)
+            if (registeredServices.Contains(typeof(global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.TestAggregates.Aggregate>)))
             {
-                services.RemoveAll(global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.TestAggregates.Aggregate>);
+                services.RemoveAll(typeof(global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.TestAggregates.Aggregate>));
             }
             services.Add(new ServiceDescriptor(
-                serviceType: global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.TestAggregates.Aggregate>,
+                serviceType: typeof(global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.TestAggregates.Aggregate>),
                 implementationType: typeof(global::PureES.AggregateStores.AggregateAggregateStore),
-                serviceLifetime: ServiceLifetime.Transient));
-            if (registeredServices.Contains(global::PureES.Core.ICommandHandler<global::PureES.Core.Tests.Models.Commands.Create>)
+                lifetime: ServiceLifetime.Transient));
+            if (registeredServices.Contains(typeof(global::PureES.Core.ICommandHandler<global::PureES.Core.Tests.Models.Commands.Create>)))
             {
-                services.RemoveAll(global::PureES.Core.ICommandHandler<global::PureES.Core.Tests.Models.Commands.Create>);
+                services.RemoveAll(typeof(global::PureES.Core.ICommandHandler<global::PureES.Core.Tests.Models.Commands.Create>));
             }
             services.Add(new ServiceDescriptor(
-                serviceType: global::PureES.Core.ICommandHandler<global::PureES.Core.Tests.Models.Commands.Create>,
+                serviceType: typeof(global::PureES.Core.ICommandHandler<global::PureES.Core.Tests.Models.Commands.Create>),
                 implementationType: typeof(global::PureES.CommandHandlers.CreateCommandHandler),
-                serviceLifetime: ServiceLifetime.Transient));
-            if (registeredServices.Contains(global::PureES.Core.ICommandHandler<global::PureES.Core.Tests.Models.Commands.Update>)
+                lifetime: ServiceLifetime.Transient));
+            if (registeredServices.Contains(typeof(global::PureES.Core.ICommandHandler<global::PureES.Core.Tests.Models.Commands.Update>)))
             {
-                services.RemoveAll(global::PureES.Core.ICommandHandler<global::PureES.Core.Tests.Models.Commands.Update>);
+                services.RemoveAll(typeof(global::PureES.Core.ICommandHandler<global::PureES.Core.Tests.Models.Commands.Update>));
             }
             services.Add(new ServiceDescriptor(
-                serviceType: global::PureES.Core.ICommandHandler<global::PureES.Core.Tests.Models.Commands.Update>,
+                serviceType: typeof(global::PureES.Core.ICommandHandler<global::PureES.Core.Tests.Models.Commands.Update>),
                 implementationType: typeof(global::PureES.CommandHandlers.UpdateCommandHandler),
-                serviceLifetime: ServiceLifetime.Transient));
-            if (registeredServices.Contains(global::PureES.Core.ICommandHandler<global::PureES.Core.Tests.Models.Commands.UpdateConstantStream>)
+                lifetime: ServiceLifetime.Transient));
+            if (registeredServices.Contains(typeof(global::PureES.Core.ICommandHandler<global::PureES.Core.Tests.Models.Commands.UpdateConstantStream, int[]>)))
             {
-                services.RemoveAll(global::PureES.Core.ICommandHandler<global::PureES.Core.Tests.Models.Commands.UpdateConstantStream>);
+                services.RemoveAll(typeof(global::PureES.Core.ICommandHandler<global::PureES.Core.Tests.Models.Commands.UpdateConstantStream, int[]>));
             }
             services.Add(new ServiceDescriptor(
-                serviceType: global::PureES.Core.ICommandHandler<global::PureES.Core.Tests.Models.Commands.UpdateConstantStream>,
+                serviceType: typeof(global::PureES.Core.ICommandHandler<global::PureES.Core.Tests.Models.Commands.UpdateConstantStream, int[]>),
                 implementationType: typeof(global::PureES.CommandHandlers.UpdateConstantStreamCommandHandler),
-                serviceLifetime: ServiceLifetime.Transient));
-            if (registeredServices.Contains(global::PureES.Core.ICommandHandler<int[]>)
+                lifetime: ServiceLifetime.Transient));
+            if (registeredServices.Contains(typeof(global::PureES.Core.ICommandHandler<int[]>)))
             {
-                services.RemoveAll(global::PureES.Core.ICommandHandler<int[]>);
+                services.RemoveAll(typeof(global::PureES.Core.ICommandHandler<int[]>));
             }
             services.Add(new ServiceDescriptor(
-                serviceType: global::PureES.Core.ICommandHandler<int[]>,
+                serviceType: typeof(global::PureES.Core.ICommandHandler<int[]>),
                 implementationType: typeof(global::PureES.CommandHandlers.CommandHandler),
-                serviceLifetime: ServiceLifetime.Transient));
+                lifetime: ServiceLifetime.Transient));
 
             // Event Handlers. Count: 2
 
             if (!registeredImplementations.Contains(typeof(global::PureES.EventHandlers.CreatedEventHandler)))
             {
                 services.Add(new ServiceDescriptor(
-                    serviceType: global::PureES.Core.IEventHandler<global::PureES.Core.Tests.Models.Events.Created>,
+                    serviceType: typeof(global::PureES.Core.IEventHandler<global::PureES.Core.Tests.Models.Events.Created>),
                     implementationType: typeof(global::PureES.EventHandlers.CreatedEventHandler),
-                    serviceLifetime: ServiceLifetime.Transient));
+                    lifetime: ServiceLifetime.Transient));
             }
 
             if (!registeredImplementations.Contains(typeof(global::PureES.EventHandlers.UpdatedEventHandler)))
             {
                 services.Add(new ServiceDescriptor(
-                    serviceType: global::PureES.Core.IEventHandler<global::PureES.Core.Tests.Models.Events.Updated>,
+                    serviceType: typeof(global::PureES.Core.IEventHandler<global::PureES.Core.Tests.Models.Events.Updated>),
                     implementationType: typeof(global::PureES.EventHandlers.UpdatedEventHandler),
-                    serviceLifetime: ServiceLifetime.Transient));
+                    lifetime: ServiceLifetime.Transient));
             }
             // Event handler parents. Count: 1
 
@@ -102,7 +102,7 @@ namespace PureES.DependencyInjection
                 services.Add(new ServiceDescriptor(
                     serviceType: typeof(global::PureES.Core.Tests.Models.TestAggregates.EventHandlers),
                     implementationType: typeof(global::PureES.Core.Tests.Models.TestAggregates.EventHandlers),
-                    serviceLifetime: ServiceLifetime.Transient));
+                    lifetime: ServiceLifetime.Transient));
             }
 
         }

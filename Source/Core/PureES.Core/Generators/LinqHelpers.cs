@@ -1,4 +1,4 @@
-﻿namespace PureES.Core;
+﻿namespace PureES.Core.Generators;
 
 internal static class LinqHelpers
 {
@@ -13,5 +13,4 @@ internal static class LinqHelpers
         }
         return -1;
     }
-
 }
