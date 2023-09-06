@@ -13,6 +13,9 @@ internal class EventHandlerGenerator
 
     private EventHandlerGenerator(EventHandlerCollection handlers)
     {
+        if (handlers == null) throw new ArgumentNullException(nameof(handlers));
+        if (handlers.Handlers.Count == 0)
+            throw new ArgumentException(nameof(handlers));
         _handlers = handlers;
     }
 
@@ -89,121 +92,52 @@ internal class EventHandlerGenerator
     {
         _w.WriteMethodAttributes();
 
-        var task = $"global::{typeof(Task).FullName}";
+        var isAsync = _handlers.Handlers.Count > 1 || _handlers.Handlers[0].IsAsync;
+        var signature = isAsync ? "async " : null;
         
-        _w.WriteLine($"public async {task} {nameof(IEventHandler<int>.Handle)}(global::{typeof(EventEnvelope)} @event)");
+        _w.WriteLine($"public {signature}{TaskType} {nameof(IEventHandler<int>.Handle)}({EventEnvelopeType} @event)");
         _w.PushBrace();
         
-        _w.WriteLine($"var ct = new CancellationTokenSource(_options.{nameof(PureESEventHandlerOptions.Timeout)}).Token;");
+        //Validation
+        _w.WriteStatement($"if (@event.{nameof(EventEnvelope.Event)} is not {_handlers.EventType.CSharpName})",
+            "throw new ArgumentException(nameof(@event));");
         
         WriteStartActivity();
-        
-        //Create an array of tasks
-        //Then await Task.WhenAll
-        
-        _w.WriteLine($"var tasks = new {task}[{_handlers.Handlers.Count}];");
-        
-        for (var i = 0; i < _handlers.Handlers.Count; i++)
-        {
-            var handler = _handlers.Handlers[i];
-            var method = $"\"{handler.Method.Name}\"";
-            _w.WriteLine($"// {handler.Method.Name} on {handler.Parent.FullName}");
-            
-            var async = handler.Method.ReturnType != null && handler.Method.ReturnType.IsAsync(out _)
-                ? "async "
-                : string.Empty;
-            _w.WriteLine($"tasks[{i}] = {task}.{nameof(Task.Run)}({async}() =>");
-            _w.PushBrace();
 
-            BeginLogScope(handler);
+        if (_handlers.Handlers.Count > 1)
+        {
+            //Create an array of tasks
+            //Then await Task.WhenAll
+        
+            _w.WriteLine($"var tasks = new {TaskType}[{_handlers.Handlers.Count}];");
+
+            for (var i = 0; i < _handlers.Handlers.Count; i++)
+                _w.WriteLine($"tasks[{i}] = Task.Run(() => {_handlers.Handlers[i].HandlerMethodName}(@event));");
             
-            _w.WriteLine($"var start = {GeneratorHelpers.GetTimestamp};");
-            
-            _w.WriteStatement("try", () =>
+            _w.WriteLine($"await {TaskType}.{nameof(Task.WhenAll)}(tasks);");
+        }
+        else
+        {
+            //handle the task directly
+            var handler = _handlers.Handlers[0];
+            if (handler.IsAsync)
             {
-                _w.WriteLogMessage("Debug", 
-                    "null",
-                    "Handling event {@StreamId}/{@StreamPosition}. Event Type: {@EventType}. Event handler {@EventHandler} on {@EventHandlerParent}",
-                    $"@event.{nameof(EventEnvelope.StreamId)}",
-                    $"@event.{nameof(EventEnvelope.StreamPosition)}",
-                    $"typeof({_handlers.EventType.CSharpName})",
-                    method,
-                    $"typeof({handler.Parent.CSharpName})");
-                var await = handler.Method.ReturnType != null && handler.Method.ReturnType.IsAsync(out _)
-                    ? "await "
-                    : string.Empty;
-                var parent = handler.Method.IsStatic
-                    ? handler.Parent.CSharpName
-                    : $"this._parent{_handlers.Parents.GetIndex(handler.Parent)}";
-                _w.Write($"{@await}{parent}.{handler.Method.Name}(");
-                _w.WriteParameters(handler.Method.Parameters.Select(p =>
-                {
-                    if (p.HasAttribute<EventAttribute>())
-                        return $"({handler.Event.CSharpName})@event.{nameof(EventEnvelope.Event)}";
-                    if (p.Type.IsGenericEventEnvelope())
-                        return $"new {p.Type.CSharpName}(@event)";
-                    if (p.HasFromServicesAttribute())
-                        return $"this._service{_handlers.Services.GetIndex(p.Type)}";
-                    if (p.Type.IsCancellationToken())
-                        return "ct";
-                    throw new NotImplementedException("Unknown parameter");
-                }));
-                _w.WriteRawLine(");");
-                _w.WriteLine("var elapsed = GetElapsedTimespan(start);");
-                _w.WriteLogMessage("this._options.GetLogLevel(@event, elapsed)", 
-                    "null",
-                    "Handled event {@StreamId}/{@StreamPosition}. Elapsed: {0.0000}ms. Event Type: {@EventType}. Event handler {@EventHandler} on {@EventHandlerParent}",
-                    $"@event.{nameof(EventEnvelope.StreamId)}",
-                    $"@event.{nameof(EventEnvelope.StreamPosition)}",
-                    $"elapsed.{nameof(TimeSpan.TotalMilliseconds)}",
-                    $"typeof({_handlers.EventType.CSharpName})",
-                    method,
-                    $"typeof({handler.Parent.CSharpName})");
-            });
-            
-            const string propagate = $"_options.{nameof(PureESEventHandlerOptions.PropagateExceptions)}";
-            const string logErrorLevel = $"{propagate} ? LogLevel.Information : LogLevel.Error";
-            
-            _w.WriteStatement($"catch (global::{typeof(OperationCanceledException).FullName} ex)", () =>
+                _w.WriteLine($"await {handler.HandlerMethodName}(@event);");
+            }
+            else
             {
-                _w.WriteLogMessage(logErrorLevel, 
-                    "ex",
-                    "Timed out while handling event {@StreamId}/{@StreamPosition}. Elapsed: {0.0000}ms. Event Type: {@EventType}. Event handler {@EventHandler} on {@EventHandlerParent}",
-                    $"@event.{nameof(EventEnvelope.StreamId)}",
-                    $"@event.{nameof(EventEnvelope.StreamPosition)}",
-                    "GetElapsed(start)",
-                    $"typeof({_handlers.EventType.CSharpName})",
-                    method,
-                    $"typeof({handler.Parent.CSharpName})");
-                _w.WriteStatement($"if ({propagate})", "throw;");
-            });
-            _w.WriteStatement("catch (global::System.Exception ex)", () =>
-            {
-                _w.WriteLogMessage(logErrorLevel, 
-                    "ex",
-                    "Error handling event {@StreamId}/{@StreamPosition}. Elapsed: {0.0000}ms. Event Type: {@EventType}. Event handler {@EventHandler} on {@EventHandlerParent}",
-                    $"@event.{nameof(EventEnvelope.StreamId)}",
-                    $"@event.{nameof(EventEnvelope.StreamPosition)}",
-                    "GetElapsed(start)",
-                    $"typeof({_handlers.EventType.CSharpName})",
-                    method,
-                    $"typeof({handler.Parent.CSharpName})");
-                _w.WriteStatement($"if ({propagate})", "throw;");
-            });
-            
-            _w.PopBrace(); //Log scope
-            
-            _w.Pop();
-            _w.WriteLine("});");  //Task.Run
-            
-            _w.WriteLine();
+                //Synchronous
+                _w.WriteLine($"{handler.HandlerMethodName}(@event);");
+                _w.WriteLine($"return {TaskType}.{nameof(Task.CompletedTask)};");
+            }
         }
 
-        _w.WriteLine($"await {task}.{nameof(Task.WhenAll)}(tasks);");
-        
         _w.PopBrace(); //Activity
         
-        _w.PopBrace();
+        _w.PopBrace(); //Method
+
+        foreach (var handler in _handlers.Handlers)
+            WriteHandlerMethod(handler);
     }
 
     private void WriteStartActivity()
@@ -220,6 +154,98 @@ internal class EventHandlerGenerator
         _w.WriteLine("activity.Start();");
     }
 
+    private void WriteHandlerMethod(EventHandler handler)
+    {
+        _w.WriteMethodAttributes();
+        _w.WriteLine($"// {handler.Method.Name} on {handler.Parent.FullName}");
+        
+        _w.WriteLine($"private {(handler.IsAsync ? $"async {TaskType}" : "void")} {handler.HandlerMethodName}({EventEnvelopeType} @event)");
+        _w.PushBrace();
+        
+        _w.WriteLine($"var ct = new CancellationTokenSource(_options.{nameof(PureESEventHandlerOptions.Timeout)}).Token;");
+        _w.WriteLine($"var parentType = typeof({handler.Parent.CSharpName});");
+        _w.WriteLine($"var eventType = typeof({handler.Event.CSharpName});");
+        
+        BeginLogScope(handler);
+        
+        var method = $"\"{handler.Method.Name}\"";
+        
+        _w.WriteLine($"var start = {GeneratorHelpers.GetTimestamp};");
+        
+        _w.WriteStatement("try", () =>
+        {
+            _w.WriteLogMessage("Debug", 
+                "null",
+                "Handling event {StreamId}/{StreamPosition}. Event Type: {@EventType}. Event handler {EventHandler} on {@EventHandlerParent}",
+                $"@event.{nameof(EventEnvelope.StreamId)}",
+                $"@event.{nameof(EventEnvelope.StreamPosition)}",
+                "eventType",
+                method,
+                "parentType");
+            var parent = handler.Method.IsStatic
+                ? handler.Parent.CSharpName
+                : $"this._parent{_handlers.Parents.GetIndex(handler.Parent)}";
+            _w.Write($"{(handler.IsAsync ? "await " : null)}{parent}.{handler.Method.Name}(");
+            _w.WriteParameters(handler.Method.Parameters.Select(p =>
+            {
+                if (p.HasAttribute<EventAttribute>())
+                    return $"({handler.Event.CSharpName})@event.{nameof(EventEnvelope.Event)}";
+                if (p.Type.IsGenericEventEnvelope())
+                    return $"new {p.Type.CSharpName}(@event)";
+                if (p.HasFromServicesAttribute())
+                    return $"this._service{_handlers.Services.GetIndex(p.Type)}";
+                if (p.Type.IsCancellationToken())
+                    return "ct";
+                throw new NotImplementedException("Unknown parameter");
+            }));
+            _w.WriteRawLine(");");
+            _w.WriteLine("var elapsed = GetElapsedTimespan(start);");
+            _w.WriteLogMessage("this._options.GetLogLevel(@event, elapsed)", 
+                "null",
+                "Handled event {StreamId}/{StreamPosition}. Elapsed: {Elapsed:0.0000}ms. Event Type: {@EventType}. Event handler {EventHandler} on {@EventHandlerParent}",
+                $"@event.{nameof(EventEnvelope.StreamId)}",
+                $"@event.{nameof(EventEnvelope.StreamPosition)}",
+                $"elapsed.{nameof(TimeSpan.TotalMilliseconds)}",
+                "eventType",
+                method,
+                "parentType");
+        });
+        
+        const string propagate = $"_options.{nameof(PureESEventHandlerOptions.PropagateExceptions)}";
+        const string logErrorLevel = $"{propagate} ? LogLevel.Information : LogLevel.Error";
+        
+        _w.WriteStatement($"catch (global::{typeof(OperationCanceledException).FullName} ex)", () =>
+        {
+            _w.WriteLogMessage(logErrorLevel, 
+                "ex",
+                "Timed out while handling event {StreamId}/{StreamPosition}. Elapsed: {Elapsed:0.0000}ms. Event Type: {@EventType}. Event handler {EventHandler} on {@EventHandlerParent}",
+                $"@event.{nameof(EventEnvelope.StreamId)}",
+                $"@event.{nameof(EventEnvelope.StreamPosition)}",
+                "GetElapsed(start)",
+                "eventType",
+                method,
+                "parentType");
+            _w.WriteStatement($"if ({propagate})", "throw;");
+        });
+        _w.WriteStatement("catch (global::System.Exception ex)", () =>
+        {
+            _w.WriteLogMessage(logErrorLevel, 
+                "ex",
+                "Error handling event {StreamId}/{StreamPosition}. Elapsed: {Elapsed:0.0000}ms. Event Type: {@EventType}. Event handler {EventHandler} on {@EventHandlerParent}",
+                $"@event.{nameof(EventEnvelope.StreamId)}",
+                $"@event.{nameof(EventEnvelope.StreamPosition)}",
+                "GetElapsed(start)",
+                "eventType",
+                method,
+                "parentType");
+            _w.WriteStatement($"if ({propagate})", "throw;");
+        });
+        
+        _w.PopBrace(); //Log scope
+        
+        _w.PopBrace(); //Method
+    }
+
     private void BeginLogScope(EventHandler handler)
     {
         _w.WriteLine($"using (_logger.BeginScope(new {LoggerScopeType}()");
@@ -227,8 +253,8 @@ internal class EventHandlerGenerator
         _w.PushBrace();
         var parameters = new (string, string)[]
         {
-            ("EventType", $"typeof({_handlers.EventType.CSharpName})"),
-            ("EventHandlerParent", $"typeof({handler.Parent.FullName})"),
+            ("EventType", "eventType"),
+            ("EventHandlerParent", "parentType"),
             ("EventHandler", $"\"{handler.Method.Name}\""),
             (nameof(EventEnvelope.StreamId), $"@event.{nameof(EventEnvelope.StreamId)}"),
             (nameof(EventEnvelope.StreamPosition), $"@event.{nameof(EventEnvelope.StreamPosition)}"),
@@ -258,6 +284,9 @@ internal class EventHandlerGenerator
     private static string OptionsType => ExternalTypes.IOptions($"global::{typeof(PureESOptions).FullName}");
     
     private static string EventHandlerOptionsType => $"global::{typeof(PureESEventHandlerOptions).FullName}";
+    
+    private static string TaskType => $"global::{typeof(Task).FullName}";
+    private static string EventEnvelopeType => $"global::{typeof(EventEnvelope).FullName}";
 
     private static string LoggerScopeType =>
         TypeNameHelpers.GetGenericTypeName(typeof(Dictionary<string, object>), "string", "object");

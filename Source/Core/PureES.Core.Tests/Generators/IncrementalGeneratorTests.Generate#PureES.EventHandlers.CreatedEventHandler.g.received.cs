@@ -63,8 +63,8 @@ namespace PureES.EventHandlers
                 global::System.Diagnostics.Activity.Current = activity;
                 activity.Start();
                 var tasks = new global::System.Threading.Tasks.Task[2];
-                tasks[0] = Task.Run(PureESCoreTestsModelsTestAggregatesEventHandlers_OnCreated);
-                tasks[1] = Task.Run(PureESCoreTestsModelsTestAggregatesEventHandlers_OnCreated2);
+                tasks[0] = Task.Run(() => PureESCoreTestsModelsTestAggregatesEventHandlers_OnCreated(@event));
+                tasks[1] = Task.Run(() => PureESCoreTestsModelsTestAggregatesEventHandlers_OnCreated2(@event));
                 await global::System.Threading.Tasks.Task.WhenAll(tasks);
             }
         }
@@ -72,7 +72,7 @@ namespace PureES.EventHandlers
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         // OnCreated on PureES.Core.Tests.Models.TestAggregates.EventHandlers
-        private async global::System.Threading.Tasks.Task PureESCoreTestsModelsTestAggregatesEventHandlers_OnCreated()
+        private async global::System.Threading.Tasks.Task PureESCoreTestsModelsTestAggregatesEventHandlers_OnCreated(global::PureES.Core.EventEnvelope @event)
         {
             var ct = new CancellationTokenSource(_options.Timeout).Token;
             var parentType = typeof(global::PureES.Core.Tests.Models.TestAggregates.EventHandlers);
@@ -153,7 +153,7 @@ namespace PureES.EventHandlers
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         // OnCreated2 on PureES.Core.Tests.Models.TestAggregates.EventHandlers
-        private void PureESCoreTestsModelsTestAggregatesEventHandlers_OnCreated2()
+        private void PureESCoreTestsModelsTestAggregatesEventHandlers_OnCreated2(global::PureES.Core.EventEnvelope @event)
         {
             var ct = new CancellationTokenSource(_options.Timeout).Token;
             var parentType = typeof(global::PureES.Core.Tests.Models.TestAggregates.EventHandlers);

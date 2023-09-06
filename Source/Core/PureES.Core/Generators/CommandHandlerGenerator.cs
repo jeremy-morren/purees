@@ -126,8 +126,6 @@ internal class CommandHandlerGenerator
 
     private void WriteHandler()
     {
-        var cmdType = $"typeof({_aggregate.Type.CSharpName})";
-        var aggType = $"typeof({_handler.Command.CSharpName})";
         var method = $"\"{_handler.Method.Name}\"";
 
         if (_handler.Command.IsReferenceType)
@@ -135,11 +133,14 @@ internal class CommandHandlerGenerator
             //Add null check, which returns immediately
             _w.WriteStatement("if (command == null)", "throw new ArgumentNullException(nameof(command));");
         }
+
+        _w.WriteLine($"var commandType = typeof({_handler.Command.CSharpName});");
+        _w.WriteLine($"var aggregateType = typeof({_aggregate.Type.CSharpName});");
         
         _w.WriteLogMessage("Debug",
             "null",
-            "Handling command {@Command}. Aggregate: {@Aggregate}. Method: {@Method}", 
-            cmdType, aggType, method);
+            "Handling command {@Command}. Aggregate: {@Aggregate}. Method: {Method}", 
+            "commandType", "aggregateType", method);
 
         _w.WriteLine($"var start = {GeneratorHelpers.GetTimestamp};");
         
@@ -186,8 +187,8 @@ internal class CommandHandlerGenerator
             
             _w.WriteLogMessage("Information",
                 "null",
-                "Handled command {@Command}. Elapsed: {0.0000}ms. Stream {StreamId} is now at {Revision}. Aggregate: {@Aggregate}. Method: {@Method}",
-                cmdType, "GetElapsed(start)", "streamId", "revision", aggType, method);
+                "Handled command {@Command}. Elapsed: {Elapsed:0.0000}ms. Stream {StreamId} is now at {Revision}. Aggregate: {@Aggregate}. Method: {Method}",
+                "commandType", "GetElapsed(start)", "streamId", "revision", "aggregateType", method);
             
             
             _w.WriteLine(_handler.ResultType != null ? $"return result?.{nameof(CommandResult<int,int>.Result)};" : "return revision;");
@@ -197,8 +198,8 @@ internal class CommandHandlerGenerator
             //Note: We write 'Information' here, so avoid duplicate error messages when it is caught by global request exception handler
             _w.WriteLogMessage("Information",
                 "ex",
-                "Error handling command {@Command}. Aggregate: {@Aggregate}. Method: {@Method}. Elapsed: {0.0000}ms",
-                cmdType, aggType, method, "GetElapsed(start)");
+                "Error handling command {@Command}. Aggregate: {@Aggregate}. Method: {Method}. Elapsed: {Elapsed:0.0000}ms",
+                "commandType", "aggregateType", method, "GetElapsed(start)");
             _w.WriteLine("throw;");
         });
     }

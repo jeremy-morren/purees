@@ -68,12 +68,14 @@ namespace PureES.CommandHandlers
             {
                 throw new ArgumentNullException(nameof(command));
             }
+            var commandType = typeof(global::PureES.Core.Tests.Models.Commands.Create);
+            var aggregateType = typeof(global::PureES.Core.Tests.Models.TestAggregates.Aggregate);
             this._logger?.Log(
                 logLevel: global::Microsoft.Extensions.Logging.LogLevel.Debug,
                 exception: null,
                 message: "Handling command {@Command}. Aggregate: {@Aggregate}. Method: {@Method}",
-                typeof(global::PureES.Core.Tests.Models.TestAggregates.Aggregate),
-                typeof(global::PureES.Core.Tests.Models.Commands.Create),
+                commandType,
+                aggregateType,
                 "CreateOn");
             var start = global::System.Diagnostics.Stopwatch.GetTimestamp();
             try
@@ -119,11 +121,11 @@ namespace PureES.CommandHandlers
                     logLevel: global::Microsoft.Extensions.Logging.LogLevel.Information,
                     exception: null,
                     message: "Handled command {@Command}. Elapsed: {0.0000}ms. Stream {StreamId} is now at {Revision}. Aggregate: {@Aggregate}. Method: {@Method}",
-                    typeof(global::PureES.Core.Tests.Models.TestAggregates.Aggregate),
+                    commandType,
                     GetElapsed(start),
                     streamId,
                     revision,
-                    typeof(global::PureES.Core.Tests.Models.Commands.Create),
+                    aggregateType,
                     "CreateOn");
                 return revision;
             }
@@ -133,8 +135,8 @@ namespace PureES.CommandHandlers
                     logLevel: global::Microsoft.Extensions.Logging.LogLevel.Information,
                     exception: ex,
                     message: "Error handling command {@Command}. Aggregate: {@Aggregate}. Method: {@Method}. Elapsed: {0.0000}ms",
-                    typeof(global::PureES.Core.Tests.Models.TestAggregates.Aggregate),
-                    typeof(global::PureES.Core.Tests.Models.Commands.Create),
+                    commandType,
+                    aggregateType,
                     "CreateOn",
                     GetElapsed(start));
                 throw;
