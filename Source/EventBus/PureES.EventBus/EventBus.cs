@@ -47,32 +47,44 @@ public class EventBus : IEventBus
 
     private async Task Publish(EventEnvelope envelope)
     {
-        var serviceType = EventHandlerTypes.GetOrAdd(envelope.Event.GetType(), 
-            t =>
-            {
-                t = typeof(IEventHandler<>).MakeGenericType(t);
-                return typeof(IEnumerable<>).MakeGenericType(t);
-            });
-
-        var handlers = ((IEnumerable?)_services.GetService(serviceType))?.Cast<IEventHandler>().ToList();
-        
-        if (handlers == null || handlers.Count == 0) return;
-    
         var logEvent = new
         {
             envelope.StreamId, 
             envelope.StreamPosition, 
             EventType = GetTypeName(GetEventType(envelope))
         };
-        _logger.LogDebug("Processing {EventHandlerCount} event handler(s) for event {@Event}", 
-            handlers.Count, logEvent);
-        var start = Stopwatch.GetTimestamp();
-        foreach (var handler in handlers)
-            await handler.Handle(envelope);
-        var elapsed = GetElapsed(start);
-        _logger.LogDebug(
-            "Processed {EventHandlerCount} event handler(s) for event {@Event}. Elapsed: {Elapsed:0.0000} ms",
-            handlers.Count, logEvent, elapsed.TotalMilliseconds);
+        
+        try
+        {
+            await using var scope = _services.CreateAsyncScope();
+            var serviceType = EventHandlerTypes.GetOrAdd(envelope.Event.GetType(), 
+                t =>
+                {
+                    t = typeof(IEventHandler<>).MakeGenericType(t);
+                    return typeof(IEnumerable<>).MakeGenericType(t);
+                });
+
+            var handlers = ((IEnumerable?)scope.ServiceProvider.GetService(serviceType))?.Cast<IEventHandler>().ToList();
+        
+            if (handlers == null || handlers.Count == 0) return;
+    
+            _logger.LogDebug("Processing {EventHandlerCount} event handler(s) for event {@Event}", 
+                handlers.Count, logEvent);
+            var start = Stopwatch.GetTimestamp();
+            foreach (var handler in handlers)
+                await handler.Handle(envelope);
+            var elapsed = GetElapsed(start);
+            _logger.LogDebug(
+                "Processed {EventHandlerCount} event handler(s) for event {@Event}. Elapsed: {Elapsed:0.0000} ms",
+                handlers.Count, logEvent, elapsed.TotalMilliseconds);
+        }
+        catch (Exception e)
+        {
+            //Benign exceptions will be caught by the event handlers themselves
+            //This is most likely a dependency injection failure
+            _logger.LogCritical(e, "An error occurred handling event {@LogEvent}", logEvent);
+            throw;
+        }
     }
 
     private static TimeSpan GetElapsed(long start)
