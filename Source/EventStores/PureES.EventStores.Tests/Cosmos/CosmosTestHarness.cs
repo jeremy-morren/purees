@@ -1,6 +1,4 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using Moq;
-using PureES.Core;
 using PureES.Core.EventStore;
 using PureES.CosmosDB;
 

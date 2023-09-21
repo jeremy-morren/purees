@@ -1,6 +1,4 @@
-﻿using System.Diagnostics.Contracts;
-
-namespace PureES.Core.Generators;
+﻿namespace PureES.Core.Generators;
 
 public static class TypeNameHelpers
 {

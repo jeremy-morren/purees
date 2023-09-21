@@ -1,6 +1,4 @@
-﻿
-using System.Reflection;
-using PureES.Core.EventStore;
+﻿using PureES.Core.EventStore;
 
 namespace PureES.Core;
 
