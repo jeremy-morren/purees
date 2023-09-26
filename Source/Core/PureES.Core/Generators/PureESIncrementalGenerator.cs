@@ -31,6 +31,13 @@ public class PureESIncrementalGenerator : IIncrementalGenerator
         
         context.RegisterSourceOutput(types.Collect(), static (context, types) =>
         {
+            void AddSource(string filename, string cs)
+            {
+                cs = cs.Replace("\n", Environment.NewLine); //Fix line endings
+                filename = TypeNameHelpers.SanitizeFilename(filename);
+                context.AddSource($"{filename}.g.cs", cs);
+            }
+            
             var log = new CompilationLogProvider(context);
 
             var aggregateTypes = types
@@ -53,11 +60,11 @@ public class PureESIncrementalGenerator : IIncrementalGenerator
                     aggregates.Add(aggregate);
 
                     cs = AggregateStoreGenerator.Generate(aggregate, out filename);
-                    context.AddSource($"{filename}.g.cs", NormalizeLineEndings(cs));
+                    AddSource(filename, cs);
                     foreach (var handler in aggregate.Handlers)
                     {
                         cs = CommandHandlerGenerator.Generate(aggregate, handler, out filename);
-                        context.AddSource($"{filename}.g.cs", cs);
+                        AddSource(filename, cs);
                     }
                 }
 
@@ -74,12 +81,12 @@ public class PureESIncrementalGenerator : IIncrementalGenerator
                 foreach (var collection in eventHandlerCollections)
                 {
                     cs = EventHandlerGenerator.Generate(collection, out filename);
-                    context.AddSource($"{filename}.g.cs", NormalizeLineEndings(cs));
+                    AddSource(filename, cs);
                 }
 
                 //Register DI
                 cs = DependencyInjectionGenerator.Generate(aggregates, eventHandlerCollections, out filename);
-                context.AddSource($"{filename}.g.cs", NormalizeLineEndings(cs));
+                AddSource(filename, cs);
             }
             catch (Exception e)
             {
@@ -91,10 +98,5 @@ public class PureESIncrementalGenerator : IIncrementalGenerator
                     str);
             }
         });
-    }
-
-    private static string NormalizeLineEndings(string input)
-    {
-        return input.Replace("\n", Environment.NewLine);
     }
 }

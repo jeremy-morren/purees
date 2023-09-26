@@ -10,7 +10,5 @@ internal record When
     
     public required IMethod Method { get; init; }
 
-    public required IType[] Services { get; init; }
-
     public required bool IsUpdate { get; init; }
 }

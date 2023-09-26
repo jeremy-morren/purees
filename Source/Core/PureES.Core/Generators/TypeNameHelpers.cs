@@ -22,4 +22,17 @@ public static class TypeNameHelpers
         name = name.Replace("[]", "Array");
         return new[] { '<', '>', '[', ']', '+', '.' }.Aggregate(name, (cur, c) => cur.Replace(c, '_'));
     }
+    
+    /// <summary>
+    /// Transforms a string into a name suitable as a filename
+    /// </summary>
+    /// <param name="name"></param>
+    /// <returns></returns>
+    [System.Diagnostics.Contracts.Pure]
+    public static string SanitizeFilename(string name)
+    {
+        name = name.Replace("global::", string.Empty);
+        name = name.Replace("[]", "Array");
+        return Path.GetInvalidFileNameChars().Aggregate(name, (cur, c) => cur.Replace(c, '_'));
+    }
 }

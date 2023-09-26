@@ -9,6 +9,7 @@
 using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace PureES.AggregateStores
 {
@@ -17,19 +18,16 @@ namespace PureES.AggregateStores
     internal class AggregateAggregateStore : global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.TestAggregates.Aggregate>
     {
         private readonly global::PureES.Core.EventStore.IEventStore _eventStore;
-        private readonly global::Microsoft.Extensions.Logging.ILoggerFactory _service0;
-        private readonly global::System.IServiceProvider _service1;
+        private readonly global::System.IServiceProvider _services;
 
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         public AggregateAggregateStore(
-            global::Microsoft.Extensions.Logging.ILoggerFactory service0,
-            global::System.IServiceProvider service1,
-            global::PureES.Core.EventStore.IEventStore eventStore)
+            global::PureES.Core.EventStore.IEventStore eventStore,
+            global::System.IServiceProvider services)
         {
             this._eventStore = eventStore ?? throw new ArgumentNullException(nameof(eventStore));
-            this._service0 = service0 ?? throw new ArgumentNullException(nameof(service0));
-            this._service1 = service1 ?? throw new ArgumentNullException(nameof(service1));
+            this._services = serviceProvider ?? throw new ArgumentNullException(nameof(services));
         }
 
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
@@ -82,21 +80,23 @@ namespace PureES.AggregateStores
                     }
                 }
                 current.GlobalWhen(enumerator.Current, cancellationToken);
-                await current.GlobalWhenAsync(enumerator.Current, this._service0);
+                await current.GlobalWhenAsync(
+                    enumerator.Current,
+                    (global::Microsoft.Extensions.Logging.ILoggerFactory)this._services.GetRequiredService(typeof(global::Microsoft.Extensions.Logging.ILoggerFactory)));
                 while (await enumerator.MoveNextAsync())
                 {
                     switch (enumerator.Current.Event)
                     {
                         case global::PureES.Core.Tests.Models.Events.Updated e:
                         {
-                            current.When(e, this._service1);
+                            current.When(e, this._services);
                             break;
                         }
                         case int e:
                         {
                             await current.When(
                                 new global::PureES.Core.Tests.Models.TestAggregates.EventEnvelope<int>(enumerator.Current),
-                                this._service0);
+                                (global::Microsoft.Extensions.Logging.ILoggerFactory)this._services.GetRequiredService(typeof(global::Microsoft.Extensions.Logging.ILoggerFactory)));
                             break;
                         }
                         case global::PureES.Core.Tests.Models.Events.Updated e:
@@ -111,7 +111,9 @@ namespace PureES.AggregateStores
                         }
                     }
                     current.GlobalWhen(enumerator.Current, cancellationToken);
-                    await current.GlobalWhenAsync(enumerator.Current, this._service0);
+                    await current.GlobalWhenAsync(
+                        enumerator.Current,
+                        (global::Microsoft.Extensions.Logging.ILoggerFactory)this._services.GetRequiredService(typeof(global::Microsoft.Extensions.Logging.ILoggerFactory)));
                 }
                 return current;
             }

@@ -93,8 +93,7 @@ internal class PureESTreeBuilder
                 {
                     Event = e.Type,
                     IsUpdate = isUpdate,
-                    Method = method,
-                    Services = services
+                    Method = method
                 });
                 continue;
             }
@@ -116,8 +115,7 @@ internal class PureESTreeBuilder
                 {
                     Event = @event,
                     IsUpdate = isUpdate,
-                    Method = method,
-                    Services = services
+                    Method = method
                 });
                 continue;
             }

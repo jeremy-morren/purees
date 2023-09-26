@@ -316,7 +316,14 @@ internal class CommandHandlerGenerator
 
     public const string Namespace = "PureES.CommandHandlers";
     
-    public static string GetClassName(Handler handler) => $"{TypeNameHelpers.SanitizeName(handler.Command.Name)}CommandHandler";
+    public static string GetClassName(Handler handler)
+    {
+        var name = handler.Command.IsGenericType
+            ? handler.Command.FullName.Substring(handler.Command.Namespace?.Length ?? 0) //Remove namespace
+            : handler.Command.Name;
+        
+        return $"{TypeNameHelpers.SanitizeName(name)}CommandHandler";
+    }
 
     public static string GetInterface(Handler handler)
     {

@@ -16,15 +16,10 @@ internal class AggregateStoreGenerator
     private readonly IndentedWriter _w = new();
 
     private readonly Aggregate _aggregate;
-    private readonly IReadOnlyList<IType> _services;
     
     private AggregateStoreGenerator(Aggregate aggregate)
     {
         _aggregate = aggregate;
-        _services = aggregate.When
-            .SelectMany(w => w.Services)
-            .Distinct()
-            .ToList();
     }
 
     private string GenerateInternal()
@@ -33,6 +28,7 @@ internal class AggregateStoreGenerator
         
         _w.WriteLine("using System.Threading.Tasks;"); //Enable WithCancellation extension method
         _w.WriteLine("using Microsoft.Extensions.Logging;"); //Enable log extension methods
+        _w.WriteLine("using Microsoft.Extensions.DependencyInjection;"); //DI extension methods
 
         _w.WriteLine();
         
@@ -57,25 +53,18 @@ internal class AggregateStoreGenerator
     private void WriteConstructor()
     {
         _w.WriteLine($"private readonly {EventStoreType} _eventStore;");
-
-        for (var i = 0; i < _services.Count; i++)
-            _w.WriteLine($"private readonly {_services[i].CSharpName} _service{i};");
+        _w.WriteLine($"private readonly {ServiceProviderType} _services;");
         
         _w.WriteMethodAttributes();
         _w.Write($"public {ClassName}(");
 
-        _w.WriteParameters(_services.Select((t, i) => $"{t.CSharpName} service{i}"),
-            new []
-            {
-                $"{EventStoreType} eventStore"
-            });
+        _w.WriteParameters($"{EventStoreType} eventStore", $"{ServiceProviderType} services");
 
         _w.WriteRawLine(")");
         _w.PushBrace();
 
         _w.WriteLine("this._eventStore = eventStore ?? throw new ArgumentNullException(nameof(eventStore));");
-        for (var i = 0; i < _services.Count; i++)
-            _w.WriteLine($"this._service{i} = service{i} ?? throw new ArgumentNullException(nameof(service{i}));");
+        _w.WriteLine("this._services = services ?? throw new ArgumentNullException(nameof(services));");
         
         _w.PopBrace();
     }
@@ -201,10 +190,16 @@ internal class AggregateStoreGenerator
                 return $"new {p.Type.CSharpName}(enumerator.Current)"; //Create envelope from non-generic envelope current
             }
 
+            
             if (p.HasFromServicesAttribute())
             {
-                var index = _services.GetIndex(p.Type);
-                return $"this._service{index}";
+                /*
+                 * We don't inject services because it causes a circular dependency
+                 * (other aggregate stores used in when methods depend on this one etc)
+                 */
+                return p.Type.CSharpName.Equals(ServiceProviderType, StringComparison.Ordinal) 
+                    ? "this._services" //Pass IServiceProvider through
+                    : $"({p.Type.CSharpName})this._services.GetRequiredService(typeof({p.Type.CSharpName}))";
             }
             
             if (p.Type.Equals(_aggregate.Type))
@@ -234,6 +229,7 @@ internal class AggregateStoreGenerator
     private string Interface => GetInterface(_aggregate);
 
     private static string EventStoreType => $"global::{typeof(IEventStore).FullName}";
+    private static string ServiceProviderType => $"global::{typeof(IServiceProvider).FullName}";
 
     private static string GetTaskType(string genericParameter) =>
         TypeNameHelpers.GetGenericTypeName(typeof(Task<>), genericParameter);
