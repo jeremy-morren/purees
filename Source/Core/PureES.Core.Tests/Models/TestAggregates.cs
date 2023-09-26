@@ -53,6 +53,14 @@ public partial class TestAggregates
             return AsyncEnumerable.Empty<Events.Created>();
         }
 
+        public static Events.Updated UpdateOnStatic([Command] decimal d, 
+            Aggregate current,
+            [FromServices] IServiceProvider services)
+        {
+            current.ShouldNotBeNull();
+            return new Events.Updated(current.Created.Event.Id, (int)d);
+        }
+
         public void GlobalWhen(EventEnvelope envelope, CancellationToken ct)
         {
             StreamPosition = envelope.StreamPosition;
@@ -86,6 +94,11 @@ public partial class TestAggregates
             service.ShouldNotBeNull();
             StreamPosition.ShouldNotBe(envelope.StreamPosition);
             return Task.CompletedTask;
+        }
+
+        public static void UpdateWhenStatic([Event] Events.Updated e, Aggregate current)
+        {
+            
         }
     }
 

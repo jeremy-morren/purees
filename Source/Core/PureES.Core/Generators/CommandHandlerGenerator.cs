@@ -150,7 +150,7 @@ internal class CommandHandlerGenerator
             
             WriteGetStreamId();
 
-            if (!_handler.IsCreate)
+            if (_handler.IsUpdate)
             {
                 //Get revision & Load
                 _w.WriteLine(
@@ -161,7 +161,7 @@ internal class CommandHandlerGenerator
             WriteInvoke();
 
             _w.WriteLine(
-                _handler.IsCreate ? "var revision = ulong.MaxValue;" : "var revision = currentRevision;");
+                _handler.IsUpdate ? "var revision = ulong.MaxValue;" : "var revision = currentRevision;");
             
             _w.WriteStatement(_handler.ResultType != null ? $"if (result?.{nameof(CommandResult<int,int>.Event)} != null)" : "if (result != null)", () =>
             {
@@ -175,15 +175,15 @@ internal class CommandHandlerGenerator
                 WriteEnrich(isEnumerable);
                 
                 var eventParam = isEnumerable ? "events" : "e";
-                _w.WriteLine(_handler.IsCreate 
-                    ? $"revision = await _eventStore.{nameof(IEventStore.Create)}(streamId, {eventParam}, cancellationToken);" 
-                    : $"revision = await _eventStore.{nameof(IEventStore.Append)}(streamId, currentRevision, {eventParam}, cancellationToken);");
+                _w.WriteLine(_handler.IsUpdate 
+                    ? $"revision = await _eventStore.{nameof(IEventStore.Append)}(streamId, currentRevision, {eventParam}, cancellationToken);" 
+                    : $"revision = await _eventStore.{nameof(IEventStore.Create)}(streamId, {eventParam}, cancellationToken);");
                 
                 if (isEnumerable)
                     _w.PopBrace(); //if statement above
             });
 
-            _w.WriteLine($"this._concurrency?.{nameof(IOptimisticConcurrency.OnUpdated)}(streamId, command, {(_handler.IsCreate ? "null" : "currentRevision")}, revision);");
+            _w.WriteLine($"this._concurrency?.{nameof(IOptimisticConcurrency.OnUpdated)}(streamId, command, {(_handler.IsUpdate ? "currentRevision" : "null")}, revision);");
             
             _w.WriteLogMessage("Information",
                 "null",
@@ -223,7 +223,9 @@ internal class CommandHandlerGenerator
     private void WriteInvoke()
     {
         var await = _handler.IsAsync ? "await " : null;
-        var parent = _handler.IsCreate ? _aggregate.Type.CSharpName : "current";
+        
+        var parent = _handler.Method.IsStatic ? _aggregate.Type.CSharpName : "current";
+        
         _w.Write($"var result = {@await}{parent}.{_handler.Method.Name}(");
         var parameters = _handler.Method.Parameters
             .Select(p =>
@@ -232,6 +234,8 @@ internal class CommandHandlerGenerator
                     return "command";
                 if (p.HasFromServicesAttribute())
                     return $"this._service{_handler.Services.GetIndex(p.Type)}";
+                if (p.Type.Equals(_aggregate.Type))
+                    return "current";
                 if (p.Type.IsCancellationToken())
                     return "cancellationToken";
                 throw new NotImplementedException("Unknown parameter");

@@ -12,5 +12,5 @@ internal record When
 
     public required IType[] Services { get; init; }
 
-    public bool IsCreate => Method.IsStatic;
+    public required bool IsUpdate { get; init; }
 }

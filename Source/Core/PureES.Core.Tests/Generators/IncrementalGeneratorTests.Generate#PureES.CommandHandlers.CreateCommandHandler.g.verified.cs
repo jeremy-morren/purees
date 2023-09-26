@@ -73,7 +73,7 @@ namespace PureES.CommandHandlers
             this._logger?.Log(
                 logLevel: global::Microsoft.Extensions.Logging.LogLevel.Debug,
                 exception: null,
-                message: "Handling command {@Command}. Aggregate: {@Aggregate}. Method: {@Method}",
+                message: "Handling command {@Command}. Aggregate: {@Aggregate}. Method: {Method}",
                 commandType,
                 aggregateType,
                 "CreateOn");
@@ -96,7 +96,7 @@ namespace PureES.CommandHandlers
                 }
                 var streamId = this._getStreamId.GetId(command);
                 var result = global::PureES.Core.Tests.Models.TestAggregates.Aggregate.CreateOn(command);
-                var revision = ulong.MaxValue;
+                var revision = currentRevision;
                 if (result != null)
                 {
                     var e = new global::PureES.Core.UncommittedEvent() { Event = result };
@@ -120,7 +120,7 @@ namespace PureES.CommandHandlers
                 this._logger?.Log(
                     logLevel: global::Microsoft.Extensions.Logging.LogLevel.Information,
                     exception: null,
-                    message: "Handled command {@Command}. Elapsed: {0.0000}ms. Stream {StreamId} is now at {Revision}. Aggregate: {@Aggregate}. Method: {@Method}",
+                    message: "Handled command {@Command}. Elapsed: {Elapsed:0.0000}ms. Stream {StreamId} is now at {Revision}. Aggregate: {@Aggregate}. Method: {Method}",
                     commandType,
                     GetElapsed(start),
                     streamId,
@@ -134,7 +134,7 @@ namespace PureES.CommandHandlers
                 this._logger?.Log(
                     logLevel: global::Microsoft.Extensions.Logging.LogLevel.Information,
                     exception: ex,
-                    message: "Error handling command {@Command}. Aggregate: {@Aggregate}. Method: {@Method}. Elapsed: {0.0000}ms",
+                    message: "Error handling command {@Command}. Aggregate: {@Aggregate}. Method: {Method}. Elapsed: {Elapsed:0.0000}ms",
                     commandType,
                     aggregateType,
                     "CreateOn",

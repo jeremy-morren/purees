@@ -132,15 +132,15 @@ internal class AggregateStoreGenerator
                     _w.WriteStatement($"if (!{moveNext})",
                         "throw new ArgumentException(\"Stream is empty\", nameof(@events));");
 
-                    _w.WriteLine($"{_aggregate.Type.CSharpName} aggregate;");
+                    _w.WriteLine($"{_aggregate.Type.CSharpName} current;");
                     
-                    WriteWhenSwitch(_aggregate.When.Where(w => w.IsCreate).ToList(), "CreateWhen");
+                    WriteWhenSwitch(_aggregate.When.Where(w => w.IsUpdate).ToList(), "CreateWhen");
 
                     _w.WriteStatement($"while ({moveNext})", () =>
                     {
-                        WriteWhenSwitch(_aggregate.When.Where(w => !w.IsCreate).ToList(), "UpdateWhen");
+                        WriteWhenSwitch(_aggregate.When.Where(w => !w.IsUpdate).ToList(), "UpdateWhen");
                     });
-                    _w.WriteLine("return aggregate;");
+                    _w.WriteLine("return current;");
                 });
 
             });
@@ -150,8 +150,7 @@ internal class AggregateStoreGenerator
     {
         _w.WriteStatement("switch (enumerator.Current.Event)", () =>
         {
-            //First write generic types
-
+            //Write generic types
             foreach (var w in source.Where(w => w.Event != null))
             {
                 _w.WriteStatement($"case {w.Event!.CSharpName} e:", () =>
@@ -170,27 +169,19 @@ internal class AggregateStoreGenerator
             });
         });
         
-        //Post handlers
-        foreach (var w in _aggregate.When.Where(w => !w.IsCreate && w.Event == null))
+        //catch-all handlers
+        foreach (var w in _aggregate.When.Where(w => w.Event == null && !w.Method.IsStatic))
             InvokeWhen(w);
     }
 
     private void InvokeWhen(When when)
     {
+        var parent = when.Method.IsStatic ? _aggregate.Type.CSharpName : "current";
         
-        if (when.IsCreate)
-        {
-            if (when.Method.ReturnType == null) throw new NotImplementedException();
-            var async = when.Method.ReturnType.IsAsync(out _) ? "await " : string.Empty;
-            _w.Write($"aggregate = {@async}{_aggregate.Type.CSharpName}.{when.Method.Name}(");
-        }
-        else
-        {
-            var async = when.Method.ReturnType != null && when.Method.ReturnType.IsAsync(out _)
-                ? "await "
-                : string.Empty;
-            _w.Write($"{@async}aggregate.{when.Method.Name}(");
-        }
+        var async = when.Method.ReturnType != null && when.Method.ReturnType.IsAsync(out _)
+            ? "await "
+            : string.Empty;
+        _w.Write($"current = {async}{parent}.{when.Method.Name}(");
 
         var parameters = when.Method.Parameters.Select(p =>
         {
@@ -214,6 +205,9 @@ internal class AggregateStoreGenerator
                 var index = _services.GetIndex(p.Type);
                 return $"this._service{index}";
             }
+            
+            if (p.Type.Equals(_aggregate.Type))
+                return "current"; //Provide current aggregate parameter
 
             if (p.Type.IsCancellationToken())
                 return "cancellationToken";

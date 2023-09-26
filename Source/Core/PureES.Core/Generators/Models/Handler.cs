@@ -7,8 +7,8 @@ internal record Handler
     
     public required IMethod Method { get; init; }
 
-    public bool IsCreate => Method.IsStatic;
-    
+    public required bool IsUpdate { get; init; }
+
     /// <summary>
     /// The stream id, if <see cref="Command"/> is decorated with <see cref="StreamIdAttribute"/>
     /// </summary>

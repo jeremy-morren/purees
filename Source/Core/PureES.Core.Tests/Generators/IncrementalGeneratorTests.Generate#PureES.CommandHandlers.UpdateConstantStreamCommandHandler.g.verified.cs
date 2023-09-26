@@ -71,12 +71,14 @@ namespace PureES.CommandHandlers
             {
                 throw new ArgumentNullException(nameof(command));
             }
+            var commandType = typeof(global::PureES.Core.Tests.Models.Commands.UpdateConstantStream);
+            var aggregateType = typeof(global::PureES.Core.Tests.Models.TestAggregates.Aggregate);
             this._logger?.Log(
                 logLevel: global::Microsoft.Extensions.Logging.LogLevel.Debug,
                 exception: null,
-                message: "Handling command {@Command}. Aggregate: {@Aggregate}. Method: {@Method}",
-                typeof(global::PureES.Core.Tests.Models.TestAggregates.Aggregate),
-                typeof(global::PureES.Core.Tests.Models.Commands.UpdateConstantStream),
+                message: "Handling command {@Command}. Aggregate: {@Aggregate}. Method: {Method}",
+                commandType,
+                aggregateType,
                 "UpdateOnResult");
             var start = global::System.Diagnostics.Stopwatch.GetTimestamp();
             try
@@ -99,7 +101,7 @@ namespace PureES.CommandHandlers
                 var currentRevision = this._concurrency?.GetExpectedRevision(streamId, command) ?? await this._eventStore.GetRevision(streamId, cancellationToken);
                 var current = await _aggregateStore.Load(streamId, currentRevision, cancellationToken);
                 var result = current.UpdateOnResult(command, this._service0);
-                var revision = currentRevision;
+                var revision = ulong.MaxValue;
                 if (result?.Event != null)
                 {
                     var e = new global::PureES.Core.UncommittedEvent() { Event = result.Event };
@@ -123,12 +125,12 @@ namespace PureES.CommandHandlers
                 this._logger?.Log(
                     logLevel: global::Microsoft.Extensions.Logging.LogLevel.Information,
                     exception: null,
-                    message: "Handled command {@Command}. Elapsed: {0.0000}ms. Stream {StreamId} is now at {Revision}. Aggregate: {@Aggregate}. Method: {@Method}",
-                    typeof(global::PureES.Core.Tests.Models.TestAggregates.Aggregate),
+                    message: "Handled command {@Command}. Elapsed: {Elapsed:0.0000}ms. Stream {StreamId} is now at {Revision}. Aggregate: {@Aggregate}. Method: {Method}",
+                    commandType,
                     GetElapsed(start),
                     streamId,
                     revision,
-                    typeof(global::PureES.Core.Tests.Models.Commands.UpdateConstantStream),
+                    aggregateType,
                     "UpdateOnResult");
                 return result?.Result;
             }
@@ -137,9 +139,9 @@ namespace PureES.CommandHandlers
                 this._logger?.Log(
                     logLevel: global::Microsoft.Extensions.Logging.LogLevel.Information,
                     exception: ex,
-                    message: "Error handling command {@Command}. Aggregate: {@Aggregate}. Method: {@Method}. Elapsed: {0.0000}ms",
-                    typeof(global::PureES.Core.Tests.Models.TestAggregates.Aggregate),
-                    typeof(global::PureES.Core.Tests.Models.Commands.UpdateConstantStream),
+                    message: "Error handling command {@Command}. Aggregate: {@Aggregate}. Method: {Method}. Elapsed: {Elapsed:0.0000}ms",
+                    commandType,
+                    aggregateType,
                     "UpdateOnResult",
                     GetElapsed(start));
                 throw;

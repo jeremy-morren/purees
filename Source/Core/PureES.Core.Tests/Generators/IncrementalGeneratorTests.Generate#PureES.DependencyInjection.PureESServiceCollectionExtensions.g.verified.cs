@@ -36,7 +36,7 @@ namespace PureES.DependencyInjection
                     registeredImplementations.Add(s.ImplementationType);
                 }
             }
-            // Aggregate: PureES.Core.Tests.Models.TestAggregates.Aggregate. Command handlers: 4
+            // Aggregate: PureES.Core.Tests.Models.TestAggregates.Aggregate. Command handlers: 5
             if (registeredServices.Contains(typeof(global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.TestAggregates.Aggregate>)))
             {
                 services.RemoveAll(typeof(global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.TestAggregates.Aggregate>));
@@ -76,6 +76,14 @@ namespace PureES.DependencyInjection
             services.Add(new ServiceDescriptor(
                 serviceType: typeof(global::PureES.Core.ICommandHandler<int[]>),
                 implementationType: typeof(global::PureES.CommandHandlers.CommandHandler),
+                lifetime: ServiceLifetime.Transient));
+            if (registeredServices.Contains(typeof(global::PureES.Core.ICommandHandler<decimal>)))
+            {
+                services.RemoveAll(typeof(global::PureES.Core.ICommandHandler<decimal>));
+            }
+            services.Add(new ServiceDescriptor(
+                serviceType: typeof(global::PureES.Core.ICommandHandler<decimal>),
+                implementationType: typeof(global::PureES.CommandHandlers.DecimalCommandHandler),
                 lifetime: ServiceLifetime.Transient));
 
             // Event Handlers. Count: 2

@@ -66,13 +66,30 @@ namespace PureES.AggregateStores
                 {
                     throw new ArgumentException("Stream is empty", nameof(@events));
                 }
-                global::PureES.Core.Tests.Models.TestAggregates.Aggregate aggregate;
+                global::PureES.Core.Tests.Models.TestAggregates.Aggregate current;
                 switch (enumerator.Current.Event)
                 {
                     case global::PureES.Core.Tests.Models.Events.Created e:
                     {
-                        aggregate = global::PureES.Core.Tests.Models.TestAggregates.Aggregate.When(
+                        current = current.set_Created(
                             new global::PureES.Core.EventEnvelope<global::PureES.Core.Tests.Models.Events.Created, global::PureES.Core.Tests.Models.TestAggregates.Metadata>(enumerator.Current));
+                        break;
+                    }
+                    case global::PureES.Core.Tests.Models.Events.Updated e:
+                    {
+                        current = current.When(e, this._service1);
+                        break;
+                    }
+                    case int e:
+                    {
+                        current = await current.When(
+                            new global::PureES.Core.Tests.Models.TestAggregates.EventEnvelope<int>(enumerator.Current),
+                            this._service0);
+                        break;
+                    }
+                    case global::PureES.Core.Tests.Models.Events.Updated e:
+                    {
+                        current = global::PureES.Core.Tests.Models.TestAggregates.Aggregate.UpdateWhenStatic(e, current);
                         break;
                     }
                     default:
@@ -81,28 +98,16 @@ namespace PureES.AggregateStores
                         throw new NotImplementedException($"No suitable CreateWhen method found for event {eventType}");
                     }
                 }
-                aggregate.GlobalWhen(enumerator.Current, cancellationToken);
-                await aggregate.GlobalWhenAsync(enumerator.Current, this._service0);
+                current = current.GlobalWhen(enumerator.Current, cancellationToken);
+                current = await current.GlobalWhenAsync(enumerator.Current, this._service0);
                 while (await enumerator.MoveNextAsync())
                 {
                     switch (enumerator.Current.Event)
                     {
                         case global::PureES.Core.Tests.Models.Events.Created e:
                         {
-                            aggregate.set_Created(
+                            current = global::PureES.Core.Tests.Models.TestAggregates.Aggregate.When(
                                 new global::PureES.Core.EventEnvelope<global::PureES.Core.Tests.Models.Events.Created, global::PureES.Core.Tests.Models.TestAggregates.Metadata>(enumerator.Current));
-                            break;
-                        }
-                        case global::PureES.Core.Tests.Models.Events.Updated e:
-                        {
-                            aggregate.When(e, this._service1);
-                            break;
-                        }
-                        case int e:
-                        {
-                            await aggregate.When(
-                                new global::PureES.Core.Tests.Models.TestAggregates.EventEnvelope<int>(enumerator.Current),
-                                this._service0);
                             break;
                         }
                         default:
@@ -111,10 +116,10 @@ namespace PureES.AggregateStores
                             throw new NotImplementedException($"No suitable UpdateWhen method found for event {eventType}");
                         }
                     }
-                    aggregate.GlobalWhen(enumerator.Current, cancellationToken);
-                    await aggregate.GlobalWhenAsync(enumerator.Current, this._service0);
+                    current = current.GlobalWhen(enumerator.Current, cancellationToken);
+                    current = await current.GlobalWhenAsync(enumerator.Current, this._service0);
                 }
-                return aggregate;
+                return current;
             }
         }
     }

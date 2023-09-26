@@ -87,7 +87,7 @@ namespace PureES.EventHandlers
                     this._logger?.Log(
                         logLevel: global::Microsoft.Extensions.Logging.LogLevel.Debug,
                         exception: null,
-                        message: "Handling event {@StreamId}/{@StreamPosition}. Event Type: {@EventType}. Event handler {@EventHandler} on {@EventHandlerParent}",
+                        message: "Handling event {StreamId}/{StreamPosition}. Event Type: {@EventType}. Event handler {EventHandler} on {@EventHandlerParent}",
                         @event.StreamId,
                         @event.StreamPosition,
                         eventType,
@@ -99,7 +99,7 @@ namespace PureES.EventHandlers
                     this._logger?.Log(
                         logLevel: this._options.GetLogLevel(@event, elapsed),
                         exception: null,
-                        message: "Handled event {@StreamId}/{@StreamPosition}. Elapsed: {0.0000}ms. Event Type: {@EventType}. Event handler {@EventHandler} on {@EventHandlerParent}",
+                        message: "Handled event {StreamId}/{StreamPosition}. Elapsed: {Elapsed:0.0000}ms. Event Type: {@EventType}. Event handler {EventHandler} on {@EventHandlerParent}",
                         @event.StreamId,
                         @event.StreamPosition,
                         elapsed.TotalMilliseconds,
@@ -112,7 +112,7 @@ namespace PureES.EventHandlers
                     this._logger?.Log(
                         logLevel: _options.PropagateExceptions ? LogLevel.Information : LogLevel.Error,
                         exception: ex,
-                        message: "Timed out while handling event {@StreamId}/{@StreamPosition}. Elapsed: {0.0000}ms. Event Type: {@EventType}. Event handler {@EventHandler} on {@EventHandlerParent}",
+                        message: "Timed out while handling event {StreamId}/{StreamPosition}. Elapsed: {Elapsed:0.0000}ms. Event Type: {@EventType}. Event handler {EventHandler} on {@EventHandlerParent}",
                         @event.StreamId,
                         @event.StreamPosition,
                         GetElapsed(start),
@@ -129,7 +129,7 @@ namespace PureES.EventHandlers
                     this._logger?.Log(
                         logLevel: _options.PropagateExceptions ? LogLevel.Information : LogLevel.Error,
                         exception: ex,
-                        message: "Error handling event {@StreamId}/{@StreamPosition}. Elapsed: {0.0000}ms. Event Type: {@EventType}. Event handler {@EventHandler} on {@EventHandlerParent}",
+                        message: "Error handling event {StreamId}/{StreamPosition}. Elapsed: {Elapsed:0.0000}ms. Event Type: {@EventType}. Event handler {EventHandler} on {@EventHandlerParent}",
                         @event.StreamId,
                         @event.StreamPosition,
                         GetElapsed(start),

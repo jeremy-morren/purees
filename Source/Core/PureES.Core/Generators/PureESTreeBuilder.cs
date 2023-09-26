@@ -21,25 +21,27 @@ internal class PureESTreeBuilder
         return new PureESTreeBuilder(log).BuildAggregateInternal(type, out aggregate);
     }
 
-    private bool BuildAggregateInternal(IType type, out Aggregate aggregate)
+    private bool BuildAggregateInternal(IType aggregateType, out Aggregate aggregate)
     {
         aggregate = null!;
         var handlers = new List<Handler>();
         var when = new List<When>();
 
-        foreach (var method in type.Methods)
+        foreach (var method in aggregateType.Methods)
         {
             var services = method.Parameters
                 .Where(p => p.HasFromServicesAttribute())
                 .Select(p => p.Type)
                 .ToArray();
+
+            var isUpdate = !method.IsStatic || method.Parameters.Any(p => p.Type.Equals(aggregateType));
             
             if (method.Parameters.Any(p => p.HasAttribute<CommandAttribute>()))
             {
                 //Command
                 if (!ValidateSingleAttribute<CommandAttribute>(method, out var command))
                     continue;
-                if (!ValidateAllParameters(method, p => p.HasAttribute<CommandAttribute>()))
+                if (!ValidateAllParameters(method, p => p.HasAttribute<CommandAttribute>() || p.Type.Equals(aggregateType)))
                     continue;
                 if (method.ReturnType == null)
                 {
@@ -61,6 +63,7 @@ internal class PureESTreeBuilder
                 handlers.Add(new Handler()
                 {
                     Command = command.Type,
+                    IsUpdate = isUpdate,
                     Method = method,
                     StreamId = command.Type.Attributes.FirstOrDefault(a => a.Is<StreamIdAttribute>())?.StringParameter,
                     Services = services,
@@ -71,15 +74,17 @@ internal class PureESTreeBuilder
                 });
                 continue;
             }
+            //Method must be when or unknown
+            
             //First, check for parameter with EventAttribute
             if (method.Parameters.Any(p => p.HasAttribute<EventAttribute>()))
             {
                 //When method with EventAttribute
                 if (!ValidateSingleAttribute<EventAttribute>(method, out var e))
                     continue;
-                if (!ValidateAllParameters(method, p => p.HasAttribute<EventAttribute>()))
+                if (!ValidateAllParameters(method, p => p.HasAttribute<EventAttribute>() || p.Type.Equals(aggregateType)))
                     continue;
-                if (method.IsStatic && !ValidateReturnType(method, type))
+                if (!isUpdate && !ValidateReturnType(method, aggregateType))
                 {
                     _log.InvalidCreateWhenReturnType(method);
                     continue;
@@ -87,19 +92,22 @@ internal class PureESTreeBuilder
                 when.Add(new When()
                 {
                     Event = e.Type,
+                    IsUpdate = isUpdate,
                     Method = method,
                     Services = services
                 });
                 continue;
             }
+            
+            //Check for methods with Event Envelope parameter
             if (method.Parameters.Any(p => p.Type.IsEventEnvelope()))
             {
                 //Method has an EventEnvelope parameter
                 if (!ValidateSingleEventEnvelope(method, out var @event))
                     continue;
-                if (!ValidateAllParameters(method, p => p.Type.IsEventEnvelope()))
+                if (!ValidateAllParameters(method, p => p.Type.IsEventEnvelope() || p.Type.Equals(aggregateType)))
                     continue;
-                if (method.IsStatic && !ValidateReturnType(method, type))
+                if (!isUpdate && !ValidateReturnType(method, aggregateType))
                 {
                     _log.InvalidCreateWhenReturnType(method);
                     continue;
@@ -107,11 +115,13 @@ internal class PureESTreeBuilder
                 when.Add(new When()
                 {
                     Event = @event,
+                    IsUpdate = isUpdate,
                     Method = method,
                     Services = services
                 });
                 continue;
             }
+            
             //Don't know what the method is, ignore
         }
 
@@ -119,7 +129,7 @@ internal class PureESTreeBuilder
             return false;
         aggregate = new Aggregate()
         {
-            Type = type,
+            Type = aggregateType,
             Handlers = handlers.ToArray(),
             When = when.ToArray(),
         };
