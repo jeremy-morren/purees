@@ -96,7 +96,7 @@ namespace PureES.CommandHandlers
                 }
                 var streamId = this._getStreamId.GetId(command);
                 var result = global::PureES.Core.Tests.Models.TestAggregates.Aggregate.CreateOn(command);
-                var revision = currentRevision;
+                var revision = ulong.MaxValue;
                 if (result != null)
                 {
                     var e = new global::PureES.Core.UncommittedEvent() { Event = result };

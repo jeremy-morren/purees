@@ -69,12 +69,12 @@ internal class PureESErrorLogWriter
             method, method.DeclaringType);
     }
     
-    public void InvalidCreateWhenReturnType(IMethod method)
+    public void InvalidStaticWhenReturnType(IMethod method)
     {
         WriteError(method.Location,
             "1021",
-            "Invalid return type on create when method",
-            "Create when method '{0}' from '{1}' does not return parent aggregate.",
+            "Invalid return type on static when method",
+            "Static when method '{0}' on '{1}' does not return parent aggregate",
             method, method.DeclaringType);
     }
 

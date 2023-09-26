@@ -71,25 +71,8 @@ namespace PureES.AggregateStores
                 {
                     case global::PureES.Core.Tests.Models.Events.Created e:
                     {
-                        current = current.set_Created(
+                        current = global::PureES.Core.Tests.Models.TestAggregates.Aggregate.When(
                             new global::PureES.Core.EventEnvelope<global::PureES.Core.Tests.Models.Events.Created, global::PureES.Core.Tests.Models.TestAggregates.Metadata>(enumerator.Current));
-                        break;
-                    }
-                    case global::PureES.Core.Tests.Models.Events.Updated e:
-                    {
-                        current = current.When(e, this._service1);
-                        break;
-                    }
-                    case int e:
-                    {
-                        current = await current.When(
-                            new global::PureES.Core.Tests.Models.TestAggregates.EventEnvelope<int>(enumerator.Current),
-                            this._service0);
-                        break;
-                    }
-                    case global::PureES.Core.Tests.Models.Events.Updated e:
-                    {
-                        current = global::PureES.Core.Tests.Models.TestAggregates.Aggregate.UpdateWhenStatic(e, current);
                         break;
                     }
                     default:
@@ -98,16 +81,27 @@ namespace PureES.AggregateStores
                         throw new NotImplementedException($"No suitable CreateWhen method found for event {eventType}");
                     }
                 }
-                current = current.GlobalWhen(enumerator.Current, cancellationToken);
-                current = await current.GlobalWhenAsync(enumerator.Current, this._service0);
+                current.GlobalWhen(enumerator.Current, cancellationToken);
+                await current.GlobalWhenAsync(enumerator.Current, this._service0);
                 while (await enumerator.MoveNextAsync())
                 {
                     switch (enumerator.Current.Event)
                     {
-                        case global::PureES.Core.Tests.Models.Events.Created e:
+                        case global::PureES.Core.Tests.Models.Events.Updated e:
                         {
-                            current = global::PureES.Core.Tests.Models.TestAggregates.Aggregate.When(
-                                new global::PureES.Core.EventEnvelope<global::PureES.Core.Tests.Models.Events.Created, global::PureES.Core.Tests.Models.TestAggregates.Metadata>(enumerator.Current));
+                            current.When(e, this._service1);
+                            break;
+                        }
+                        case int e:
+                        {
+                            await current.When(
+                                new global::PureES.Core.Tests.Models.TestAggregates.EventEnvelope<int>(enumerator.Current),
+                                this._service0);
+                            break;
+                        }
+                        case global::PureES.Core.Tests.Models.Events.Updated e:
+                        {
+                            current = global::PureES.Core.Tests.Models.TestAggregates.Aggregate.UpdateWhenStatic(e, current);
                             break;
                         }
                         default:
@@ -116,8 +110,8 @@ namespace PureES.AggregateStores
                             throw new NotImplementedException($"No suitable UpdateWhen method found for event {eventType}");
                         }
                     }
-                    current = current.GlobalWhen(enumerator.Current, cancellationToken);
-                    current = await current.GlobalWhenAsync(enumerator.Current, this._service0);
+                    current.GlobalWhen(enumerator.Current, cancellationToken);
+                    await current.GlobalWhenAsync(enumerator.Current, this._service0);
                 }
                 return current;
             }

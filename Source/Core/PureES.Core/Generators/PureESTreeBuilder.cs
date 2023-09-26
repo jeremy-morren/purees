@@ -33,7 +33,7 @@ internal class PureESTreeBuilder
                 .Where(p => p.HasFromServicesAttribute())
                 .Select(p => p.Type)
                 .ToArray();
-
+            
             var isUpdate = !method.IsStatic || method.Parameters.Any(p => p.Type.Equals(aggregateType));
             
             if (method.Parameters.Any(p => p.HasAttribute<CommandAttribute>()))
@@ -84,9 +84,9 @@ internal class PureESTreeBuilder
                     continue;
                 if (!ValidateAllParameters(method, p => p.HasAttribute<EventAttribute>() || p.Type.Equals(aggregateType)))
                     continue;
-                if (!isUpdate && !ValidateReturnType(method, aggregateType))
+                if (method.IsStatic && !ValidateReturnType(method, aggregateType))
                 {
-                    _log.InvalidCreateWhenReturnType(method);
+                    _log.InvalidStaticWhenReturnType(method);
                     continue;
                 }
                 when.Add(new When()
@@ -107,9 +107,9 @@ internal class PureESTreeBuilder
                     continue;
                 if (!ValidateAllParameters(method, p => p.Type.IsEventEnvelope() || p.Type.Equals(aggregateType)))
                     continue;
-                if (!isUpdate && !ValidateReturnType(method, aggregateType))
+                if (method.IsStatic && !ValidateReturnType(method, aggregateType))
                 {
-                    _log.InvalidCreateWhenReturnType(method);
+                    _log.InvalidStaticWhenReturnType(method);
                     continue;
                 }
                 when.Add(new When()

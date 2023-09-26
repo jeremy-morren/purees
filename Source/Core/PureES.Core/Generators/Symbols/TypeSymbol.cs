@@ -52,7 +52,7 @@ internal class TypeSymbol : IType
         .Select(p => new PropertySymbol((IPropertySymbol)p));
 
     public IEnumerable<IMethod> Methods => _source.GetMembers()
-        .Where(s => s is IMethodSymbol)
+        .Where(s => s is IMethodSymbol { MethodKind: MethodKind.Ordinary })
         .Select(s => new MethodSymbol(_source, s));
 
     public IEnumerable<IType> GenericArguments => ((INamedTypeSymbol)_source).TypeArguments

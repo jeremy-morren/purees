@@ -160,8 +160,7 @@ internal class CommandHandlerGenerator
             
             WriteInvoke();
 
-            _w.WriteLine(
-                _handler.IsUpdate ? "var revision = ulong.MaxValue;" : "var revision = currentRevision;");
+            _w.WriteLine(_handler.IsUpdate ? "var revision = currentRevision;" : "var revision = ulong.MaxValue;");
             
             _w.WriteStatement(_handler.ResultType != null ? $"if (result?.{nameof(CommandResult<int,int>.Event)} != null)" : "if (result != null)", () =>
             {

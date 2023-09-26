@@ -101,7 +101,7 @@ namespace PureES.CommandHandlers
                 var currentRevision = this._concurrency?.GetExpectedRevision(streamId, command) ?? await this._eventStore.GetRevision(streamId, cancellationToken);
                 var current = await _aggregateStore.Load(streamId, currentRevision, cancellationToken);
                 var result = await current.UpdateOn(command, this._service0, cancellationToken);
-                var revision = ulong.MaxValue;
+                var revision = currentRevision;
                 if (result != null)
                 {
                     var events = new List<global::PureES.Core.UncommittedEvent>();

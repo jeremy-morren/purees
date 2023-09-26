@@ -134,11 +134,11 @@ internal class AggregateStoreGenerator
 
                     _w.WriteLine($"{_aggregate.Type.CSharpName} current;");
                     
-                    WriteWhenSwitch(_aggregate.When.Where(w => w.IsUpdate).ToList(), "CreateWhen");
+                    WriteWhenSwitch(_aggregate.When.Where(w => !w.IsUpdate).ToList(), "CreateWhen");
 
                     _w.WriteStatement($"while ({moveNext})", () =>
                     {
-                        WriteWhenSwitch(_aggregate.When.Where(w => !w.IsUpdate).ToList(), "UpdateWhen");
+                        WriteWhenSwitch(_aggregate.When.Where(w => w.IsUpdate).ToList(), "UpdateWhen");
                     });
                     _w.WriteLine("return current;");
                 });
@@ -150,7 +150,7 @@ internal class AggregateStoreGenerator
     {
         _w.WriteStatement("switch (enumerator.Current.Event)", () =>
         {
-            //Write generic types
+            //Write strongly-typed handlers
             foreach (var w in source.Where(w => w.Event != null))
             {
                 _w.WriteStatement($"case {w.Event!.CSharpName} e:", () =>
@@ -176,13 +176,14 @@ internal class AggregateStoreGenerator
 
     private void InvokeWhen(When when)
     {
-        var parent = when.Method.IsStatic ? _aggregate.Type.CSharpName : "current";
-        
         var async = when.Method.ReturnType != null && when.Method.ReturnType.IsAsync(out _)
             ? "await "
             : string.Empty;
-        _w.Write($"current = {async}{parent}.{when.Method.Name}(");
 
+        _w.Write(when.Method.IsStatic
+            ? $"current = {async}{_aggregate.Type.CSharpName}.{when.Method.Name}("
+            : $"{async}current.{when.Method.Name}(");
+        
         var parameters = when.Method.Parameters.Select(p =>
         {
             if (p.Type.IsNonGenericEventEnvelope())

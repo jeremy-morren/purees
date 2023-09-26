@@ -96,10 +96,7 @@ public partial class TestAggregates
             return Task.CompletedTask;
         }
 
-        public static void UpdateWhenStatic([Event] Events.Updated e, Aggregate current)
-        {
-            
-        }
+        public static Aggregate UpdateWhenStatic([Event] Events.Updated e, Aggregate current) => current;
     }
 
     public class EventHandlers

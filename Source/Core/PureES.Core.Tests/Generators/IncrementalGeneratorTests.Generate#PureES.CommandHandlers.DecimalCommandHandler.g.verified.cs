@@ -97,7 +97,7 @@ namespace PureES.CommandHandlers
                 var currentRevision = this._concurrency?.GetExpectedRevision(streamId, command) ?? await this._eventStore.GetRevision(streamId, cancellationToken);
                 var current = await _aggregateStore.Load(streamId, currentRevision, cancellationToken);
                 var result = global::PureES.Core.Tests.Models.TestAggregates.Aggregate.UpdateOnStatic(command, current, this._service0);
-                var revision = ulong.MaxValue;
+                var revision = currentRevision;
                 if (result != null)
                 {
                     var e = new global::PureES.Core.UncommittedEvent() { Event = result };
