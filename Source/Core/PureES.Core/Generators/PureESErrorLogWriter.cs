@@ -23,6 +23,16 @@ internal class PureESErrorLogWriter
     }
 
     public int ErrorCount { get; private set; }
+
+    public void AggregateCannotBeGenericType(IType aggregate)
+    {
+        WriteError(aggregate.Location,
+            "1000",
+            "Aggregate cannot be generic type",
+            "'{0}': Types decorated with [{1}] cannot be generic",
+            aggregate,
+            nameof(AggregateAttribute));
+    }
     
     public void MultipleParametersDefinedWithAttribute(IMethod method, Type attribute)
     {

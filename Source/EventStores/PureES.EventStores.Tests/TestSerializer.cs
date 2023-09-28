@@ -9,16 +9,9 @@ namespace PureES.EventStores.Tests;
 
 internal static class TestSerializer
 {
-    public static readonly BasicEventTypeMap EventTypeMap = new(
-        new OptionsWrapper<PureESOptions>(
-            new PureESOptions()
-            {
-                Assemblies = { typeof(TestSerializer).Assembly }
-            }));
-
     public static InMemoryEventStoreSerializer InMemoryEventStoreSerializer =>
-        new (EventTypeMap, new OptionsWrapper<InMemoryEventStoreOptions>(new InMemoryEventStoreOptions()));
+        new (new BasicEventTypeMap(), new OptionsWrapper<InMemoryEventStoreOptions>(new InMemoryEventStoreOptions()));
 
     public static EventStoreDBSerializer EventStoreDBSerializer =>
-        new(EventTypeMap, new OptionsWrapper<EventStoreDBOptions>(new EventStoreDBOptions()));
+        new(new BasicEventTypeMap(), new OptionsWrapper<EventStoreDBOptions>(new EventStoreDBOptions()));
 }

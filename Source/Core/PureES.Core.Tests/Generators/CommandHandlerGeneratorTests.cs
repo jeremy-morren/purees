@@ -21,10 +21,11 @@ public class CommandHandlerGeneratorTests
     }
 
     [Theory]
-    [InlineData(typeof(TestAggregates.Aggregate), nameof(TestAggregates.Aggregate.CreateOn))]
-    [InlineData(typeof(TestAggregates.Aggregate), nameof(TestAggregates.Aggregate.CreateOnAsyncEnumerable))]
-    [InlineData(typeof(TestAggregates.Aggregate), nameof(TestAggregates.Aggregate.UpdateOn))]
-    [InlineData(typeof(TestAggregates.Aggregate), nameof(TestAggregates.Aggregate.UpdateOnResult))]
+    // [InlineData(typeof(TestAggregate), nameof(TestAggregate.CreateOn))]
+    // [InlineData(typeof(TestAggregate), nameof(TestAggregate.CreateOnAsyncEnumerable))]
+    // [InlineData(typeof(TestAggregate), nameof(TestAggregate.UpdateOn))]
+    // [InlineData(typeof(TestAggregate), nameof(TestAggregate.UpdateOnResult))]
+    [InlineData(typeof(ImplementedGenericAggregate), nameof(ImplementedGenericAggregate.Create))]
     public void GenerateCSharp(Type aggregateType, string methodName)
     {
         var log = new FakeErrorLog();

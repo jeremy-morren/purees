@@ -25,7 +25,7 @@ internal record EventHandler
             var str = Parent.FullName.Replace(".", string.Empty);
             str += $"_{Method.Name}";
             
-            str = new[] { '+', '<', '>', '[', ']' }.Aggregate(str, (s, c) => s.Replace(c, '_'));
+            str = new[] { '+', '<', '>', '[', ']', '`' }.Aggregate(str, (s, c) => s.Replace(c, '_'));
             return str;
         }
     }

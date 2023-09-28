@@ -24,8 +24,8 @@ public class DependencyInjectionGeneratorTests
     [Fact]
     public void GenerateRegisterServices()
     {
-        var aggregateTypes = typeof(TestAggregates)
-            .GetNestedTypes()
+        var aggregateTypes = typeof(DependencyInjectionGeneratorTests).Assembly
+            .GetExportedTypes()
             .Where(t => t.GetCustomAttribute(typeof(AggregateAttribute)) != null);
 
         var aggregates = new List<Aggregate>();
@@ -41,8 +41,8 @@ public class DependencyInjectionGeneratorTests
 
         aggregates.ShouldNotBeEmpty();
 
-        var methods = typeof(TestAggregates)
-            .GetNestedTypes()
+        var methods = typeof(DependencyInjectionGeneratorTests).Assembly
+            .GetTypes()
             .SelectMany(t => new ReflectedType(t).Methods)
             .Where(m => m.HasAttribute<EventHandlerAttribute>());
         var eventHandlers = new List<EventHandler>();

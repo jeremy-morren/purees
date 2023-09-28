@@ -5,7 +5,7 @@
 ///     an EventSourcing root aggregate
 /// </summary>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, Inherited = false)]
-[PublicAPI]
+[PublicAPI, MeansImplicitUse(ImplicitUseTargetFlags.Members)]
 public sealed class AggregateAttribute : Attribute
 {
 }

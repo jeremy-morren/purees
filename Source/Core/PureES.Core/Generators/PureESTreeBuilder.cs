@@ -27,7 +27,14 @@ internal class PureESTreeBuilder
         var handlers = new List<Handler>();
         var when = new List<When>();
 
-        foreach (var method in aggregateType.Methods)
+        if (aggregateType.IsGenericType)
+        {
+            _log.AggregateCannotBeGenericType(aggregateType);
+            return false;
+        }
+        
+        
+        foreach (var method in aggregateType.GetMethodsRecursive())
         {
             var services = method.Parameters
                 .Where(p => p.HasFromServicesAttribute())

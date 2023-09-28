@@ -65,7 +65,7 @@ public class InMemoryEventStoreTests : EventStoreTestsBase
         public TestInMemoryEventStore()
             : base(TestSerializer.InMemoryEventStoreSerializer,
                 new SystemClock(),
-                TestSerializer.EventTypeMap)
+                new BasicEventTypeMap())
         {
         }
     }

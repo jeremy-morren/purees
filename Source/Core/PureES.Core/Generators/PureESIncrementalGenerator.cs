@@ -44,7 +44,8 @@ public class PureESIncrementalGenerator : IIncrementalGenerator
                 .Where(t => t.HasAttribute<AggregateAttribute>())
                 .Distinct();
             var eventHandlerMethods = types
-                .SelectMany(h => h.Methods)
+                .Where(t => !t.IsGenericType)
+                .SelectMany(h => h.GetMethodsRecursive())
                 .Where(m => m.HasAttribute<EventHandlerAttribute>())
                 .Distinct();
 

@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Linq;
 using PureES.Core.Generators;
 using PureES.Core.Tests.Framework;
@@ -13,7 +12,7 @@ namespace PureES.Core.Tests.Generators;
 public class PureESTreeBuilderTests
 {
     [Theory]
-    [InlineData(typeof(TestAggregates.Aggregate))]
+    [InlineData(typeof(TestAggregate))]
     public void BuildAggregate(Type aggregate)
     {
         var log = new FakeErrorLog();
@@ -30,9 +29,9 @@ public class PureESTreeBuilderTests
     }
 
     [Theory]
-    [InlineData(typeof(TestAggregates.EventHandlers), nameof(TestAggregates.EventHandlers.OnCreated))]
-    [InlineData(typeof(TestAggregates.EventHandlers), nameof(TestAggregates.EventHandlers.OnUpdated))]
-    [InlineData(typeof(TestAggregates.EventHandlers), nameof(TestAggregates.EventHandlers.OnCreated2))]
+    [InlineData(typeof(TestEventHandlers), nameof(TestEventHandlers.OnCreated))]
+    [InlineData(typeof(TestEventHandlers), nameof(TestEventHandlers.OnUpdated))]
+    [InlineData(typeof(TestEventHandlers), nameof(TestEventHandlers.OnCreated2))]
     public void BuildEventHandler(Type parent, string methodName)
     {
         var method = new ReflectedType(parent).Methods.Single(m => m.Name == methodName);

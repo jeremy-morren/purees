@@ -20,12 +20,6 @@ public class PureESOptions
     /// </summary>
     public PureESEventHandlerOptions EventHandlers { get; } = new();
 
-    /// <summary>
-    /// Configure the assemblies to scan for types
-    /// </summary>
-    /// <remarks>Used by <see cref="BasicEventTypeMap"/></remarks>
-    public ISet<Assembly> Assemblies { get; } = new HashSet<Assembly>();
-
     internal void Validate()
     {
         if (GetStreamIdProperty == null!)

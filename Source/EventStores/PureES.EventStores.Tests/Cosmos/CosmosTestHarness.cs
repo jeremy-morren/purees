@@ -17,7 +17,7 @@ internal sealed class CosmosTestHarness : IAsyncDisposable, IServiceProvider
     {
         _name = name;
         var services = new ServiceCollection()
-            .AddSingleton<IEventTypeMap>(TestSerializer.EventTypeMap)
+            .AddSingleton<IEventTypeMap, BasicEventTypeMap>()
             .AddCosmosEventStore(options =>
             {
                 options.Database = name;

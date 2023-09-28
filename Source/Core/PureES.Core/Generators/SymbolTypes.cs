@@ -1,6 +1,6 @@
 ﻿namespace PureES.Core.Generators;
 
-internal static class SymbolHelpers
+internal static class SymbolTypes
 {
     [System.Diagnostics.Contracts.Pure]
     public static bool IsNonGenericEventEnvelope(this IType type)

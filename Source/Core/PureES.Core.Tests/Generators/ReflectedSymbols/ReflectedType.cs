@@ -53,17 +53,17 @@ internal class ReflectedType : ReflectedTokenBase, IType
     /// <summary>
     /// Reflects including static and non-static
     /// </summary>
-    private static IEnumerable<T> Reflect<T>(Func<BindingFlags, IEnumerable<T>> get) where T : MemberInfo
+    private IEnumerable<T> Reflect<T>(Func<Type, BindingFlags, IEnumerable<T>> get) where T : MemberInfo
     {
-        return get(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)
-            .Concat(get(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
-            .Where(i => i.GetCustomAttribute(typeof(CompilerGeneratedAttribute)) == null);
+        const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance;
+
+        return get(_type, flags).Where(i => i.GetCustomAttribute(typeof(CompilerGeneratedAttribute)) == null);
     }
     
-    public IEnumerable<IProperty> Properties => Reflect(_type.GetProperties)
+    public IEnumerable<IProperty> Properties => Reflect((t,f) => t.GetProperties(f))
         .Select(p => new ReflectedProperty(p));
 
-    public IEnumerable<IMethod> Methods => Reflect(_type.GetMethods)
+    public IEnumerable<IMethod> Methods => Reflect((t, f) => t.GetMethods(f))
         .Select(m => new ReflectedMethod(m));
 
     public IEnumerable<IType> GenericArguments => _type.GetGenericArguments().Select(t => new ReflectedType(t));
@@ -112,6 +112,9 @@ internal class ReflectedType : ReflectedTokenBase, IType
     [SuppressMessage("ReSharper", "ConvertIfStatementToReturnStatement")]
     private static string LangKeyword(Type type)
     {
+        if (type == typeof(object))
+            return "object";
+        
         var nullable = Nullable.GetUnderlyingType(type) != null ? "?" : string.Empty;
         var nt = Nullable.GetUnderlyingType(type) ?? type;
         
@@ -119,6 +122,7 @@ internal class ReflectedType : ReflectedTokenBase, IType
         if (nt == typeof(string)) return $"string{nullable}";
         if (nt == typeof(double)) return $"double{nullable}";
         if (nt == typeof(bool)) return $"bool{nullable}";
+        
         return $"global::{type.FullName}";
     }
 }

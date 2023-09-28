@@ -1,4 +1,5 @@
-﻿using PureES.EventStoreDB;
+﻿using PureES.Core.EventStore;
+using PureES.EventStoreDB;
 
 namespace PureES.EventStores.Tests.EventStoreDB;
 
@@ -9,6 +10,6 @@ public class EventStoreDBClientTests : EventStoreTestsBase
         var harness = await EventStoreDBTestHarness.Create(ct);
 
         return new EventStoreTestHarness(harness,
-            new EventStoreDBClient(harness.Client, TestSerializer.EventStoreDBSerializer, TestSerializer.EventTypeMap));
+            new EventStoreDBClient(harness.Client, TestSerializer.EventStoreDBSerializer, new BasicEventTypeMap()));
     }
 }

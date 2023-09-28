@@ -20,7 +20,7 @@ public class AggregateStoreGeneratorTests
     }
 
     [Theory]
-    [InlineData(typeof(TestAggregates.Aggregate), 6)]
+    [InlineData(typeof(TestAggregate), 6)]
     public void Generate(Type aggregateType, int whenCount)
     {
         var log = new FakeErrorLog();

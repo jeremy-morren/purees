@@ -48,12 +48,7 @@ public static class PureESServiceCollectionExtensions
         services.AddPureESCore();
 
         services.AddOptions<PureESOptions>()
-            .Configure(o =>
-            {
-                configureOptions(o);
-                foreach (var a in assemblies)
-                    o.Assemblies.Add(a);
-            });
+            .Configure(configureOptions);
         
         //Scan assemblies for service registry type
         foreach (var a in assemblies.Distinct())

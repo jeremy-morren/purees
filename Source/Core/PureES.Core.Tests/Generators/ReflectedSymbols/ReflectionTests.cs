@@ -8,7 +8,7 @@ namespace PureES.Core.Tests.Generators.ReflectedSymbols;
 public class ReflectionTests
 {
     [Theory]
-    [InlineData(typeof(TestAggregates.Aggregate))]
+    [InlineData(typeof(TestAggregate))]
     public void GetReflectedType(Type type)
     {
         var t = new ReflectedType(type);
