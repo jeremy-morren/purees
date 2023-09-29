@@ -43,10 +43,9 @@ public class PureESIncrementalGenerator : IIncrementalGenerator
             var aggregateTypes = types
                 .Where(t => t.HasAttribute<AggregateAttribute>())
                 .Distinct();
-            var eventHandlerMethods = types
-                .Where(t => !t.IsGenericType)
-                .SelectMany(h => h.GetMethodsRecursive())
-                .Where(m => m.HasAttribute<EventHandlerAttribute>())
+            
+            var eventHandlerTypes = types
+                .Where(t => t.HasAttribute<EventHandlersAttribute>())
                 .Distinct();
 
             try
@@ -56,7 +55,7 @@ public class PureESIncrementalGenerator : IIncrementalGenerator
                 string filename;
                 foreach (var type in aggregateTypes)
                 {
-                    if (!PureESTreeBuilder.BuildAggregate(type, out var aggregate, log))
+                    if (!AggregateBuilder.BuildAggregate(type, out var aggregate, log))
                         continue;
                     aggregates.Add(aggregate);
 
@@ -71,11 +70,11 @@ public class PureESIncrementalGenerator : IIncrementalGenerator
 
                 var eventHandlers = new List<EventHandler>();
 
-                foreach (var method in eventHandlerMethods)
+                foreach (var type in eventHandlerTypes)
                 {
-                    if (!PureESTreeBuilder.BuildEventHandler(method, out var handler, log))
+                    if (!EventHandlersBuilder.BuildEventHandlers(type, out var handlers, log))
                         continue;
-                    eventHandlers.Add(handler);
+                    eventHandlers.AddRange(handlers);
                 }
 
                 var eventHandlerCollections = EventHandlerCollection.Create(eventHandlers).ToList();

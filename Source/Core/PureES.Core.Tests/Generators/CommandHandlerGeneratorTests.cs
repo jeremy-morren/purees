@@ -30,7 +30,7 @@ public class CommandHandlerGeneratorTests
     {
         var log = new FakeErrorLog();
 
-        var built = PureESTreeBuilder.BuildAggregate(new ReflectedType(aggregateType, false), out var aggregate, log);
+        var built = AggregateBuilder.BuildAggregate(new ReflectedType(aggregateType, false), out var aggregate, log);
 
         log.Errors.ShouldBeEmpty();
         built.ShouldBeTrue();

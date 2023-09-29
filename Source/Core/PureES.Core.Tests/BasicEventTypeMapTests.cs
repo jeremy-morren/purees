@@ -3,16 +3,27 @@ using System.Collections.Generic;
 using PureES.Core.EventStore;
 using Shouldly;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace PureES.Core.Tests;
 
 public class BasicEventTypeMapTests
 {
+    private readonly ITestOutputHelper _output;
+
+    public BasicEventTypeMapTests(ITestOutputHelper output)
+    {
+        _output = output;
+    }
+
     [Theory]
     [InlineData(typeof(List<int>))]
     [InlineData(typeof(Dictionary<string, object?>))]
+    [InlineData(typeof(Dictionary<string, BasicEventTypeMap?>))]
     [InlineData(typeof(int[]))]
     [InlineData(typeof(BasicEventTypeMapTests))]
+    [InlineData(typeof(IAggregateStore<List<string>>))]
+    [InlineData(typeof(NestedType))]
     public void MapShouldReturnSameType(Type type)
     {
         var map = new BasicEventTypeMap();
@@ -21,6 +32,8 @@ public class BasicEventTypeMapTests
         str.ShouldNotContain("Version=");
         str.ShouldNotContain("System.Private.CoreLib");
         str.ShouldNotContain("mscorlib");
+
+        _output.WriteLine(str);
 
         var mapped = map.GetCLRType(str);
         mapped.ShouldBe(type);
@@ -39,4 +52,6 @@ public class BasicEventTypeMapTests
         
         map.GetTypeName(type).ShouldBe(name);
     }
+    
+    public static class NestedType {}
 }

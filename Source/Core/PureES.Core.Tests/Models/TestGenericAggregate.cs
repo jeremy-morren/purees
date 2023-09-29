@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using JetBrains.Annotations;
 
 namespace PureES.Core.Tests.Models;
@@ -11,6 +12,8 @@ public record TestGenericAggregate<TAggregate, TCommand, TEvent>
     public required TEvent Event { get; set; }
 
     public static TEvent Create([Command] TCommand command) => new();
+
+    public TEvent Update([Command] Dictionary<string, TCommand> command) => new();
 
     public static TAggregate When([Event] TEvent e)
     {

@@ -5,7 +5,7 @@ internal record EventHandlerCollection
     /// <summary>
     /// The type of event that is being handled
     /// </summary>
-    public IType EventType { get; }
+    public IType? EventType { get; }
     
     /// <summary>
     /// The event handlers
@@ -22,11 +22,12 @@ internal record EventHandlerCollection
     /// </summary>
     public IReadOnlyList<IType> Parents { get; }
 
-    public EventHandlerCollection(IType eventType, IEnumerable<EventHandler> handlers)
+    public EventHandlerCollection(IType? eventType, IEnumerable<EventHandler> handlers)
     {
         EventType = eventType;
         Handlers = handlers.ToList();
-        if (Handlers.Any(h => !h.Event.Equals(eventType)))
+        if ((eventType == null && Handlers.Any(h => h.Event != null))
+            || (eventType != null && Handlers.Any(h => h.Event == null || !h.Event.Equals(eventType))))
             throw new NotImplementedException();
         Services = Handlers
             .SelectMany(h => h.Services)

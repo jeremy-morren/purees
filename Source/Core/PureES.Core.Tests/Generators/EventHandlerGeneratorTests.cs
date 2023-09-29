@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using PureES.Core.Generators;
 using PureES.Core.Generators.Framework;
@@ -25,35 +24,25 @@ public class EventHandlerGeneratorTests
     }
 
     [Theory]
-    // [InlineData(typeof(TestEventHandlers), typeof(Events.Created))]
-    // [InlineData(typeof(TestEventHandlers), typeof(Events.Updated))]
-    [InlineData(typeof(ImplementedGenericEventHandlers), typeof(Events.Created))]
-    public void GenerateEventHandlers(Type handlerType, Type eventType)
+    [InlineData(typeof(TestEventHandlers))]
+    [InlineData(typeof(ImplementedGenericEventHandlers))]
+    public void GenerateEventHandlers(Type parentType)
     {
-        var @event = new ReflectedType(eventType);
+        var parent = new ReflectedType(parentType);
 
-        var methods = new ReflectedType(handlerType)
-            .GetMethodsRecursive()
-            .Where(m => m.HasAttribute<EventHandlerAttribute>());
-
-        var handlers = new List<EventHandler>();
-        foreach (var m in methods)
-        {
-            var log = new FakeErrorLog();
-            var success = PureESTreeBuilder.BuildEventHandler(m, out var handler, log);
-            log.Errors.ShouldBeEmpty();
-            success.ShouldBeTrue();
-            if (handler.Event.Equals(@event))
-                handlers.Add(handler);
-        }
+        var log = new FakeErrorLog();
+        var success = EventHandlersBuilder.BuildEventHandlers(parent, out var handlers, log);
+        log.Errors.ShouldBeEmpty();
+        success.ShouldBeTrue();
 
         handlers.ShouldNotBeEmpty();
-
-        var collection = new EventHandlerCollection(@event, handlers);
-
-        var csharp = EventHandlerGenerator.Generate(collection, out var filename);
-        filename.ShouldNotBeNullOrWhiteSpace();
-        csharp.ShouldNotBeNullOrEmpty();
-        _output.WriteLine(csharp);
+        
+        Assert.All(EventHandlerCollection.Create(handlers), collection =>
+        {
+            var csharp = EventHandlerGenerator.Generate(collection, out var filename);
+            filename.ShouldNotBeNullOrWhiteSpace();
+            csharp.ShouldNotBeNullOrEmpty();
+            _output.WriteLine(csharp);
+        });
     }
 }

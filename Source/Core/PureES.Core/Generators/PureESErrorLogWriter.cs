@@ -34,6 +34,16 @@ internal class PureESErrorLogWriter
             nameof(AggregateAttribute));
     }
     
+    public void EventHandlersCannotBeGenericType(IType eventHandlers)
+    {
+        WriteError(eventHandlers.Location,
+            "1001",
+            "Event handlers cannot be generic type",
+            "'{0}': Types decorated with [{1}] cannot be generic",
+            eventHandlers,
+            nameof(EventHandlersAttribute));
+    }
+    
     public void MultipleParametersDefinedWithAttribute(IMethod method, Type attribute)
     {
         WriteError(method.Location,
@@ -86,23 +96,5 @@ internal class PureESErrorLogWriter
             "Invalid return type on static when method",
             "Static when method '{0}' on '{1}' does not return parent aggregate",
             method, method.DeclaringType);
-    }
-
-    public void EventHandlerMethodHasNoParent(IMethod method)
-    {
-        WriteError(method.Location,
-            "1030",
-            "Declaring type for event handler method is null",
-            "Declaring type for method '{0}' is null",
-            method);
-    }
-
-    public void UnknownEventHandlerEventType(IMethod method)
-    {
-        WriteError(method.Location,
-            "1031",
-            "Unable to determine event type for event handler",
-            "Unable to determine event type for event handler method '{0}'",
-            method);
     }
 }

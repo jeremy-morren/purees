@@ -5,7 +5,6 @@ using PureES.Core.Generators;
 using PureES.Core.Generators.Models;
 using PureES.Core.Tests.Framework;
 using PureES.Core.Tests.Generators.ReflectedSymbols;
-using PureES.Core.Tests.Models;
 using Shouldly;
 using Xunit;
 using Xunit.Abstractions;
@@ -33,7 +32,7 @@ public class DependencyInjectionGeneratorTests
         foreach (var t in aggregateTypes)
         {
             var log = new FakeErrorLog();
-            var built = PureESTreeBuilder.BuildAggregate(new ReflectedType(t), out var aggregate, log);
+            var built = AggregateBuilder.BuildAggregate(new ReflectedType(t), out var aggregate, log);
             log.Errors.ShouldBeEmpty();
             built.ShouldBeTrue();
             aggregates.Add(aggregate);
@@ -41,18 +40,18 @@ public class DependencyInjectionGeneratorTests
 
         aggregates.ShouldNotBeEmpty();
 
-        var methods = typeof(DependencyInjectionGeneratorTests).Assembly
-            .GetTypes()
-            .SelectMany(t => new ReflectedType(t).Methods)
-            .Where(m => m.HasAttribute<EventHandlerAttribute>());
+        var eventHandlerTypes = typeof(DependencyInjectionGeneratorTests).Assembly
+            .GetExportedTypes()
+            .Where(t => t.GetCustomAttribute(typeof(EventHandlersAttribute)) != null);
+        
         var eventHandlers = new List<EventHandler>();
-        foreach (var m in methods)
+        foreach (var t in eventHandlerTypes)
         {
             var log = new FakeErrorLog();
-            var built = PureESTreeBuilder.BuildEventHandler(m, out var handler, log);
+            var built = EventHandlersBuilder.BuildEventHandlers(new ReflectedType(t), out var handlers, log);
             log.Errors.ShouldBeEmpty();
             built.ShouldBeTrue();
-            eventHandlers.Add(handler);
+            eventHandlers.AddRange(handlers);
         }
 
         eventHandlers.ShouldNotBeEmpty();

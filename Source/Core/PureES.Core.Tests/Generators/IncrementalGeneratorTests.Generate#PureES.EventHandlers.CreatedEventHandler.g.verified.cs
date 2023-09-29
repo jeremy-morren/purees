@@ -22,10 +22,12 @@ namespace PureES.EventHandlers
         private readonly global::PureES.Core.PureESEventHandlerOptions _options;
         private readonly global::Microsoft.Extensions.Logging.ILoggerFactory _service0;
         private readonly global::PureES.Core.Tests.Models.TestEventHandlers _parent0;
+        private readonly global::PureES.Core.Tests.Models.ImplementedGenericEventHandlers _parent1;
 
         public CreatedEventHandler(
             global::Microsoft.Extensions.Logging.ILoggerFactory service0,
             global::PureES.Core.Tests.Models.TestEventHandlers parent0,
+            global::PureES.Core.Tests.Models.ImplementedGenericEventHandlers parent1,
             global::Microsoft.Extensions.Options.IOptions<global::PureES.Core.PureESOptions> options,
             global::Microsoft.Extensions.Logging.ILogger<CreatedEventHandler> logger = null)
         {
@@ -33,6 +35,7 @@ namespace PureES.EventHandlers
             this._logger = logger ?? global::Microsoft.Extensions.Logging.Abstractions.NullLogger<CreatedEventHandler>.Instance;
             this._service0 = service0 ?? throw new ArgumentNullException(nameof(service0));
             this._parent0 = parent0 ?? throw new ArgumentNullException(nameof(parent0));
+            this._parent1 = parent1 ?? throw new ArgumentNullException(nameof(parent1));
         }
 
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
@@ -74,10 +77,12 @@ namespace PureES.EventHandlers
                 activity.SetTag("EventType", "PureES.Core.Tests.Models.Events.Created");
                 global::System.Diagnostics.Activity.Current = activity;
                 activity.Start();
-                var tasks = new global::System.Threading.Tasks.Task[3];
+                var tasks = new global::System.Threading.Tasks.Task[5];
                 tasks[0] = Task.Run(() => PureESCoreTestsModelsTestEventHandlers_OnCreated(@event));
                 tasks[1] = Task.Run(() => PureESCoreTestsModelsTestEventHandlers_OnCreated2(@event));
-                tasks[2] = Task.Run(() => PureESCoreTestsModelsTestGenericEventHandlers_PureESCoreTestsModelsEventsCreated__On2(@event));
+                tasks[2] = Task.Run(() => PureESCoreTestsModelsImplementedGenericEventHandlers_On(@event));
+                tasks[3] = Task.Run(() => PureESCoreTestsModelsImplementedGenericEventHandlers_On2(@event));
+                tasks[4] = Task.Run(() => PureESCoreTestsModelsImplementedGenericEventHandlers_Async(@event));
                 await global::System.Threading.Tasks.Task.WhenAll(tasks);
             }
         }
@@ -246,11 +251,91 @@ namespace PureES.EventHandlers
 
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        // On2 on PureES.Core.Tests.Models.TestGenericEventHandlers<PureES.Core.Tests.Models.Events.Created>
-        private void PureESCoreTestsModelsTestGenericEventHandlers_PureESCoreTestsModelsEventsCreated__On2(global::PureES.Core.EventEnvelope @event)
+        // On on PureES.Core.Tests.Models.ImplementedGenericEventHandlers
+        private void PureESCoreTestsModelsImplementedGenericEventHandlers_On(global::PureES.Core.EventEnvelope @event)
         {
             var ct = new CancellationTokenSource(_options.Timeout).Token;
-            var parentType = typeof(global::PureES.Core.Tests.Models.TestGenericEventHandlers<global::PureES.Core.Tests.Models.Events.Created>);
+            var parentType = typeof(global::PureES.Core.Tests.Models.ImplementedGenericEventHandlers);
+            var eventType = typeof(global::PureES.Core.Tests.Models.Events.Created);
+            using (_logger.BeginScope(new global::System.Collections.Generic.Dictionary<string, object>()
+                {
+                    { "EventType", eventType },
+                    { "EventHandlerParent", parentType },
+                    { "EventHandler", "On" },
+                    { "StreamId", @event.StreamId },
+                    { "StreamPosition", @event.StreamPosition },
+                }))
+            {
+                var start = global::System.Diagnostics.Stopwatch.GetTimestamp();
+                try
+                {
+                    this._logger?.Log(
+                        logLevel: global::Microsoft.Extensions.Logging.LogLevel.Debug,
+                        exception: null,
+                        message: "Handling event {StreamId}/{StreamPosition}. Event Type: {@EventType}. Event handler {EventHandler} on {@EventHandlerParent}",
+                        @event.StreamId,
+                        @event.StreamPosition,
+                        eventType,
+                        "On",
+                        parentType);
+                    this._parent1.On(
+                        (global::PureES.Core.Tests.Models.Events.Created)@event.Event);
+                    var elapsed = GetElapsedTimespan(start);
+                    this._logger?.Log(
+                        logLevel: this._options.GetLogLevel(@event, elapsed),
+                        exception: null,
+                        message: "Handled event {StreamId}/{StreamPosition}. Elapsed: {Elapsed:0.0000}ms. Event Type: {@EventType}. Event handler {EventHandler} on {@EventHandlerParent}",
+                        @event.StreamId,
+                        @event.StreamPosition,
+                        elapsed.TotalMilliseconds,
+                        eventType,
+                        "On",
+                        parentType);
+                }
+                catch (global::System.OperationCanceledException ex)
+                {
+                    this._logger?.Log(
+                        logLevel: _options.PropagateExceptions ? LogLevel.Information : LogLevel.Error,
+                        exception: ex,
+                        message: "Timed out while handling event {StreamId}/{StreamPosition}. Elapsed: {Elapsed:0.0000}ms. Event Type: {@EventType}. Event handler {EventHandler} on {@EventHandlerParent}",
+                        @event.StreamId,
+                        @event.StreamPosition,
+                        GetElapsed(start),
+                        eventType,
+                        "On",
+                        parentType);
+                    if (_options.PropagateExceptions)
+                    {
+                        throw;
+                    }
+                }
+                catch (global::System.Exception ex)
+                {
+                    this._logger?.Log(
+                        logLevel: _options.PropagateExceptions ? LogLevel.Information : LogLevel.Error,
+                        exception: ex,
+                        message: "Error handling event {StreamId}/{StreamPosition}. Elapsed: {Elapsed:0.0000}ms. Event Type: {@EventType}. Event handler {EventHandler} on {@EventHandlerParent}",
+                        @event.StreamId,
+                        @event.StreamPosition,
+                        GetElapsed(start),
+                        eventType,
+                        "On",
+                        parentType);
+                    if (_options.PropagateExceptions)
+                    {
+                        throw;
+                    }
+                }
+            }
+        }
+
+        [global::System.Diagnostics.DebuggerStepThroughAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        // On2 on PureES.Core.Tests.Models.ImplementedGenericEventHandlers
+        private void PureESCoreTestsModelsImplementedGenericEventHandlers_On2(global::PureES.Core.EventEnvelope @event)
+        {
+            var ct = new CancellationTokenSource(_options.Timeout).Token;
+            var parentType = typeof(global::PureES.Core.Tests.Models.ImplementedGenericEventHandlers);
             var eventType = typeof(global::PureES.Core.Tests.Models.Events.Created);
             using (_logger.BeginScope(new global::System.Collections.Generic.Dictionary<string, object>()
                 {
@@ -273,7 +358,7 @@ namespace PureES.EventHandlers
                         eventType,
                         "On2",
                         parentType);
-                    global::PureES.Core.Tests.Models.TestGenericEventHandlers<global::PureES.Core.Tests.Models.Events.Created>.On2(
+                    global::PureES.Core.Tests.Models.ImplementedGenericEventHandlers.On2(
                         (global::PureES.Core.Tests.Models.Events.Created)@event.Event);
                     var elapsed = GetElapsedTimespan(start);
                     this._logger?.Log(
@@ -315,6 +400,86 @@ namespace PureES.EventHandlers
                         GetElapsed(start),
                         eventType,
                         "On2",
+                        parentType);
+                    if (_options.PropagateExceptions)
+                    {
+                        throw;
+                    }
+                }
+            }
+        }
+
+        [global::System.Diagnostics.DebuggerStepThroughAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        // Async on PureES.Core.Tests.Models.ImplementedGenericEventHandlers
+        private async global::System.Threading.Tasks.Task PureESCoreTestsModelsImplementedGenericEventHandlers_Async(global::PureES.Core.EventEnvelope @event)
+        {
+            var ct = new CancellationTokenSource(_options.Timeout).Token;
+            var parentType = typeof(global::PureES.Core.Tests.Models.ImplementedGenericEventHandlers);
+            var eventType = typeof(global::PureES.Core.Tests.Models.Events.Created);
+            using (_logger.BeginScope(new global::System.Collections.Generic.Dictionary<string, object>()
+                {
+                    { "EventType", eventType },
+                    { "EventHandlerParent", parentType },
+                    { "EventHandler", "Async" },
+                    { "StreamId", @event.StreamId },
+                    { "StreamPosition", @event.StreamPosition },
+                }))
+            {
+                var start = global::System.Diagnostics.Stopwatch.GetTimestamp();
+                try
+                {
+                    this._logger?.Log(
+                        logLevel: global::Microsoft.Extensions.Logging.LogLevel.Debug,
+                        exception: null,
+                        message: "Handling event {StreamId}/{StreamPosition}. Event Type: {@EventType}. Event handler {EventHandler} on {@EventHandlerParent}",
+                        @event.StreamId,
+                        @event.StreamPosition,
+                        eventType,
+                        "Async",
+                        parentType);
+                    await this._parent1.Async(
+                        (global::PureES.Core.Tests.Models.Events.Created)@event.Event);
+                    var elapsed = GetElapsedTimespan(start);
+                    this._logger?.Log(
+                        logLevel: this._options.GetLogLevel(@event, elapsed),
+                        exception: null,
+                        message: "Handled event {StreamId}/{StreamPosition}. Elapsed: {Elapsed:0.0000}ms. Event Type: {@EventType}. Event handler {EventHandler} on {@EventHandlerParent}",
+                        @event.StreamId,
+                        @event.StreamPosition,
+                        elapsed.TotalMilliseconds,
+                        eventType,
+                        "Async",
+                        parentType);
+                }
+                catch (global::System.OperationCanceledException ex)
+                {
+                    this._logger?.Log(
+                        logLevel: _options.PropagateExceptions ? LogLevel.Information : LogLevel.Error,
+                        exception: ex,
+                        message: "Timed out while handling event {StreamId}/{StreamPosition}. Elapsed: {Elapsed:0.0000}ms. Event Type: {@EventType}. Event handler {EventHandler} on {@EventHandlerParent}",
+                        @event.StreamId,
+                        @event.StreamPosition,
+                        GetElapsed(start),
+                        eventType,
+                        "Async",
+                        parentType);
+                    if (_options.PropagateExceptions)
+                    {
+                        throw;
+                    }
+                }
+                catch (global::System.Exception ex)
+                {
+                    this._logger?.Log(
+                        logLevel: _options.PropagateExceptions ? LogLevel.Information : LogLevel.Error,
+                        exception: ex,
+                        message: "Error handling event {StreamId}/{StreamPosition}. Elapsed: {Elapsed:0.0000}ms. Event Type: {@EventType}. Event handler {EventHandler} on {@EventHandlerParent}",
+                        @event.StreamId,
+                        @event.StreamPosition,
+                        GetElapsed(start),
+                        eventType,
+                        "Async",
                         parentType);
                     if (_options.PropagateExceptions)
                     {

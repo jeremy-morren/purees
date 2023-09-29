@@ -6,7 +6,10 @@ internal record EventHandler
 
     public required IMethod Method { get; init; }
 
-    public required IType Event { get; init; }
+    /// <summary>
+    /// The type of event handled by the method. If null, then handler handles all events
+    /// </summary>
+    public required IType? Event { get; init; }
 
     public required IType[] Services { get; init; }
     

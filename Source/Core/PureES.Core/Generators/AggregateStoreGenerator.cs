@@ -220,7 +220,7 @@ internal class AggregateStoreGenerator
 
     public const string Namespace = "PureES.AggregateStores";
     
-    public static string GetClassName(Aggregate aggregate) => $"{TypeNameHelpers.SanitizeName(aggregate.Type.Name)}AggregateStore";
+    public static string GetClassName(Aggregate aggregate) => $"{TypeNameHelpers.SanitizeName(aggregate.Type)}AggregateStore";
 
     public static string GetInterface(Aggregate aggregate) =>
         TypeNameHelpers.GetGenericTypeName(typeof(IAggregateStore<>), aggregate.Type.CSharpName);

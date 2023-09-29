@@ -64,9 +64,16 @@ public class EventBus : IEventBus
                     return typeof(IEnumerable<>).MakeGenericType(t);
                 });
 
-            var handlers = ((IEnumerable?)scope.ServiceProvider.GetService(serviceType))?.Cast<IEventHandler>().ToList();
+            var handlers = new List<IEventHandler>();
+            var genericHandlers = (IEnumerable?)scope.ServiceProvider.GetService(serviceType);
+            if (genericHandlers != null)
+                handlers.AddRange(genericHandlers.OfType<IEventHandler>());
+            
+            var catchAllHandlers = scope.ServiceProvider.GetService<IEnumerable<IEventHandler>>();
+            if (catchAllHandlers != null)
+                handlers.AddRange(catchAllHandlers);
         
-            if (handlers == null || handlers.Count == 0) return;
+            if (handlers.Count == 0) return;
     
             _logger.LogDebug("Processing {EventHandlerCount} event handler(s) for event {@Event}", 
                 handlers.Count, logEvent);
@@ -90,7 +97,6 @@ public class EventBus : IEventBus
     private static TimeSpan GetElapsed(long start)
     {
         var seconds = (Stopwatch.GetTimestamp() - start) / (double) Stopwatch.Frequency;
-
         return TimeSpan.FromSeconds(seconds);
     }
 
@@ -99,9 +105,7 @@ public class EventBus : IEventBus
 
     private static string GetTypeName(MemberInfo type)
     {
-        if (type.DeclaringType != null)
-            return $"{GetTypeName(type.DeclaringType)}+{type.Name}";
-        return type.Name;
+        return type.DeclaringType != null ? $"{GetTypeName(type.DeclaringType)}+{type.Name}" : type.Name;
     }
     
     #endregion

@@ -88,7 +88,7 @@ namespace PureES.DependencyInjection
                 implementationType: typeof(global::PureES.CommandHandlers.DecimalCommandHandler),
                 lifetime: ServiceLifetime.Transient));
 
-            // Aggregate: PureES.Core.Tests.Models.ImplementedGenericAggregate. Command handlers: 1
+            // Aggregate: PureES.Core.Tests.Models.ImplementedGenericAggregate. Command handlers: 2
             if (registeredServices.Contains(typeof(global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.ImplementedGenericAggregate>)))
             {
                 services.RemoveAll(typeof(global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.ImplementedGenericAggregate>));
@@ -105,8 +105,16 @@ namespace PureES.DependencyInjection
                 serviceType: typeof(global::PureES.Core.ICommandHandler<object>),
                 implementationType: typeof(global::PureES.CommandHandlers.ObjectCommandHandler),
                 lifetime: ServiceLifetime.Transient));
+            if (registeredServices.Contains(typeof(global::PureES.Core.ICommandHandler<global::System.Collections.Generic.Dictionary<string, object>>)))
+            {
+                services.RemoveAll(typeof(global::PureES.Core.ICommandHandler<global::System.Collections.Generic.Dictionary<string, object>>));
+            }
+            services.Add(new ServiceDescriptor(
+                serviceType: typeof(global::PureES.Core.ICommandHandler<global::System.Collections.Generic.Dictionary<string, object>>),
+                implementationType: typeof(global::PureES.CommandHandlers.Dictionary_String_ObjectCommandHandler),
+                lifetime: ServiceLifetime.Transient));
 
-            // Event Handlers. Count: 2
+            // Event Handlers. Count: 3
 
             if (!registeredImplementations.Contains(typeof(global::PureES.EventHandlers.CreatedEventHandler)))
             {
@@ -123,13 +131,30 @@ namespace PureES.DependencyInjection
                     implementationType: typeof(global::PureES.EventHandlers.UpdatedEventHandler),
                     lifetime: ServiceLifetime.Transient));
             }
-            // Event handler parents. Count: 1
+
+            if (!registeredImplementations.Contains(typeof(global::PureES.EventHandlers.CatchAllEventHandler)))
+            {
+                services.Add(new ServiceDescriptor(
+                    serviceType: typeof(global::PureES.Core.IEventHandler),
+                    implementationType: typeof(global::PureES.EventHandlers.CatchAllEventHandler),
+                    lifetime: ServiceLifetime.Transient));
+            }
+            // Event handler parents. Count: 2
 
             if (!registeredServices.Contains(typeof(global::PureES.Core.Tests.Models.TestEventHandlers)))
             {
                 services.Add(new ServiceDescriptor(
                     serviceType: typeof(global::PureES.Core.Tests.Models.TestEventHandlers),
                     implementationType: typeof(global::PureES.Core.Tests.Models.TestEventHandlers),
+                    lifetime: ServiceLifetime.Transient));
+            }
+
+
+            if (!registeredServices.Contains(typeof(global::PureES.Core.Tests.Models.ImplementedGenericEventHandlers)))
+            {
+                services.Add(new ServiceDescriptor(
+                    serviceType: typeof(global::PureES.Core.Tests.Models.ImplementedGenericEventHandlers),
+                    implementationType: typeof(global::PureES.Core.Tests.Models.ImplementedGenericEventHandlers),
                     lifetime: ServiceLifetime.Transient));
             }
 

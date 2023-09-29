@@ -8,11 +8,12 @@ internal static class SymbolHelpers
 
         var methods = type.Methods;
 
-        //Return static methods from base type
+        //Get all methods from base type
         var t = type;
         while ((t = t.BaseType) != null)
-            methods = methods.Concat(t.Methods.Where(m => m.IsStatic));
-        
-        return methods;
+            methods = methods.Concat(t.Methods);
+
+        //Distinct
+        return methods.Distinct();
     }
 }

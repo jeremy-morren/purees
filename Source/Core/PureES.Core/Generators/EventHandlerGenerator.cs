@@ -98,9 +98,10 @@ internal class EventHandlerGenerator
         _w.WriteLine($"public {signature}{TaskType} {nameof(IEventHandler<int>.Handle)}({EventEnvelopeType} @event)");
         _w.PushBrace();
         
-        //Validation
-        _w.WriteStatement($"if (@event.{nameof(EventEnvelope.Event)} is not {_handlers.EventType.CSharpName})",
-            "throw new ArgumentException(nameof(@event));");
+        if (_handlers.EventType != null)
+            //Validate correct event input
+            _w.WriteStatement($"if (@event.{nameof(EventEnvelope.Event)} is not {_handlers.EventType.CSharpName})",
+                "throw new ArgumentException(nameof(@event));");
         
         WriteStartActivity();
 
@@ -149,7 +150,12 @@ internal class EventHandlerGenerator
         
         _w.WriteLine($"activity.SetTag(\"{nameof(EventEnvelope.StreamId)}\", @event.{nameof(EventEnvelope.StreamId)});");
         _w.WriteLine($"activity.SetTag(\"{nameof(EventEnvelope.StreamPosition)}\", @event.{nameof(EventEnvelope.StreamPosition)});");
-        _w.WriteLine($"activity.SetTag(\"EventType\", \"{FriendlyEventTypeName}\");");
+        
+        var friendlyName = _handlers.EventType?.CSharpName.Replace("global::", string.Empty);
+        _w.WriteLine(friendlyName != null
+            ? $"activity.SetTag(\"EventType\", \"{friendlyName}\");"
+            : "activity.SetTag(\"EventType\", null);");
+        
         _w.WriteLine($"{ExternalTypes.Activity}.Current = activity;");
         _w.WriteLine("activity.Start();");
     }
@@ -164,7 +170,9 @@ internal class EventHandlerGenerator
         
         _w.WriteLine($"var ct = new CancellationTokenSource(_options.{nameof(PureESEventHandlerOptions.Timeout)}).Token;");
         _w.WriteLine($"var parentType = typeof({handler.Parent.CSharpName});");
-        _w.WriteLine($"var eventType = typeof({handler.Event.CSharpName});");
+        _w.WriteLine(handler.Event != null
+            ? $"var eventType = typeof({handler.Event.CSharpName});"
+            : $"global::{typeof(Type).FullName} eventType = null;");
         
         BeginLogScope(handler);
         
@@ -189,9 +197,11 @@ internal class EventHandlerGenerator
             _w.WriteParameters(handler.Method.Parameters.Select(p =>
             {
                 if (p.HasAttribute<EventAttribute>())
-                    return $"({handler.Event.CSharpName})@event.{nameof(EventEnvelope.Event)}";
+                    return $"({handler.Event!.CSharpName})@event.{nameof(EventEnvelope.Event)}";
                 if (p.Type.IsGenericEventEnvelope())
                     return $"new {p.Type.CSharpName}(@event)";
+                if (p.Type.IsNonGenericEventEnvelope())
+                    return "@event";
                 if (p.HasFromServicesAttribute())
                     return $"this._service{_handlers.Services.GetIndex(p.Type)}";
                 if (p.Type.IsCancellationToken())
@@ -251,7 +261,7 @@ internal class EventHandlerGenerator
         _w.WriteLine($"using (_logger.BeginScope(new {LoggerScopeType}()");
         _w.Push();
         _w.PushBrace();
-        var parameters = new (string, string)[]
+        var parameters = new []
         {
             ("EventType", "eventType"),
             ("EventHandlerParent", "parentType"),
@@ -272,11 +282,15 @@ internal class EventHandlerGenerator
     private string ClassName => GetClassName(_handlers.EventType);
     private string Interface => GetInterface(_handlers.EventType);
     
-    public static string GetClassName(IType eventType) => $"{eventType.Name}EventHandler";
+    public static string GetClassName(IType? eventType) => $"{eventType?.Name ?? "CatchAll"}EventHandler";
 
-    public static string GetInterface(IType eventType) =>
-        TypeNameHelpers.GetGenericTypeName(typeof(IEventHandler<>), eventType.CSharpName);
-    
+    public static string GetInterface(IType? eventType)
+    {
+        return eventType == null 
+            ? $"global::{typeof(IEventHandler).FullName}" 
+            : TypeNameHelpers.GetGenericTypeName(typeof(IEventHandler<>), eventType.CSharpName);
+    }
+
     private string LoggerType => ExternalTypes.ILogger(ClassName);
 
     private string NullLoggerInstance => ExternalTypes.NullLoggerInstance(ClassName);
@@ -290,8 +304,6 @@ internal class EventHandlerGenerator
 
     private static string LoggerScopeType =>
         TypeNameHelpers.GetGenericTypeName(typeof(Dictionary<string, object>), "string", "object");
-
-    private string FriendlyEventTypeName => _handlers.EventType.CSharpName.Replace("global::", string.Empty);
 
     public const string Namespace = "PureES.EventHandlers";
     private const string ActivitySource = "PureES.EventHandlers.EventHandler";

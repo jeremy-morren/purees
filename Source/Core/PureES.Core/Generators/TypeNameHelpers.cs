@@ -1,6 +1,8 @@
-﻿namespace PureES.Core.Generators;
+﻿using System.Text;
 
-public static class TypeNameHelpers
+namespace PureES.Core.Generators;
+
+internal static class TypeNameHelpers
 {
     [System.Diagnostics.Contracts.Pure]
     public static string GetGenericTypeName(Type type, params string[] genericArguments)
@@ -11,16 +13,21 @@ public static class TypeNameHelpers
     }
 
     /// <summary>
-    /// Transforms a string into a name suitable as an object name
+    /// Gets a name from a type suitable for use as an identifier
     /// </summary>
-    /// <param name="name"></param>
-    /// <returns></returns>
     [System.Diagnostics.Contracts.Pure]
-    public static string SanitizeName(string name)
+    public static string SanitizeName(IType type)
     {
-        name = name.Replace("global::", string.Empty);
-        name = name.Replace("[]", "Array");
-        return new[] { '<', '>', '[', ']', '+', '.' }.Aggregate(name, (cur, c) => cur.Replace(c, '_'));
+        var sb = new StringBuilder();
+        sb.Append(type.Name.Replace("[]", "Array"));
+        if (!type.IsGenericType) return sb.ToString();
+        foreach (var t in type.GenericArguments)
+        {
+            sb.Append('_');
+            sb.Append(SanitizeName(t));
+        }
+
+        return sb.ToString();
     }
     
     /// <summary>
@@ -31,8 +38,6 @@ public static class TypeNameHelpers
     [System.Diagnostics.Contracts.Pure]
     public static string SanitizeFilename(string name)
     {
-        name = name.Replace("global::", string.Empty);
-        name = name.Replace("[]", "Array");
         return Path.GetInvalidFileNameChars().Aggregate(name, (cur, c) => cur.Replace(c, '_'));
     }
 }
