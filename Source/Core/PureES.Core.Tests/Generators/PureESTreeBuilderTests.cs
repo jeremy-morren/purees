@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Linq;
 using PureES.Core.Generators;
 using PureES.Core.Tests.Framework;
 using PureES.Core.Tests.Generators.ReflectedSymbols;

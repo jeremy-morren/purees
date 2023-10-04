@@ -282,7 +282,11 @@ internal class EventHandlerGenerator
     private string ClassName => GetClassName(_handlers.EventType);
     private string Interface => GetInterface(_handlers.EventType);
     
-    public static string GetClassName(IType? eventType) => $"{eventType?.Name ?? "CatchAll"}EventHandler";
+    public static string GetClassName(IType? eventType)
+    {
+        var name = eventType != null ? TypeNameHelpers.SanitizeName(eventType) : "CatchAll";
+        return $"{name}EventHandler";
+    }
 
     public static string GetInterface(IType? eventType)
     {

@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using PureES.Core.Generators;
-using PureES.Core.Generators.Framework;
 using PureES.Core.Generators.Models;
 using PureES.Core.Tests.Framework;
 using PureES.Core.Tests.Generators.ReflectedSymbols;
@@ -10,7 +7,6 @@ using PureES.Core.Tests.Models;
 using Shouldly;
 using Xunit;
 using Xunit.Abstractions;
-using EventHandler = PureES.Core.Generators.Models.EventHandler;
 
 namespace PureES.Core.Tests.Generators;
 

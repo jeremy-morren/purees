@@ -18,7 +18,7 @@ namespace PureES.CommandHandlers
     [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
     internal class Dictionary_String_ObjectCommandHandler : global::PureES.Core.ICommandHandler<global::System.Collections.Generic.Dictionary<string, object>>
     {
-        private readonly global::PureES.Core.PureESStreamId<global::System.Collections.Generic.Dictionary<string, object>> _getStreamId;
+        private readonly global::PureES.Core.EventStore.ICommandStreamId<global::System.Collections.Generic.Dictionary<string, object>> _getStreamId;
         private readonly global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.ImplementedGenericAggregate> _aggregateStore;
         private readonly global::PureES.Core.EventStore.IEventStore _eventStore;
         private readonly global::PureES.Core.IOptimisticConcurrency _concurrency;
@@ -31,7 +31,7 @@ namespace PureES.CommandHandlers
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         public Dictionary_String_ObjectCommandHandler(
-            global::PureES.Core.PureESStreamId<global::System.Collections.Generic.Dictionary<string, object>> getStreamId,
+            global::PureES.Core.EventStore.ICommandStreamId<global::System.Collections.Generic.Dictionary<string, object>> getStreamId,
             global::PureES.Core.EventStore.IEventStore eventStore,
             global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.ImplementedGenericAggregate> aggregateStore,
             global::PureES.Core.IOptimisticConcurrency concurrency = null,
@@ -101,7 +101,7 @@ namespace PureES.CommandHandlers
                         await validator.Validate(command, cancellationToken);
                     }
                 }
-                var streamId = this._getStreamId.GetId(command);
+                var streamId = this._getStreamId.GetStreamId(command);
                 var currentRevision = this._concurrency?.GetExpectedRevision(streamId, command) ?? await this._eventStore.GetRevision(streamId, cancellationToken);
                 var current = await _aggregateStore.Load(streamId, currentRevision, cancellationToken);
                 var result = current.Update(command);

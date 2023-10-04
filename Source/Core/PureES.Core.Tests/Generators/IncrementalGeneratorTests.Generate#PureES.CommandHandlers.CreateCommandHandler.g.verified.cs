@@ -18,7 +18,7 @@ namespace PureES.CommandHandlers
     [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
     internal class CreateCommandHandler : global::PureES.Core.ICommandHandler<global::PureES.Core.Tests.Models.Commands.Create>
     {
-        private readonly global::PureES.Core.PureESStreamId<global::PureES.Core.Tests.Models.Commands.Create> _getStreamId;
+        private readonly global::PureES.Core.EventStore.ICommandStreamId<global::PureES.Core.Tests.Models.Commands.Create> _getStreamId;
         private readonly global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.TestAggregate> _aggregateStore;
         private readonly global::PureES.Core.EventStore.IEventStore _eventStore;
         private readonly global::PureES.Core.IOptimisticConcurrency _concurrency;
@@ -31,7 +31,7 @@ namespace PureES.CommandHandlers
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         public CreateCommandHandler(
-            global::PureES.Core.PureESStreamId<global::PureES.Core.Tests.Models.Commands.Create> getStreamId,
+            global::PureES.Core.EventStore.ICommandStreamId<global::PureES.Core.Tests.Models.Commands.Create> getStreamId,
             global::PureES.Core.EventStore.IEventStore eventStore,
             global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.TestAggregate> aggregateStore,
             global::PureES.Core.IOptimisticConcurrency concurrency = null,
@@ -101,7 +101,7 @@ namespace PureES.CommandHandlers
                         await validator.Validate(command, cancellationToken);
                     }
                 }
-                var streamId = this._getStreamId.GetId(command);
+                var streamId = this._getStreamId.GetStreamId(command);
                 var result = global::PureES.Core.Tests.Models.TestAggregate.CreateOn(command);
                 var revision = ulong.MaxValue;
                 if (result != null)

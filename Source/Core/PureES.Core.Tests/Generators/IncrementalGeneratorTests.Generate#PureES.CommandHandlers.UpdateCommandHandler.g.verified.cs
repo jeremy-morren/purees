@@ -18,7 +18,7 @@ namespace PureES.CommandHandlers
     [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
     internal class UpdateCommandHandler : global::PureES.Core.ICommandHandler<global::PureES.Core.Tests.Models.Commands.Update>
     {
-        private readonly global::PureES.Core.PureESStreamId<global::PureES.Core.Tests.Models.Commands.Update> _getStreamId;
+        private readonly global::PureES.Core.EventStore.ICommandStreamId<global::PureES.Core.Tests.Models.Commands.Update> _getStreamId;
         private readonly global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.TestAggregate> _aggregateStore;
         private readonly global::PureES.Core.EventStore.IEventStore _eventStore;
         private readonly global::PureES.Core.IOptimisticConcurrency _concurrency;
@@ -33,7 +33,7 @@ namespace PureES.CommandHandlers
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         public UpdateCommandHandler(
             global::System.IServiceProvider service0,
-            global::PureES.Core.PureESStreamId<global::PureES.Core.Tests.Models.Commands.Update> getStreamId,
+            global::PureES.Core.EventStore.ICommandStreamId<global::PureES.Core.Tests.Models.Commands.Update> getStreamId,
             global::PureES.Core.EventStore.IEventStore eventStore,
             global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.TestAggregate> aggregateStore,
             global::PureES.Core.IOptimisticConcurrency concurrency = null,
@@ -104,7 +104,7 @@ namespace PureES.CommandHandlers
                         await validator.Validate(command, cancellationToken);
                     }
                 }
-                var streamId = this._getStreamId.GetId(command);
+                var streamId = this._getStreamId.GetStreamId(command);
                 var currentRevision = this._concurrency?.GetExpectedRevision(streamId, command) ?? await this._eventStore.GetRevision(streamId, cancellationToken);
                 var current = await _aggregateStore.Load(streamId, currentRevision, cancellationToken);
                 var result = await current.UpdateOn(command, this._service0, cancellationToken);

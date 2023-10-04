@@ -26,16 +26,14 @@ public class BasicEventTypeMapTests
     [InlineData(typeof(NestedType))]
     public void MapShouldReturnSameType(Type type)
     {
-        var map = new BasicEventTypeMap();
-        var str = map.GetTypeName(type);
+        var str = BasicEventTypeMap.GetTypeName(type);
         
         str.ShouldNotContain("Version=");
-        str.ShouldNotContain("System.Private.CoreLib");
-        str.ShouldNotContain("mscorlib");
+        str.ShouldNotContain(typeof(string).Assembly.GetName().Name!);
 
         _output.WriteLine(str);
 
-        var mapped = map.GetCLRType(str);
+        var mapped = BasicEventTypeMap.GetCLRType(str);
         mapped.ShouldBe(type);
     }
 
@@ -46,12 +44,11 @@ public class BasicEventTypeMapTests
     [InlineData("PureES.Core.Tests.BasicEventTypeMapTests, PureES.Core.Tests")]
     public void GetTypeFromStringShouldNotBeNull(string name)
     {
-        var map = new BasicEventTypeMap();
-        var type = map.GetCLRType(name);
+        var type = BasicEventTypeMap.GetCLRType(name);
         type.ShouldNotBeNull();
         
-        map.GetTypeName(type).ShouldBe(name);
+        BasicEventTypeMap.GetTypeName(type).ShouldBe(name);
     }
     
-    public static class NestedType {}
+    private static class NestedType {}
 }

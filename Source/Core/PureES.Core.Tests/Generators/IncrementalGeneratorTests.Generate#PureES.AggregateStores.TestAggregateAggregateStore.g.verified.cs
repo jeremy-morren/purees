@@ -77,8 +77,9 @@ namespace PureES.AggregateStores
                     }
                     default:
                     {
-                        var eventType = enumerator.Current.Event.GetType().FullName;
-                        throw new NotImplementedException($"No suitable CreateWhen method found for event {eventType}");
+                        var eventType = global::PureES.Core.EventStore.BasicEventTypeMap.GetTypeName(enumerator.Current.Event.GetType());
+                        var aggregateType = global::PureES.Core.EventStore.BasicEventTypeMap.GetTypeName(typeof(global::PureES.Core.Tests.Models.TestAggregate));
+                        throw new NotImplementedException($"No suitable CreateWhen method found for event '{eventType}' on '{aggregateType}'");
                     }
                 }
                 current.GlobalWhen(enumerator.Current, cancellationToken);
@@ -108,8 +109,9 @@ namespace PureES.AggregateStores
                         }
                         default:
                         {
-                            var eventType = enumerator.Current.Event.GetType().FullName;
-                            throw new NotImplementedException($"No suitable UpdateWhen method found for event {eventType}");
+                            var eventType = global::PureES.Core.EventStore.BasicEventTypeMap.GetTypeName(enumerator.Current.Event.GetType());
+                            var aggregateType = global::PureES.Core.EventStore.BasicEventTypeMap.GetTypeName(typeof(global::PureES.Core.Tests.Models.TestAggregate));
+                            throw new NotImplementedException($"No suitable UpdateWhen method found for event '{eventType}' on '{aggregateType}'");
                         }
                     }
                     current.GlobalWhen(enumerator.Current, cancellationToken);

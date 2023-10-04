@@ -18,7 +18,7 @@ namespace PureES.CommandHandlers
     [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
     internal class UpdateConstantStreamCommandHandler : global::PureES.Core.ICommandHandler<global::PureES.Core.Tests.Models.Commands.UpdateConstantStream, int[]>
     {
-        private readonly global::PureES.Core.PureESStreamId<global::PureES.Core.Tests.Models.Commands.UpdateConstantStream> _getStreamId;
+        private readonly global::PureES.Core.EventStore.ICommandStreamId<global::PureES.Core.Tests.Models.Commands.UpdateConstantStream> _getStreamId;
         private readonly global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.TestAggregate> _aggregateStore;
         private readonly global::PureES.Core.EventStore.IEventStore _eventStore;
         private readonly global::PureES.Core.IOptimisticConcurrency _concurrency;
@@ -33,7 +33,7 @@ namespace PureES.CommandHandlers
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         public UpdateConstantStreamCommandHandler(
             global::System.IServiceProvider service0,
-            global::PureES.Core.PureESStreamId<global::PureES.Core.Tests.Models.Commands.UpdateConstantStream> getStreamId,
+            global::PureES.Core.EventStore.ICommandStreamId<global::PureES.Core.Tests.Models.Commands.UpdateConstantStream> getStreamId,
             global::PureES.Core.EventStore.IEventStore eventStore,
             global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.TestAggregate> aggregateStore,
             global::PureES.Core.IOptimisticConcurrency concurrency = null,

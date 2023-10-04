@@ -18,7 +18,7 @@ namespace PureES.CommandHandlers
     [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
     internal class CommandHandler : global::PureES.Core.ICommandHandler<int[]>
     {
-        private readonly global::PureES.Core.PureESStreamId<int[]> _getStreamId;
+        private readonly global::PureES.Core.EventStore.ICommandStreamId<int[]> _getStreamId;
         private readonly global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.TestAggregate> _aggregateStore;
         private readonly global::PureES.Core.EventStore.IEventStore _eventStore;
         private readonly global::PureES.Core.IOptimisticConcurrency _concurrency;
@@ -33,7 +33,7 @@ namespace PureES.CommandHandlers
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         public CommandHandler(
             global::Microsoft.Extensions.Logging.ILoggerFactory service0,
-            global::PureES.Core.PureESStreamId<int[]> getStreamId,
+            global::PureES.Core.EventStore.ICommandStreamId<int[]> getStreamId,
             global::PureES.Core.EventStore.IEventStore eventStore,
             global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.TestAggregate> aggregateStore,
             global::PureES.Core.IOptimisticConcurrency concurrency = null,
@@ -104,7 +104,7 @@ namespace PureES.CommandHandlers
                         await validator.Validate(command, cancellationToken);
                     }
                 }
-                var streamId = this._getStreamId.GetId(command);
+                var streamId = this._getStreamId.GetStreamId(command);
                 var result = global::PureES.Core.Tests.Models.TestAggregate.CreateOnAsyncEnumerable(command, this._service0);
                 var revision = ulong.MaxValue;
                 if (result != null)

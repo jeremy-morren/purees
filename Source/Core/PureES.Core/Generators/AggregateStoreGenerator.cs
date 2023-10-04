@@ -151,10 +151,12 @@ internal class AggregateStoreGenerator
 
             _w.WriteStatement("default:", () =>
             {
+                var getName = $"global::{typeof(BasicEventTypeMap).FullName}.{nameof(BasicEventTypeMap.GetTypeName)}";
                 //Fallthrough error
-                _w.WriteLine("var eventType = enumerator.Current.Event.GetType().FullName;");
+                _w.WriteLine($"var eventType = {getName}(enumerator.Current.Event.GetType());");
+                _w.WriteLine($"var aggregateType = {getName}(typeof({_aggregate.Type.CSharpName}));");
                 _w.WriteLine(
-                    $"throw new NotImplementedException($\"No suitable {fallthroughName} method found for event {{eventType}}\");");
+                    $"throw new NotImplementedException($\"No suitable {fallthroughName} method found for event '{{eventType}}' on '{{aggregateType}}'\");");
             });
         });
         

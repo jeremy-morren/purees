@@ -1,5 +1,4 @@
 ﻿using PureES.Core.Generators.Framework;
-using PureES.Core.Generators.Models;
 using EventHandler = PureES.Core.Generators.Models.EventHandler;
 
 // ReSharper disable InvertIf

@@ -1,6 +1,5 @@
-﻿using System.Text;
-using Microsoft.Extensions.Options;
-using Microsoft.Extensions.Primitives;
+﻿using System.Collections.Concurrent;
+using System.Text;
 
 namespace PureES.Core.EventStore;
 
@@ -11,20 +10,30 @@ namespace PureES.Core.EventStore;
 [PublicAPI]
 public class BasicEventTypeMap : IEventTypeMap
 {
-    public Type GetCLRType(string typeName)
+    string IEventTypeMap.GetTypeName(Type eventType) => GetTypeName(eventType);
+    Type IEventTypeMap.GetCLRType(string typeName) => GetCLRType(typeName);
+
+    private static readonly ConcurrentDictionary<string, Type> TypesMap = new();
+    private static readonly ConcurrentDictionary<Type, string> NamesMap = new();
+    
+    public static Type GetCLRType(string typeName)
     {
         if (typeName == null) throw new ArgumentNullException(nameof(typeName));
         
-        return Type.GetType(typeName) 
-               ?? throw new ArgumentOutOfRangeException(nameof(typeName), typeName, "Unable to resolve CLR type");
+        return TypesMap.GetOrAdd(typeName, _ => 
+            Type.GetType(typeName) 
+            ?? throw new ArgumentOutOfRangeException(nameof(typeName), typeName, "Unable to resolve CLR type"));
     }
 
-    public string GetTypeName(Type eventType)
+    public static string GetTypeName(Type eventType)
     {
         if (eventType == null) throw new ArgumentNullException(nameof(eventType));
-        
-        GetTypeName(eventType, out var name, out _);
-        return name;
+
+        return NamesMap.GetOrAdd(eventType, __ =>
+        {
+            GetTypeName(eventType, out var name, out var _);
+            return name;
+        });
     }
     
     /// <summary>

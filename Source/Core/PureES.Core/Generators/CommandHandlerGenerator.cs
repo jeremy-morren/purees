@@ -308,7 +308,7 @@ internal class CommandHandlerGenerator
         }
         else
         {
-            _w.WriteLine($"var streamId = this._getStreamId.{nameof(PureESStreamId<int>.GetId)}(command);");
+            _w.WriteLine($"var streamId = this._getStreamId.{nameof(ICommandStreamId<int>.GetStreamId)}(command);");
         }
     }
 
@@ -336,7 +336,7 @@ internal class CommandHandlerGenerator
     private string LoggerType => ExternalTypes.ILogger(ClassName);
     
     private string StreamIdSvc =>
-        TypeNameHelpers.GetGenericTypeName(typeof(PureESStreamId<>), _handler.Command.CSharpName);
+        TypeNameHelpers.GetGenericTypeName(typeof(ICommandStreamId<>), _handler.Command.CSharpName);
     
     private string AggregateStoreType =>
         TypeNameHelpers.GetGenericTypeName(typeof(IAggregateStore<>), _aggregate.Type.CSharpName);
