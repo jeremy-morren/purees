@@ -593,17 +593,16 @@ internal class CosmosEventStore : IEventStore
     #endregion
     
     #region Count
-
     
     public async Task<ulong> Count(CancellationToken cancellationToken)
     {
         var container = await _client.GetEventStoreContainerAsync();
 
-        var queryDef = new QueryDefinition("select count(1) as v from c");
+        var queryDef = new QueryDefinition("select value count(1) from c");
 
-        using var iterator = container.GetItemQueryIterator<Dictionary<string, ulong>>(queryDef);
+        using var iterator = container.GetItemQueryIterator<ulong>(queryDef);
         var result = await iterator.ReadNextAsync(cancellationToken);
-        return result.Single()["v"];
+        return result.Single();
     }
     
     public async Task<ulong> CountByEventType(Type eventType, CancellationToken cancellationToken)
@@ -611,12 +610,12 @@ internal class CosmosEventStore : IEventStore
         var container = await _client.GetEventStoreContainerAsync();
 
         var queryDef =
-            new QueryDefinition("select count(1) as v from c where c.eventType = @eventType")
+            new QueryDefinition("select value count(1) from c where c.eventType = @eventType")
                 .WithParameter("@eventType", _typeMap.GetTypeName(eventType));
 
-        using var iterator = container.GetItemQueryIterator<Dictionary<string, ulong>>(queryDef);
+        using var iterator = container.GetItemQueryIterator<ulong>(queryDef);
         var result = await iterator.ReadNextAsync(cancellationToken);
-        return result.Single()["v"];
+        return result.Single();
     }
 
     #endregion
