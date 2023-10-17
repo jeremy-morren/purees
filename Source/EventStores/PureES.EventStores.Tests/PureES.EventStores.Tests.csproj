@@ -26,7 +26,6 @@
     <ItemGroup>
         <ProjectReference Include="..\PureES.CosmosDB\PureES.CosmosDB.csproj" />
         <ProjectReference Include="..\PureES.EventStore.InMemory\PureES.EventStore.InMemory.csproj" />
-        <ProjectReference Include="..\PureES.EventStoreDB\PureES.EventStoreDB.csproj" />
     </ItemGroup>
 
     <ItemGroup>

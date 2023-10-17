@@ -196,46 +196,24 @@ public interface IEventStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Reads multiple streams, returning events in chronological order
+    /// Reads multiple streams as a single operation. Order of streams is undefined.
     /// </summary>
     /// <param name="direction">Read direction</param>
     /// <param name="streams">The streams to read</param>
     /// <param name="cancellationToken"></param>
     /// <returns>A combined stream of events, in chronological order</returns>
-    public IAsyncEnumerable<EventEnvelope> ReadMany(Direction direction,
+    public IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(Direction direction,
         IEnumerable<string> streams, 
         CancellationToken cancellationToken = default);
     
     /// <summary>
-    /// Reads multiple streams, returning events in chronological order
+    /// Reads multiple streams as a single operation. Order of streams is undefined.
     /// </summary>
     /// <param name="direction">Read direction</param>
     /// <param name="streams">The streams to read</param>
     /// <param name="cancellationToken"></param>
     /// <returns>A combined stream of events, in chronological order</returns>
-    public IAsyncEnumerable<EventEnvelope> ReadMany(Direction direction, 
-        IAsyncEnumerable<string> streams, 
-        CancellationToken cancellationToken = default);
-    
-    /// <summary>
-    /// Reads multiple streams. Order is undefined
-    /// </summary>
-    /// <param name="direction">Read direction</param>
-    /// <param name="streams">The streams to read</param>
-    /// <param name="cancellationToken"></param>
-    /// <returns>A combined stream of events, in chronological order</returns>
-    public IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMultiple(Direction direction,
-        IEnumerable<string> streams, 
-        CancellationToken cancellationToken = default);
-    
-    /// <summary>
-    /// Reads multiple streams. Order is undefined
-    /// </summary>
-    /// <param name="direction">Read direction</param>
-    /// <param name="streams">The streams to read</param>
-    /// <param name="cancellationToken"></param>
-    /// <returns>A combined stream of events, in chronological order</returns>
-    public IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMultiple(Direction direction, 
+    public IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(Direction direction, 
         IAsyncEnumerable<string> streams, 
         CancellationToken cancellationToken = default);
 

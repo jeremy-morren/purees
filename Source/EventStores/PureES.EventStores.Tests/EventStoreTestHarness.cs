@@ -3,7 +3,7 @@ using PureES.Core.EventStore;
 
 namespace PureES.EventStores.Tests;
 
-public class EventStoreTestHarness : IEventStore, IAsyncDisposable
+public sealed class EventStoreTestHarness : IEventStore, IAsyncDisposable
 {
     private readonly IAsyncDisposable _harness;
     private readonly IEventStore _eventEventStore;
@@ -50,15 +50,11 @@ public class EventStoreTestHarness : IEventStore, IAsyncDisposable
         CancellationToken cancellationToken = default) =>
         _eventEventStore.ReadPartial(direction, streamId, requiredRevision, cancellationToken);
 
-    public IAsyncEnumerable<EventEnvelope> ReadMany(Direction direction, IEnumerable<string> streams, CancellationToken cancellationToken = default) => _eventEventStore.ReadMany(direction, streams, cancellationToken);
+    public IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(Direction direction, IEnumerable<string> streams, CancellationToken cancellationToken = default) => _eventEventStore.ReadMany(direction, streams, cancellationToken);
 
-    public IAsyncEnumerable<EventEnvelope> ReadMany(Direction direction, IAsyncEnumerable<string> streams, CancellationToken cancellationToken = default) => _eventEventStore.ReadMany(direction, streams, cancellationToken);
-
-    public IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMultiple(Direction direction, IEnumerable<string> streams, CancellationToken cancellationToken = default) => _eventEventStore.ReadMultiple(direction, streams, cancellationToken);
-
-    public IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMultiple(Direction direction, IAsyncEnumerable<string> streams,
+    public IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(Direction direction, IAsyncEnumerable<string> streams,
         CancellationToken cancellationToken = default) =>
-        _eventEventStore.ReadMultiple(direction, streams, cancellationToken);
+        _eventEventStore.ReadMany(direction, streams, cancellationToken);
 
     public IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction, Type eventType, CancellationToken cancellationToken = default) => _eventEventStore.ReadByEventType(direction, eventType, cancellationToken);
 

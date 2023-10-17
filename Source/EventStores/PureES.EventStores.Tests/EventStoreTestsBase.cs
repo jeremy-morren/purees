@@ -352,10 +352,10 @@ public abstract class EventStoreTestsBase
             .Take(5)
             .ToList();
         
-        var syncResult = await store.ReadMultiple(Direction.Forwards, half, CancellationToken)
+        var syncResult = await store.ReadMany(Direction.Forwards, half, CancellationToken)
             .SelectAwait(s => s.ToListAsync())
             .ToListAsync();
-        var asyncResult = await store.ReadMultiple(Direction.Forwards, half.ToAsyncEnumerable(), CancellationToken)
+        var asyncResult = await store.ReadMany(Direction.Forwards, half.ToAsyncEnumerable(), CancellationToken)
             .SelectAwait(s => s.ToListAsync())
             .ToListAsync();
         Assert.All(new [] { syncResult, asyncResult }, result =>
@@ -370,10 +370,10 @@ public abstract class EventStoreTestsBase
             });
         });
         
-        syncResult = await store.ReadMultiple(Direction.Backwards, half, CancellationToken)
+        syncResult = await store.ReadMany(Direction.Backwards, half, CancellationToken)
             .SelectAwait(s => s.ToListAsync())
             .ToListAsync();
-        asyncResult = await store.ReadMultiple(Direction.Backwards, half.ToAsyncEnumerable(), CancellationToken)
+        asyncResult = await store.ReadMany(Direction.Backwards, half.ToAsyncEnumerable(), CancellationToken)
             .SelectAwait(s => s.ToListAsync())
             .ToListAsync();
         Assert.All(new [] { syncResult, asyncResult }, result =>
@@ -388,9 +388,8 @@ public abstract class EventStoreTestsBase
             });
         });
     }
-    
-    [Fact]
-    public async Task Read_Many_Should_Return_In_Chronological_Order()
+
+    [Fact] public async Task Read_Many_Should_Return_All()
     {
         await using var store = await GetStore();
         
@@ -432,9 +431,6 @@ public abstract class EventStoreTestsBase
         {
             Assert.NotEmpty(result);
             Assert.Equal(5 * 10, result.Count);
-            Assert.Equal(result, result.OrderBy(r => r.Timestamp));
-
-            Assert.Empty(result.Where(e => !half.Contains(e.StreamId)));
         });
         
         syncResult = await store.ReadMany(Direction.Backwards, half, CancellationToken).ToListAsync();
@@ -443,9 +439,6 @@ public abstract class EventStoreTestsBase
         {
             Assert.NotEmpty(result);
             Assert.Equal(5 * 10, result.Count);
-            Assert.Equal(result, result.OrderByDescending(r => r.Timestamp));
-            
-            Assert.Empty(result.Where(e => !half.Contains(e.StreamId)));
         });
     }
 

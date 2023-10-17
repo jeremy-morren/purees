@@ -251,46 +251,8 @@ internal class InMemoryEventStore : IInMemoryEventStore
             .Select(_serializer.Deserialize)
             .ToList();
     }
-
-    public IAsyncEnumerable<EventEnvelope> ReadMany(Direction direction, 
-        IEnumerable<string> streams, 
-        CancellationToken cancellationToken)
-    {
-        lock (_events)
-        {
-            var events = streams.SelectMany(ReadStreamInternal)
-                .OrderBy(e => e.Timestamp)
-                .ToList();
-            cancellationToken.ThrowIfCancellationRequested();
-
-            return ReadDirection(direction, events);
-        }
-    }
-
-    public async IAsyncEnumerable<EventEnvelope> ReadMany(Direction direction,
-        IAsyncEnumerable<string> streams,
-        [EnumeratorCancellation] CancellationToken cancellationToken)
-    {
-        var list = await streams.ToListAsync(cancellationToken);
-
-        List<EventEnvelope> events;
-        lock (_events)
-        {
-            events = list.SelectMany(ReadStreamInternal)
-                .OrderBy(e => e.Timestamp)
-                .ToList();
-        }
-        if (direction == Direction.Backwards)
-            events.Reverse();
-
-        foreach (var e in events)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            yield return e;
-        }
-    }
     
-    public IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMultiple(Direction direction, 
+    public IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(Direction direction, 
         IEnumerable<string> streams, 
         CancellationToken cancellationToken)
     {
@@ -309,7 +271,7 @@ internal class InMemoryEventStore : IInMemoryEventStore
         return result.Select(r => r.ToAsyncEnumerable()).ToAsyncEnumerable();
     }
     
-    public async IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMultiple(Direction direction,
+    public async IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(Direction direction,
         IAsyncEnumerable<string> streams,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {

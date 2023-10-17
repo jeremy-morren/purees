@@ -110,36 +110,6 @@ public static class EventStoreReadExtensions
     }
 
     /// <summary>
-    /// Reads multiple streams, returning events in chronological order
-    /// </summary>
-    /// <param name="eventStore">Event store</param>
-    /// <param name="streams">The streams to read</param>
-    /// <param name="cancellationToken"></param>
-    /// <returns>A combined stream of events, in chronological order</returns>
-    public static IAsyncEnumerable<EventEnvelope> ReadMany(this IEventStore eventStore,
-        IEnumerable<string> streams, 
-        CancellationToken cancellationToken = default)
-    {
-        if (eventStore == null) throw new ArgumentNullException(nameof(eventStore));
-        return eventStore.ReadMany(Direction.Forwards, streams, cancellationToken);
-    }
-    
-    /// <summary>
-    /// Reads multiple streams, returning events in chronological order
-    /// </summary>
-    /// <param name="eventStore">Event store</param>
-    /// <param name="streams">The streams to read</param>
-    /// <param name="cancellationToken"></param>
-    /// <returns>A combined stream of events, in chronological order</returns>
-    public static IAsyncEnumerable<EventEnvelope> ReadMany(this IEventStore eventStore, 
-        IAsyncEnumerable<string> streams, 
-        CancellationToken cancellationToken = default)
-    {
-        if (eventStore == null) throw new ArgumentNullException(nameof(eventStore));
-        return eventStore.ReadMany(Direction.Forwards, streams, cancellationToken);
-    }
-    
-    /// <summary>
     /// Reads multiple streams. Order is undefined
     /// </summary>
     /// <param name="eventStore">Event store</param>
@@ -150,7 +120,7 @@ public static class EventStoreReadExtensions
         CancellationToken cancellationToken = default)
     {
         if (eventStore == null) throw new ArgumentNullException(nameof(eventStore));
-        return eventStore.ReadMultiple(Direction.Forwards, streams, cancellationToken);
+        return eventStore.ReadMany(Direction.Forwards, streams, cancellationToken);
     }
     
     /// <summary>
@@ -164,7 +134,7 @@ public static class EventStoreReadExtensions
         CancellationToken cancellationToken = default)
     {
         if (eventStore == null) throw new ArgumentNullException(nameof(eventStore));
-        return eventStore.ReadMultiple(Direction.Forwards, streams, cancellationToken);
+        return eventStore.ReadMany(Direction.Forwards, streams, cancellationToken);
     }
 
     /// <summary>

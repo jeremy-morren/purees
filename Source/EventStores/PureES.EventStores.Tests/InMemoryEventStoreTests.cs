@@ -1,8 +1,10 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.Internal;
+using Microsoft.Extensions.Options;
 using Moq;
 using PureES.Core.EventStore;
 using PureES.EventStore.InMemory;
+using PureES.EventStore.InMemory.Serialization;
 
 namespace PureES.EventStores.Tests;
 
@@ -63,10 +65,14 @@ public class InMemoryEventStoreTests : EventStoreTestsBase
     private sealed class TestInMemoryEventStore : InMemoryEventStore
     {
         public TestInMemoryEventStore()
-            : base(TestSerializer.InMemoryEventStoreSerializer,
+            : base(Serializer,
                 new SystemClock(),
                 new BasicEventTypeMap())
         {
         }
+        
+        
+        public static InMemoryEventStoreSerializer Serializer =>
+            new (new BasicEventTypeMap(), new OptionsWrapper<InMemoryEventStoreOptions>(new InMemoryEventStoreOptions()));
     }
 }
