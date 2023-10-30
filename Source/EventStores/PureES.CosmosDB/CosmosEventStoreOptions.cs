@@ -1,11 +1,11 @@
 ﻿// ReSharper disable InconsistentNaming
 
 using System.Text.Json;
-// ReSharper disable UnusedAutoPropertyAccessor.Global
-// ReSharper disable MemberCanBePrivate.Global
+using JetBrains.Annotations;
 
 namespace PureES.CosmosDB;
 
+[PublicAPI]
 public class CosmosEventStoreOptions
 {
     /// <summary>
@@ -91,7 +91,6 @@ public class CosmosEventStoreOptions
     /// Gets or sets the type to deserialize metadata as
     /// </summary>
     public Type MetadataType { get; set; } = typeof(JsonElement?);
-
 
     internal void Validate()
     {

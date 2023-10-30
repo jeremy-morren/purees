@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using PureES.Core;
-using PureES.Core.EventStore;
 using PureES.CosmosDB;
 using PureES.CosmosDB.Subscription;
 
@@ -9,9 +8,11 @@ namespace PureES.EventStores.Tests.Cosmos;
 
 public class CosmosEventStoreTests : EventStoreTestsBase
 {
-    protected override async Task<EventStoreTestHarness> CreateStore(string testName, CancellationToken ct)
+    protected override async Task<EventStoreTestHarness> CreateStore(string testName,
+        Action<IServiceCollection> configureServices,
+        CancellationToken ct)
     {
-        var harness = await CosmosTestHarness.Create(testName, ct);
+        var harness = await CosmosTestHarness.Create(testName, configureServices);
         return new EventStoreTestHarness(harness, harness.GetRequiredService<IEventStore>());
     }
 
@@ -25,8 +26,7 @@ public class CosmosEventStoreTests : EventStoreTestsBase
         var name = $"{nameof(StartSubscription)}+{restartFromBeginning}+{Environment.Version}";
         await using var harness = await CosmosTestHarness.Create(name,
             services => services
-                .AddCosmosEventStoreSubscriptionToAll(o => o.RestartFromBeginning = restartFromBeginning),
-            default);
+                .AddCosmosEventStoreSubscriptionToAll(o => o.RestartFromBeginning = restartFromBeginning));
         
         var subscription = (CosmosEventStoreSubscriptionToAll)harness.GetServices<IHostedService>()
             .Single(s => s.GetType() == typeof(CosmosEventStoreSubscriptionToAll));

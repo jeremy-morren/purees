@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using PureES.Core.EventStore;
 using Shouldly;
 using Xunit;
 using Xunit.Abstractions;

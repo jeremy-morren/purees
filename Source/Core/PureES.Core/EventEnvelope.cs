@@ -1,4 +1,4 @@
-﻿using PureES.Core.EventStore;
+﻿
 
 // ReSharper disable InconsistentNaming
 
@@ -18,14 +18,12 @@ public class EventEnvelope : IEquatable<EventEnvelope>
     {
         _event = other._event;
         _metadata = other._metadata;
-        EventId = other.EventId;
         StreamId = other.StreamId;
         StreamPosition = other.StreamPosition;
         Timestamp = other.Timestamp;
     }
 
-    public EventEnvelope(Guid eventId,
-        string streamId, 
+    public EventEnvelope(string streamId, 
         ulong streamPosition, 
         DateTime timestamp,
         Lazy<object> @event,
@@ -33,16 +31,12 @@ public class EventEnvelope : IEquatable<EventEnvelope>
     {
         _event = @event;
         _metadata = metadata;
-        EventId = eventId;
-        StreamId = streamId;
+        StreamId = streamId ?? throw new ArgumentNullException(nameof(streamId));
         StreamPosition = streamPosition;
         Timestamp = timestamp;
         if (timestamp.Kind != DateTimeKind.Utc)
             throw new ArgumentException("Timestamp must be in UTC", nameof(timestamp));
     }
-
-    /// <summary>The unique <see cref="Guid" /> of this event</summary>
-    public Guid EventId { get; }
 
     /// <summary>The id of the stream that the event belongs to</summary>
     public string StreamId { get; }
@@ -61,7 +55,6 @@ public class EventEnvelope : IEquatable<EventEnvelope>
 
     public override string? ToString() => new
     {
-        EventId,
         StreamId,
         StreamPosition,
         Timestamp,
@@ -77,7 +70,6 @@ public class EventEnvelope : IEquatable<EventEnvelope>
         if (ReferenceEquals(this, other)) return true;
         return Event.Equals(other.Event) &&
                MetadataEquals(other.Metadata) &&
-               EventId.Equals(other.EventId) &&
                StreamId == other.StreamId &&
                StreamPosition == other.StreamPosition &&
                Timestamp.Equals(other.Timestamp);
@@ -87,20 +79,18 @@ public class EventEnvelope : IEquatable<EventEnvelope>
     {
         if (ReferenceEquals(null, obj)) return false;
         if (ReferenceEquals(this, obj)) return true;
-        if (obj.GetType() != GetType()) return false;
-        return Equals((EventEnvelope) obj);
+        return obj is EventEnvelope e && Equals(e);
     }
 
     public override int GetHashCode() => 
-        HashCode.Combine(Event, Metadata, EventId, StreamId, StreamPosition, Timestamp);
+        HashCode.Combine(Event, Metadata, StreamId, StreamPosition, Timestamp);
     
     public bool Equals<TEvent, TMetadata>(EventEnvelope<TEvent, TMetadata>? other)
         where TEvent : notnull
         where TMetadata : notnull
     {
         if (ReferenceEquals(other, null)) return false;
-        return EventId.Equals(other.EventId)
-               && StreamId == other.StreamId
+        return StreamId == other.StreamId
                && StreamPosition == other.StreamPosition
                && Timestamp.Equals(other.Timestamp)
                && other.Event.Equals(Event)
@@ -131,7 +121,6 @@ public class EventEnvelope<TEvent, TMetadata> : IEquatable<EventEnvelope<TEvent,
     
     public EventEnvelope(EventEnvelope source)
     {
-        EventId = source.EventId;
         StreamId = source.StreamId;
         StreamPosition = source.StreamPosition;
         Timestamp = source.Timestamp;
@@ -229,8 +218,7 @@ public class EventEnvelope<TEvent, TMetadata> : IEquatable<EventEnvelope<TEvent,
     public bool Equals(EventEnvelope? other)
     {
         if (ReferenceEquals(other, null)) return false;
-        return EventId.Equals(other.EventId)
-               && StreamId == other.StreamId
+        return StreamId == other.StreamId
                && StreamPosition == other.StreamPosition
                && Timestamp.Equals(other.Timestamp)
                && Event.Equals(other.Event)

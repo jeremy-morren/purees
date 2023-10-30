@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using System.Reflection;
+using Microsoft.Extensions.DependencyInjection;
 using PureES.Core;
 
 namespace PureES.EventBus.Tests;
@@ -40,5 +41,7 @@ public class EventHandlerServices : IServiceProvider
             _handler(@event);
             return Task.CompletedTask;
         }
+
+        public MethodInfo Method => throw new NotImplementedException();
     }
 }

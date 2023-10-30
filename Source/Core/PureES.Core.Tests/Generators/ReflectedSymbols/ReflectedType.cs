@@ -5,7 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
-using PureES.Core.Generators.Symbols;
+using PureES.Core.SourceGenerators.Symbols;
 
 namespace PureES.Core.Tests.Generators.ReflectedSymbols;
 

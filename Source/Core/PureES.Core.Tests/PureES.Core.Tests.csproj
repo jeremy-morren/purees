@@ -36,6 +36,7 @@
     </ItemGroup>
 
     <ItemGroup>
+        <ProjectReference Include="..\PureES.Core.SourceGenerators\PureES.Core.SourceGenerators.csproj" />
         <ProjectReference Include="..\PureES.Core\PureES.Core.csproj" />
     </ItemGroup>
     

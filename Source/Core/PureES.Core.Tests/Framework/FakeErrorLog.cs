@@ -1,7 +1,7 @@
 ﻿using System.Collections.Generic;
 using JetBrains.Annotations;
 using Microsoft.CodeAnalysis;
-using PureES.Core.Generators.Framework;
+using PureES.Core.SourceGenerators.Framework;
 
 namespace PureES.Core.Tests.Framework;
 

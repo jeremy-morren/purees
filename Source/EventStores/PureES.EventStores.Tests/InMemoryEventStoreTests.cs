@@ -1,78 +1,76 @@
-﻿using System.Diagnostics.CodeAnalysis;
-using Microsoft.Extensions.Internal;
+﻿using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Moq;
-using PureES.Core.EventStore;
+using PureES.Core;
 using PureES.EventStore.InMemory;
-using PureES.EventStore.InMemory.Serialization;
+using PureES.EventStore.InMemory.Subscription;
+using Shouldly;
 
 namespace PureES.EventStores.Tests;
 
 public class InMemoryEventStoreTests : EventStoreTestsBase
 {
-    protected override Task<EventStoreTestHarness> CreateStore(string testName, CancellationToken ct) =>
-        Task.FromResult(new EventStoreTestHarness(new Mock<IAsyncDisposable>().Object, new TestInMemoryEventStore()));
-
     [Fact]
-    public void SaveAndLoad()
+    public async Task Subscription_To_All_Should_Handle_All_Events()
     {
-        var source = new TestInMemoryEventStore();
-        Setup(source).GetAwaiter().GetResult();
+        const string streamId = nameof(Subscription_To_All_Should_Handle_All_Events);
 
-        AssertEqual(source, source);
+        var handler = new Mock<IEventHandler>();
 
-        using var ms = new MemoryStream();
-        source.Save(ms);
-        ms.Seek(0, SeekOrigin.Begin);
+        var list = new List<EventEnvelope>();
 
-        var destination = new TestInMemoryEventStore();
-        destination.Load(ms);
-
-        AssertEqual(source, destination);
-        AssertEqual(destination, destination);
-    }
-
-    private static void AssertEqual(IInMemoryEventStore left, IInMemoryEventStore right)
-    {
-        Assert.Equal(left.ReadAll().Count, right.ReadAll().Count);
-        Assert.Equal(left.ReadAll().Select(e => new {e.StreamId, e.StreamPosition, e.EventId, e.Timestamp}),
-            right.ReadAll().Select(e => new {e.StreamId, e.StreamPosition, e.EventId, e.Timestamp}));
-
-        Assert.All(left.ReadAll().Concat(right.ReadAll()), 
-            e => Assert.Equal(DateTimeKind.Utc, e.Timestamp.Kind));
-    }
-
-    private static async Task Setup(IEventStore eventStore)
-    {
-        var data = Enumerable.Range(0, 10)
-            .Select(i => $"stream-{i}")
-            .SelectMany(stream => Enumerable.Range(0, 10)
-                .Select(e => (stream, NewEvent())))
-            .OrderBy(p => p.Item2.EventId);
-        foreach (var (stream, e) in data)
-            if (await eventStore.Exists(stream, default))
+        handler.Setup(s => s.Handle(It.Is<EventEnvelope>(e => e.StreamId == streamId)))
+            .Callback((EventEnvelope e) =>
             {
-                var revision = await eventStore.GetRevision(stream, default);
-                await eventStore.Append(stream, revision, e, default);
-            }
-            else
-            {
-                await eventStore.Create(stream, e, default);
-            }
-    }
+                lock (list)
+                {
+                    list.Add(e);
+                }
+            });
 
-    [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
-    private sealed class TestInMemoryEventStore : InMemoryEventStore
-    {
-        public TestInMemoryEventStore()
-            : base(Serializer,
-                new SystemClock(),
-                new BasicEventTypeMap())
+        await using var harness = await GetStore(s => s.AddSingleton(handler.Object));
+
+        var subscription = harness.GetRequiredService<IEnumerable<IHostedService>>()
+            .OfType<InMemoryEventStoreSubscriptionToAll>().Single();
+        
+        await subscription.StartAsync(default); //noop
+        
+        (await harness.Create(streamId, Enumerable.Range(0, 10).Select(_ => NewEvent()), default)).ShouldBe(9ul);
+        
+        await subscription.StopAsync(default);
+
+        handler.Verify(s => s.Handle(It.Is<EventEnvelope>(e => e.StreamId == streamId)),
+            Times.Exactly(10));
+        
+        list.Should().HaveCount(10);
+        list.Should().BeInAscendingOrder(l => l.StreamPosition);
+        Assert.All(list, e =>
         {
-        }
-        
-        
-        public static InMemoryEventStoreSerializer Serializer =>
-            new (new BasicEventTypeMap(), new OptionsWrapper<InMemoryEventStoreOptions>(new InMemoryEventStoreOptions()));
+            e.StreamId.ShouldBe(streamId);
+            e.Timestamp.ShouldBe(list[0].Timestamp);
+        });
     }
+    
+    protected override Task<EventStoreTestHarness> CreateStore(string testName, 
+        Action<IServiceCollection> configureServices, 
+        CancellationToken ct)
+    {
+        var services = new ServiceCollection()
+            .AddInMemoryEventStore()
+            .AddInMemorySubscriptionToAll()
+            .AddSingleton<IEventTypeMap, BasicEventTypeMap>();
+
+        configureServices(services);
+
+        var sp = services.BuildServiceProvider();
+        
+        return Task.FromResult(new EventStoreTestHarness(sp, sp.GetRequiredService<IEventStore>()));
+    }
+
+    //TODO: test subscriptions
+    
+    private static InMemoryEventStoreSerializer Serializer =>
+        new (new BasicEventTypeMap(), new OptionsWrapper<InMemoryEventStoreOptions>(new InMemoryEventStoreOptions()));
 }

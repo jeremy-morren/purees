@@ -19,7 +19,7 @@ public class EventEnvelopeTests
     [Fact]
     public void NonUtcTimestampShouldThrow()
     {
-        Assert.Throws<ArgumentException>(() => new EventEnvelope(Guid.NewGuid(),
+        Assert.Throws<ArgumentException>(() => new EventEnvelope(
             Guid.NewGuid().ToString(),
             Rand.NextULong(),
             DateTime.Now,
@@ -28,7 +28,6 @@ public class EventEnvelopeTests
     }
 
     private static EventEnvelope NewEnvelope() => new (
-        Guid.NewGuid(),
         Guid.NewGuid().ToString(),
         Rand.NextULong(),
         DateTime.UtcNow,

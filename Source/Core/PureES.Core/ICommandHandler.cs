@@ -1,6 +1,4 @@
-﻿using PureES.Core.EventStore;
-
-namespace PureES.Core;
+﻿namespace PureES.Core;
 
 /// <summary>
 ///     Handles the given <c>Command</c>

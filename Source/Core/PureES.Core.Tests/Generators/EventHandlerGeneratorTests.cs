@@ -1,6 +1,5 @@
 ﻿using System;
-using PureES.Core.Generators;
-using PureES.Core.Generators.Models;
+using PureES.Core.SourceGenerators.Generators;
 using PureES.Core.Tests.Framework;
 using PureES.Core.Tests.Generators.ReflectedSymbols;
 using PureES.Core.Tests.Models;
@@ -33,9 +32,9 @@ public class EventHandlerGeneratorTests
 
         handlers.ShouldNotBeEmpty();
         
-        Assert.All(EventHandlerCollection.Create(handlers), collection =>
+        Assert.All(handlers, handler =>
         {
-            var csharp = EventHandlerGenerator.Generate(collection, out var filename);
+            var csharp = EventHandlerGenerator.Generate(handler, out var filename);
             filename.ShouldNotBeNullOrWhiteSpace();
             csharp.ShouldNotBeNullOrEmpty();
             _output.WriteLine(csharp);

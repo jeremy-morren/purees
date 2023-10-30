@@ -28,9 +28,15 @@ public class EventBusOptions
     /// </summary>
     public int BufferSize { get; set; } = 1;
 
-    internal void Validate()
+    public bool Validate()
     {
-        if (BufferSize <= 0)
-            throw new Exception($"{nameof(BufferSize)} must be greater than 0");
+        //Will throw
+        _ = new ExecutionDataflowBlockOptions()
+        {
+            BoundedCapacity = BufferSize,
+            MaxDegreeOfParallelism = MaxDegreeOfParallelism
+        };
+        
+        return true;
     }
 }

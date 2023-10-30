@@ -1,21 +1,18 @@
-﻿using System.Text.Json.Nodes;
-using System.Text.Json.Serialization;
-
-// ReSharper disable UnusedMember.Global
+﻿using System.Text.Json;
+using JetBrains.Annotations;
 
 namespace PureES.CosmosDB;
 
 /// <summary>
 /// An event stored inside Cosmos
 /// </summary>
-[JsonSerializable(typeof(CosmosEvent))]
-internal record CosmosEvent(Guid EventId,
-    DateTime Created,
+internal record CosmosEvent(DateTime Created,
     string EventStreamId,
     ulong EventStreamPosition,
     string EventType,
-    JsonNode? Event,
-    JsonNode? Metadata)
+    JsonElement? Event,
+    JsonElement? Metadata)
 {
+    [UsedImplicitly]
     public string Id => $"{EventStreamId}|{EventStreamPosition}";
 }

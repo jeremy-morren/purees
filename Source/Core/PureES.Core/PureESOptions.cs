@@ -8,7 +8,7 @@ public class PureESOptions
     /// </summary>
     public PureESEventHandlerOptions EventHandlers { get; } = new();
 
-    internal void Validate()
+    public void Validate()
     {
         EventHandlers.Validate();
     }

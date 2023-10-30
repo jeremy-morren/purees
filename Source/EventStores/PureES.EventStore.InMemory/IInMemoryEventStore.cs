@@ -1,13 +1,10 @@
-﻿using PureES.Core;
-using PureES.Core.EventStore;
+﻿using JetBrains.Annotations;
+using PureES.Core;
 
 namespace PureES.EventStore.InMemory;
 
+[PublicAPI]
 public interface IInMemoryEventStore : IEventStore
 {
     IReadOnlyList<EventEnvelope> ReadAll();
-    IReadOnlyList<EventEnvelope> ReadByEventType(Type eventType);
-
-    void Save(Stream stream, CancellationToken cancellationToken = default);
-    void Load(Stream stream, CancellationToken cancellationToken = default);
 }

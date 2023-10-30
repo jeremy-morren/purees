@@ -14,11 +14,13 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace PureES.DependencyInjection
 {
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("PureES.SourceGenerator", "1.0.0.0")]
     [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
+    [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("PureES.SourceGenerator", "1.0.0.0")]
     internal class PureESServiceCollectionExtensions
     {
 
+        [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         private static void Register(IServiceCollection services)
@@ -47,6 +49,13 @@ namespace PureES.DependencyInjection
                 serviceType: typeof(global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.TestAggregate>),
                 implementationType: typeof(global::PureES.AggregateStores.TestAggregateAggregateStore),
                 lifetime: ServiceLifetime.Transient));
+            if (!registeredImplementations.Contains(typeof(global::PureES.AggregateStores.TestAggregateAggregateStore_Services)))
+            {
+                services.Add(new ServiceDescriptor(
+                    serviceType: typeof(global::PureES.AggregateStores.TestAggregateAggregateStore_Services),
+                    implementationType: typeof(global::PureES.AggregateStores.TestAggregateAggregateStore_Services),
+                    lifetime: ServiceLifetime.Transient));
+            }
             if (registeredServices.Contains(typeof(global::PureES.Core.ICommandHandler<global::PureES.Core.Tests.Models.Commands.Create>)))
             {
                 services.RemoveAll(typeof(global::PureES.Core.ICommandHandler<global::PureES.Core.Tests.Models.Commands.Create>));
@@ -114,29 +123,61 @@ namespace PureES.DependencyInjection
                 implementationType: typeof(global::PureES.CommandHandlers.Dictionary_String_ObjectCommandHandler),
                 lifetime: ServiceLifetime.Transient));
 
-            // Event Handlers. Count: 3
+            // Event Handlers. Count: 7
 
-            if (!registeredImplementations.Contains(typeof(global::PureES.EventHandlers.CreatedEventHandler)))
+            if (!registeredImplementations.Contains(typeof(global::PureES.EventHandlers.CreatedEventHandler_PureESCoreTestsModelsTestEventHandlers_OnCreated)))
             {
                 services.Add(new ServiceDescriptor(
                     serviceType: typeof(global::PureES.Core.IEventHandler<global::PureES.Core.Tests.Models.Events.Created>),
-                    implementationType: typeof(global::PureES.EventHandlers.CreatedEventHandler),
+                    implementationType: typeof(global::PureES.EventHandlers.CreatedEventHandler_PureESCoreTestsModelsTestEventHandlers_OnCreated),
                     lifetime: ServiceLifetime.Transient));
             }
 
-            if (!registeredImplementations.Contains(typeof(global::PureES.EventHandlers.UpdatedEventHandler)))
+            if (!registeredImplementations.Contains(typeof(global::PureES.EventHandlers.UpdatedEventHandler_PureESCoreTestsModelsTestEventHandlers_OnUpdated)))
             {
                 services.Add(new ServiceDescriptor(
                     serviceType: typeof(global::PureES.Core.IEventHandler<global::PureES.Core.Tests.Models.Events.Updated>),
-                    implementationType: typeof(global::PureES.EventHandlers.UpdatedEventHandler),
+                    implementationType: typeof(global::PureES.EventHandlers.UpdatedEventHandler_PureESCoreTestsModelsTestEventHandlers_OnUpdated),
                     lifetime: ServiceLifetime.Transient));
             }
 
-            if (!registeredImplementations.Contains(typeof(global::PureES.EventHandlers.CatchAllEventHandler)))
+            if (!registeredImplementations.Contains(typeof(global::PureES.EventHandlers.CreatedEventHandler_PureESCoreTestsModelsTestEventHandlers_OnCreated2)))
+            {
+                services.Add(new ServiceDescriptor(
+                    serviceType: typeof(global::PureES.Core.IEventHandler<global::PureES.Core.Tests.Models.Events.Created>),
+                    implementationType: typeof(global::PureES.EventHandlers.CreatedEventHandler_PureESCoreTestsModelsTestEventHandlers_OnCreated2),
+                    lifetime: ServiceLifetime.Transient));
+            }
+
+            if (!registeredImplementations.Contains(typeof(global::PureES.EventHandlers.CatchAllEventHandler_PureESCoreTestsModelsTestEventHandlers_CatchAll)))
             {
                 services.Add(new ServiceDescriptor(
                     serviceType: typeof(global::PureES.Core.IEventHandler),
-                    implementationType: typeof(global::PureES.EventHandlers.CatchAllEventHandler),
+                    implementationType: typeof(global::PureES.EventHandlers.CatchAllEventHandler_PureESCoreTestsModelsTestEventHandlers_CatchAll),
+                    lifetime: ServiceLifetime.Transient));
+            }
+
+            if (!registeredImplementations.Contains(typeof(global::PureES.EventHandlers.CreatedEventHandler_PureESCoreTestsModelsImplementedGenericEventHandlers_On)))
+            {
+                services.Add(new ServiceDescriptor(
+                    serviceType: typeof(global::PureES.Core.IEventHandler<global::PureES.Core.Tests.Models.Events.Created>),
+                    implementationType: typeof(global::PureES.EventHandlers.CreatedEventHandler_PureESCoreTestsModelsImplementedGenericEventHandlers_On),
+                    lifetime: ServiceLifetime.Transient));
+            }
+
+            if (!registeredImplementations.Contains(typeof(global::PureES.EventHandlers.CreatedEventHandler_PureESCoreTestsModelsImplementedGenericEventHandlers_On2)))
+            {
+                services.Add(new ServiceDescriptor(
+                    serviceType: typeof(global::PureES.Core.IEventHandler<global::PureES.Core.Tests.Models.Events.Created>),
+                    implementationType: typeof(global::PureES.EventHandlers.CreatedEventHandler_PureESCoreTestsModelsImplementedGenericEventHandlers_On2),
+                    lifetime: ServiceLifetime.Transient));
+            }
+
+            if (!registeredImplementations.Contains(typeof(global::PureES.EventHandlers.CreatedEventHandler_PureESCoreTestsModelsImplementedGenericEventHandlers_Async)))
+            {
+                services.Add(new ServiceDescriptor(
+                    serviceType: typeof(global::PureES.Core.IEventHandler<global::PureES.Core.Tests.Models.Events.Created>),
+                    implementationType: typeof(global::PureES.EventHandlers.CreatedEventHandler_PureESCoreTestsModelsImplementedGenericEventHandlers_Async),
                     lifetime: ServiceLifetime.Transient));
             }
             // Event handler parents. Count: 2

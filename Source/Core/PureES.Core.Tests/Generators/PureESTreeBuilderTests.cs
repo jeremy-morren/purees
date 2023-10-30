@@ -1,5 +1,5 @@
 ﻿using System;
-using PureES.Core.Generators;
+using PureES.Core.SourceGenerators.Generators;
 using PureES.Core.Tests.Framework;
 using PureES.Core.Tests.Generators.ReflectedSymbols;
 using PureES.Core.Tests.Models;

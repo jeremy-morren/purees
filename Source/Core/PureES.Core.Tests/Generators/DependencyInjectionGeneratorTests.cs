@@ -1,8 +1,8 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using PureES.Core.Generators;
-using PureES.Core.Generators.Models;
+using PureES.Core.SourceGenerators.Generators;
+using PureES.Core.SourceGenerators.Generators.Models;
 using PureES.Core.Tests.Framework;
 using PureES.Core.Tests.Generators.ReflectedSymbols;
 using Shouldly;
@@ -56,9 +56,8 @@ public class DependencyInjectionGeneratorTests
 
         eventHandlers.ShouldNotBeEmpty();
 
-        var csharp = DependencyInjectionGenerator.Generate(aggregates, 
-            EventHandlerCollection.Create(eventHandlers), 
-            out var filename);
+        var csharp = DependencyInjectionGenerator.Generate(aggregates, eventHandlers, out var filename);
+        
         filename.ShouldNotBeNullOrWhiteSpace();
         csharp.ShouldNotBeNullOrEmpty();
         _output.WriteLine(csharp);

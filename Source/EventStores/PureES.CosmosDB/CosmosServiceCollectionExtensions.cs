@@ -2,7 +2,7 @@
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Internal;
 using Microsoft.Extensions.Options;
-using PureES.Core.EventStore;
+using PureES.Core;
 using PureES.CosmosDB.Serialization;
 using PureES.CosmosDB.Subscription;
 
@@ -16,8 +16,7 @@ public static class CosmosServiceCollectionExtensions
         services.TryAddSingleton<ISystemClock, SystemClock>();
         
         services.AddTransient<CosmosEventStoreSerializer>();
-        services.AddTransient<ICosmosEventStoreSerializer, CosmosEventStoreSerializer>();
-
+        
         services.AddSingleton<CosmosEventStoreClient>();
 
         services.AddSingleton<IEventStore, CosmosEventStore>();

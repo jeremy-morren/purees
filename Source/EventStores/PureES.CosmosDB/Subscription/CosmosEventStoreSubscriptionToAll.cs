@@ -137,7 +137,9 @@ internal class CosmosEventStoreSubscriptionToAll : IEventStoreSubscription
 
             foreach (var @event in changes)
                 if (!await _eventBus.SendAsync(_serializer.Deserialize(@event), cancellationToken))
-                    _logger.LogWarning("EventBus declined event {EventId}", @event.EventId);
+                    _logger.LogWarning("EventBus declined event {StreamId}/{StreamPosition}", 
+                        @event.EventStreamId,
+                        @event.EventStreamPosition);
 
             _logger.LogInformation("Published {Count} event(s) to EventBus. Lease: {LeaseToken}", 
                 changes.Count,

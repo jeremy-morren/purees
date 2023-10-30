@@ -2,54 +2,34 @@
 
     <PropertyGroup>
         <TargetFramework>netstandard2.0</TargetFramework>
-        
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        
         <LangVersion>11</LangVersion>
-        <OutputType>library</OutputType>
-        <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
-
-        <DebugType>embedded</DebugType>
-        <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
         
-        <!-- Output will be in the analyzer (not lib) folder -->
-        <IncludeBuildOutput>false</IncludeBuildOutput>
-        <!-- Suppress related NuGet warnings about the above -->
-        <NoWarn>NU5100;NU5128</NoWarn>
+        <RootNamespace>PureES.Core</RootNamespace>
     </PropertyGroup>
-    
+
     <ItemGroup>
         <PackageReference Include="JetBrains.Annotations" Version="2022.3.1" />
-        <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.3" PrivateAssets="All" />
-        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.4.0" PrivateAssets="All" />
-
+        
         <PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="7.0.0" />
         <PackageReference Include="Microsoft.Bcl.HashCode" Version="1.1.1" />
 
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="6.0.0" />
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.0" />
         <PackageReference Include="Microsoft.Extensions.Options" Version="6.0.0"  />
+        
         <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="6.0.0" />
     </ItemGroup>
 
-    <ItemGroup>
-        <InternalsVisibleTo Include="$(AssemblyName).Tests" />
-        <InternalsVisibleto Include="DynamicProxyGenAssembly2" />
-    </ItemGroup>
 
     <ItemGroup>
         <Using Include="System.Diagnostics.CodeAnalysis" />
         <Using Include="JetBrains.Annotations" />
-        
-        <Using Include="System.Reflection" />
-        <Using Include="System.Linq.Expressions" />
-        
-        <Using Include="PureES.Core.Generators.Symbols" />
     </ItemGroup>
     
     <ItemGroup>
-        <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+        <InternalsVisibleTo Include="$(AssemblyName).Tests" />
     </ItemGroup>
-
+    
 </Project>

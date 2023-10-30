@@ -1,70 +1,52 @@
-﻿using System.Collections.Concurrent;
-using System.Threading.Tasks.Dataflow;
-using Microsoft.Extensions.Hosting;
+﻿using System.Threading.Tasks.Dataflow;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using PureES.Core;
 using PureES.EventBus;
-using PureES.EventStore.InMemory.Serialization;
 
 namespace PureES.EventStore.InMemory.Subscription;
 
-internal class InMemoryEventStoreSubscriptionToAll : IHostedService, IEventStoreSubscription
+internal class InMemoryEventStoreSubscriptionToAll : IInMemoryEventStoreSubscription
 {
-    private readonly ITargetBlock<EventRecord> _targetBlock;
-    
+    private readonly TransformManyBlock<List<EventRecord>, EventEnvelope> _target;
     private readonly IEventBus _eventBus;
-    private readonly InMemoryEventStoreSerializer _serializer;
-
-    private readonly BlockingCollection<EventRecord> _events = new();
 
     public InMemoryEventStoreSubscriptionToAll(
         IServiceProvider services,
         InMemoryEventStoreSerializer serializer,
-        IOptionsFactory<InMemoryEventStoreSubscriptionOptions> optionsFactory,
+        IOptionsFactory<EventBusOptions> optionsFactory,
         ILoggerFactory? loggerFactory = null)
     {
-        _serializer = serializer;
-
-        var options = optionsFactory.Create(nameof(InMemoryEventStoreSubscriptionToAll));
-
-        //Ensure publish method below succeeds
-        options.BufferSize = DataflowBlockOptions.Unbounded;
-        options.MaxDegreeOfParallelism = DataflowBlockOptions.Unbounded;
-
-        _eventBus = new EventBus.EventBus(options.EventBusOptions,
+        _eventBus = new EventBus.EventBus(optionsFactory.Create(nameof(InMemoryEventStoreSubscriptionToAll)),
             services,
             loggerFactory?.CreateLogger<EventBus.EventBus>());
         
-        //Note: EventBus has buffer limitations, however we cannot block the Publish method
-        //Therefore we have another block that buffers
-
-        var target = new TransformBlock<EventRecord, EventEnvelope>(e => _serializer.Deserialize(e),
+        //Load records, and publish to event block
+        
+        _target = new TransformManyBlock<List<EventRecord>, EventEnvelope>(
+            records => records.Select(serializer.Deserialize),
             new ExecutionDataflowBlockOptions()
             {
                 BoundedCapacity = DataflowBlockOptions.Unbounded,
-                MaxDegreeOfParallelism = DataflowBlockOptions.Unbounded,
-                EnsureOrdered = true //Important
+                
+                //Ensure ordered
+                MaxDegreeOfParallelism = 1,
+                EnsureOrdered = true
             });
-        target.LinkTo(_eventBus, new DataflowLinkOptions()
-        {
-            PropagateCompletion = true
-        });
-        _targetBlock = target;
+        _target.LinkTo(_eventBus, new DataflowLinkOptions() { PropagateCompletion = true });
     }
-
-    //Note: access is synchronized by EventStore
-    public void Publish(IEnumerable<EventRecord> envelopes)
-    {
-        if (!envelopes.All(_targetBlock.Post))
-            throw new InvalidOperationException("Failed to schedule event");
-    }
-
+    
     public Task StartAsync(CancellationToken _) => Task.CompletedTask;
 
-    public Task StopAsync(CancellationToken _)
+    public Task StopAsync(CancellationToken ct)
     {
-        _targetBlock.Complete();
-        return _eventBus.Completion;
+        _target.Complete();
+        return Task.WhenAny(Task.Delay(-1, ct), _eventBus.Completion);
+    }
+
+    public void AfterCommit(List<EventRecord> records)
+    {
+        if (!_target.Post(records))
+            throw new InvalidOperationException("Cannot handle events after subscription stopped");
     }
 }

@@ -69,7 +69,6 @@ public class EventBusTests
     }
 
     private static EventEnvelope NewEnvelope() => new(
-        Guid.NewGuid(),
         Guid.NewGuid().ToString(),
         0,
         DateTime.UtcNow,

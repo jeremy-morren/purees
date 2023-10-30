@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using PureES.Core.EventStore;
+using PureES.Core;
 using PureES.CosmosDB;
 
 // ReSharper disable StringLiteralTypo
@@ -39,17 +39,12 @@ internal sealed class CosmosTestHarness : IAsyncDisposable, IServiceProvider
     public object? GetService(Type serviceType) => _services.GetService(serviceType);
 
     public override string ToString() => _name;
-
-    public static Task<CosmosTestHarness> Create(string name, CancellationToken ct) => Create(name, _ => { }, ct);
     
-    public static async Task<CosmosTestHarness> Create(string name,
-        Action<IServiceCollection> configureServices,
-        CancellationToken ct)
+    public static async Task<CosmosTestHarness> Create(string name, Action<IServiceCollection> configureServices)
     {
         var fixture = new CosmosTestHarness(name, configureServices);
         //Delete database
         await fixture.DeleteDatabase(); 
-        //await fixture.Client.GetEventStoreContainerAsync(ct);
         return fixture;
     }
     

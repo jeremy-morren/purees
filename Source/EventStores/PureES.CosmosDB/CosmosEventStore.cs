@@ -2,7 +2,6 @@
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Internal;
 using PureES.Core;
-using PureES.Core.EventStore;
 using PureES.CosmosDB.Serialization;
 
 namespace PureES.CosmosDB;
@@ -112,7 +111,7 @@ internal class CosmosEventStore : IEventStore
         {
             using var response = await transaction.ExecuteAsync(cancellationToken);
             if (response.StatusCode == HttpStatusCode.Conflict)
-                throw new StreamAlreadyExistsException(streamId, await GetRevision(streamId, cancellationToken));
+                throw new StreamAlreadyExistsException(streamId);
             if (!response.IsSuccessStatusCode)
                 throw new CosmosException(response.ErrorMessage, 
                     response.StatusCode, 
@@ -124,8 +123,8 @@ internal class CosmosEventStore : IEventStore
         return revision;
     }
 
-    public Task<ulong> Create(string streamId, UncommittedEvent @event, CancellationToken cancellationToken)
-        => Create(streamId, new[] {@event}, cancellationToken);
+    public Task<ulong> Create(string streamId, UncommittedEvent @event, CancellationToken cancellationToken) => 
+        Create(streamId, new[] {@event}, cancellationToken);
     
     public async Task<ulong> Append(string streamId, ulong expectedRevision, IEnumerable<UncommittedEvent> events, CancellationToken cancellationToken)
     {
@@ -214,9 +213,7 @@ internal class CosmosEventStore : IEventStore
     
     #region Read
     
-    private async Task<FeedIterator<CosmosEvent>> CreateIterator(string streamId, 
-        QueryDefinition queryDefinition,
-        CancellationToken cancellationToken)
+    private async Task<FeedIterator<CosmosEvent>> CreateIterator(string streamId, QueryDefinition queryDefinition)
     {
         var container = await _client.GetEventStoreContainerAsync();
         return container.GetItemQueryIterator<CosmosEvent>(queryDefinition,
@@ -232,7 +229,7 @@ internal class CosmosEventStore : IEventStore
                 "select TOP 1 c.eventStreamPosition from c where c.eventStreamId = @stream order by c.eventStreamPosition desc")
             .WithParameter("@stream", streamId);
 
-        using var iterator = await CreateIterator(streamId, queryDef, cancellationToken);
+        using var iterator = await CreateIterator(streamId, queryDef);
         var result = await iterator.ReadNextAsync(cancellationToken);
         return result.Resource.FirstOrDefault()?.EventStreamPosition ?? throw new StreamNotFoundException(streamId);
     }
@@ -305,7 +302,7 @@ internal class CosmosEventStore : IEventStore
         
         queryDef = queryDef.WithParameter("@streamId", streamId);
 
-        using var iterator = await CreateIterator(streamId, queryDef, cancellationToken);
+        using var iterator = await CreateIterator(streamId, queryDef);
         if (!iterator.HasMoreResults)
             throw new StreamNotFoundException(streamId);
         while (iterator.HasMoreResults)
@@ -334,7 +331,7 @@ internal class CosmosEventStore : IEventStore
         
         queryDef = queryDef.WithParameter("@streamId", streamId);
 
-        using var iterator = await CreateIterator(streamId, queryDef, cancellationToken);
+        using var iterator = await CreateIterator(streamId, queryDef);
         var revision = ulong.MaxValue;
         while (iterator.HasMoreResults)
         {
@@ -370,7 +367,7 @@ internal class CosmosEventStore : IEventStore
             .WithParameter("@streamId", streamId)
             .WithParameter("@required", requiredRevision + 1);
 
-        using var iterator = await CreateIterator(streamId, queryDef, cancellationToken);
+        using var iterator = await CreateIterator(streamId, queryDef);
         var revision = ulong.MaxValue;
         while (iterator.HasMoreResults)
         {

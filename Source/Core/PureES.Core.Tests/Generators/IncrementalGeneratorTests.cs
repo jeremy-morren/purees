@@ -10,7 +10,7 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using PureES.Core.Generators;
+using PureES.Core.SourceGenerators.Generators;
 using Shouldly;
 using VerifyXunit;
 using Xunit;

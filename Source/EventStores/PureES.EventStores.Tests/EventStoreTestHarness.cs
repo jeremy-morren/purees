@@ -1,9 +1,8 @@
 ﻿using PureES.Core;
-using PureES.Core.EventStore;
 
 namespace PureES.EventStores.Tests;
 
-public sealed class EventStoreTestHarness : IEventStore, IAsyncDisposable
+public sealed class EventStoreTestHarness : IEventStore, IServiceProvider, IAsyncDisposable
 {
     private readonly IAsyncDisposable _harness;
     private readonly IEventStore _eventEventStore;
@@ -13,8 +12,10 @@ public sealed class EventStoreTestHarness : IEventStore, IAsyncDisposable
         _harness = harness;
         _eventEventStore = eventStore;
     }
-
+    
     public ValueTask DisposeAsync() => _harness.DisposeAsync();
+
+    public object? GetService(Type serviceType) => ((IServiceProvider)_harness).GetService(serviceType);
 
     #region Implementation of IEventStore
 

@@ -15,47 +15,53 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace PureES.AggregateStores
 {
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("PureES.SourceGenerator", "1.0.0.0")]
     [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
+    [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("PureES.SourceGenerator", "1.0.0.0")]
     internal class ImplementedGenericAggregateAggregateStore : global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.ImplementedGenericAggregate>
     {
-        private readonly global::PureES.Core.EventStore.IEventStore _eventStore;
+        private readonly global::PureES.Core.IEventStore _eventStore;
         private readonly global::System.IServiceProvider _services;
 
+        [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         public ImplementedGenericAggregateAggregateStore(
-            global::PureES.Core.EventStore.IEventStore eventStore,
+            global::PureES.Core.IEventStore eventStore,
             global::System.IServiceProvider services)
         {
             this._eventStore = eventStore ?? throw new ArgumentNullException(nameof(eventStore));
             this._services = services ?? throw new ArgumentNullException(nameof(services));
         }
 
+        [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         public global::System.Threading.Tasks.Task<global::PureES.Core.Tests.Models.ImplementedGenericAggregate> Load(string streamId, CancellationToken cancellationToken)
         {
-            var @events = this._eventStore.Read(global::PureES.Core.EventStore.Direction.Forwards, streamId, cancellationToken);
+            var @events = this._eventStore.Read(global::PureES.Core.Direction.Forwards, streamId, cancellationToken);
             return Create(@events, cancellationToken);
         }
 
+        [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         public global::System.Threading.Tasks.Task<global::PureES.Core.Tests.Models.ImplementedGenericAggregate> Load(string streamId, ulong expectedRevision, CancellationToken cancellationToken)
         {
-            var @events = this._eventStore.Read(global::PureES.Core.EventStore.Direction.Forwards, streamId, expectedRevision, cancellationToken);
+            var @events = this._eventStore.Read(global::PureES.Core.Direction.Forwards, streamId, expectedRevision, cancellationToken);
             return Create(@events, cancellationToken);
         }
 
+        [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         public global::System.Threading.Tasks.Task<global::PureES.Core.Tests.Models.ImplementedGenericAggregate> LoadPartial(string streamId, ulong requiredRevision, CancellationToken cancellationToken)
         {
-            var @events = this._eventStore.ReadPartial(global::PureES.Core.EventStore.Direction.Forwards, streamId, requiredRevision, cancellationToken);
+            var @events = this._eventStore.ReadPartial(global::PureES.Core.Direction.Forwards, streamId, requiredRevision, cancellationToken);
             return Create(@events, cancellationToken);
         }
 
+        [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         public async global::System.Threading.Tasks.Task<global::PureES.Core.Tests.Models.ImplementedGenericAggregate> Create(global::System.Collections.Generic.IAsyncEnumerable<global::PureES.Core.EventEnvelope> @events, CancellationToken cancellationToken)
@@ -76,8 +82,8 @@ namespace PureES.AggregateStores
                     }
                     default:
                     {
-                        var eventType = global::PureES.Core.EventStore.BasicEventTypeMap.GetTypeName(enumerator.Current.Event.GetType());
-                        var aggregateType = global::PureES.Core.EventStore.BasicEventTypeMap.GetTypeName(typeof(global::PureES.Core.Tests.Models.ImplementedGenericAggregate));
+                        var eventType = global::PureES.Core.BasicEventTypeMap.GetTypeName(enumerator.Current.Event.GetType());
+                        var aggregateType = global::PureES.Core.BasicEventTypeMap.GetTypeName(typeof(global::PureES.Core.Tests.Models.ImplementedGenericAggregate));
                         throw new NotImplementedException($"No suitable CreateWhen method found for event '{eventType}' on '{aggregateType}'");
                     }
                 }
@@ -87,8 +93,8 @@ namespace PureES.AggregateStores
                     {
                         default:
                         {
-                            var eventType = global::PureES.Core.EventStore.BasicEventTypeMap.GetTypeName(enumerator.Current.Event.GetType());
-                            var aggregateType = global::PureES.Core.EventStore.BasicEventTypeMap.GetTypeName(typeof(global::PureES.Core.Tests.Models.ImplementedGenericAggregate));
+                            var eventType = global::PureES.Core.BasicEventTypeMap.GetTypeName(enumerator.Current.Event.GetType());
+                            var aggregateType = global::PureES.Core.BasicEventTypeMap.GetTypeName(typeof(global::PureES.Core.Tests.Models.ImplementedGenericAggregate));
                             throw new NotImplementedException($"No suitable UpdateWhen method found for event '{eventType}' on '{aggregateType}'");
                         }
                     }
