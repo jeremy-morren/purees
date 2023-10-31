@@ -52,6 +52,42 @@ public class InMemoryEventStoreTests : EventStoreTestsBase
             e.Timestamp.ShouldBe(list[0].Timestamp);
         });
     }
+
+    [Fact]
+    public async Task HandleLoad()
+    {
+        const string streamId = nameof(HandleLoad);
+
+        await using var harness = await GetStore();
+
+        for (var i = 0; i < 10; i++)
+        {
+            (await harness.Create($"{streamId}-{i}", 
+                Enumerable.Range(0, 10).Select(_ => NewEvent()), 
+                default)).ShouldBe(9ul);
+        }
+
+        var store = new ServiceCollection()
+            .AddInMemoryEventStore()
+            .AddInMemorySubscriptionToAll()
+            .AddSingleton<IEventTypeMap, BasicEventTypeMap>()
+            .BuildServiceProvider()
+            .GetRequiredService<IInMemoryEventStore>();
+        
+        await store.Load(harness.ReadAll(Direction.Forwards), default);
+
+        store.ReadAll().Should().HaveCount(100);
+        Assert.All(Enumerable.Range(0, 10), i =>
+        {
+            var sId = $"{streamId}-{i}";
+            store.Exists(sId, default).Result.ShouldBeTrue();
+            
+            var events = store.Read(sId).ToListAsync().AsTask().Result;
+            events.Should().HaveCount(10);
+            events.ShouldAllBe(e => e.StreamId == sId);
+            events.Should().BeInAscendingOrder(e => e.StreamPosition);
+        });
+    }
     
     protected override Task<EventStoreTestHarness> CreateStore(string testName, 
         Action<IServiceCollection> configureServices, 

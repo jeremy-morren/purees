@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Options;
 using PureES.Core;
 
-namespace PureES.CosmosDB.Serialization;
+namespace PureES.EventStores.CosmosDB.Serialization;
 
 internal class CosmosEventStoreSerializer
 {

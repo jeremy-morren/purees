@@ -2,10 +2,10 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
-using PureES.CosmosDB.Serialization;
 using PureES.EventBus;
+using PureES.EventStores.CosmosDB.Serialization;
 
-namespace PureES.CosmosDB.Subscription;
+namespace PureES.EventStores.CosmosDB.Subscription;
 
 internal class CosmosEventStoreSubscriptionToAll : IEventStoreSubscription
 {
@@ -41,7 +41,7 @@ internal class CosmosEventStoreSubscriptionToAll : IEventStoreSubscription
 
     public async Task<ChangeFeedProcessor> CreateProcessor(CancellationToken cancellationToken)
     {
-        var eventStoreContainer = await _client.GetEventStoreContainerAsync();
+        var eventStoreContainer = _client.GetContainer();
 
         if (_options.RestartFromBeginning)
         {

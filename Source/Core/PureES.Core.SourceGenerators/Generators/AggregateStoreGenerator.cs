@@ -234,6 +234,7 @@ internal class AggregateStoreGenerator
 
         _w.WriteLine();
         
+        _w.WriteMethodAttributes();
         _w.Write($"public {ServicesClassName}(");
         _w.WriteParameters(_services.Select((t,i) => $"{t.CSharpName} s{i}"));
         _w.WriteRawLine(")");

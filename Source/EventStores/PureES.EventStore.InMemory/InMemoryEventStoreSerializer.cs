@@ -51,4 +51,18 @@ internal class InMemoryEventStoreSerializer
             @event,
             metadata);
     }
+
+    public EventRecord Serialize(EventEnvelope envelope)
+    {
+        var @event = JsonSerializer.SerializeToElement(envelope.Event, _options.JsonSerializerOptions);
+        JsonElement? metadata = envelope.Metadata != null 
+            ? JsonSerializer.SerializeToElement(envelope.Metadata, _options.JsonSerializerOptions)
+            : null;
+        return new EventRecord(envelope.StreamId,
+            (int)envelope.StreamPosition,
+            envelope.Timestamp,
+            _typeMap.GetTypeName(envelope.Event.GetType()),
+            @event,
+            metadata);
+    }
 }

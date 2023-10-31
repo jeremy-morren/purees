@@ -9,7 +9,7 @@
 #pragma warning disable CS0162 //Unreachable code detected
 
 using System;
-using System;
+using System.Linq;
 using Microsoft.Extensions.Logging;
 
 namespace PureES.EventHandlers
@@ -24,6 +24,9 @@ namespace PureES.EventHandlers
         private readonly global::PureES.Core.PureESEventHandlerOptions _options;
         private readonly global::PureES.Core.Tests.Models.ImplementedGenericEventHandlers _parent;
 
+        [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
+        [global::System.Diagnostics.DebuggerStepThroughAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         public CreatedEventHandler_PureESCoreTestsModelsImplementedGenericEventHandlers_On2(
             global::PureES.Core.Tests.Models.ImplementedGenericEventHandlers parent,
             global::Microsoft.Extensions.Options.IOptions<global::PureES.Core.PureESOptions> options,
@@ -35,7 +38,7 @@ namespace PureES.EventHandlers
         }
         private static readonly global::System.Type ParentType = typeof(global::PureES.Core.Tests.Models.ImplementedGenericEventHandlers);
         private static readonly global::System.Type EventType = typeof(global::PureES.Core.Tests.Models.Events.Created);
-        private static readonly global::System.Reflection.MethodInfo _method = ParentType.GetMethod("On2", global::System.Reflection.BindingFlags.Public | global::System.Reflection.BindingFlags.Static);
+        private static readonly global::System.Reflection.MethodInfo _method = ParentType.GetMethod(name: "On2", bindingAttr: global::System.Reflection.BindingFlags.Public | global::System.Reflection.BindingFlags.Static, types: new [] { typeof(global::PureES.Core.Tests.Models.Events.Created) });
 
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
         public global::System.Reflection.MethodInfo Method
@@ -44,7 +47,7 @@ namespace PureES.EventHandlers
             [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
             [global::System.Diagnostics.DebuggerStepThroughAttribute()]
             [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-            get => _method;
+            get => _method ?? throw new InvalidOperationException($"Could not locate method 'On2' on {ParentType}");
         }
 
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]

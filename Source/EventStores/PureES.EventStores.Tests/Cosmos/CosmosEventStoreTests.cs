@@ -1,8 +1,9 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using JetBrains.Annotations;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using PureES.Core;
-using PureES.CosmosDB;
-using PureES.CosmosDB.Subscription;
+using PureES.EventStores.CosmosDB;
+using PureES.EventStores.CosmosDB.Subscription;
 
 namespace PureES.EventStores.Tests.Cosmos;
 
@@ -13,6 +14,9 @@ public class CosmosEventStoreTests : EventStoreTestsBase
         CancellationToken ct)
     {
         var harness = await CosmosTestHarness.Create(testName, configureServices);
+
+        await CosmosEventStoreSetup.InitializeEventStore(harness, ct);
+        
         return new EventStoreTestHarness(harness, harness.GetRequiredService<IEventStore>());
     }
 
@@ -24,9 +28,12 @@ public class CosmosEventStoreTests : EventStoreTestsBase
     public async Task StartSubscription(bool restartFromBeginning)
     {
         var name = $"{nameof(StartSubscription)}+{restartFromBeginning}+{Environment.Version}";
+        
         await using var harness = await CosmosTestHarness.Create(name,
             services => services
                 .AddCosmosEventStoreSubscriptionToAll(o => o.RestartFromBeginning = restartFromBeginning));
+        
+        await CosmosEventStoreSetup.InitializeEventStore(harness, CancellationToken);
         
         var subscription = (CosmosEventStoreSubscriptionToAll)harness.GetServices<IHostedService>()
             .Single(s => s.GetType() == typeof(CosmosEventStoreSubscriptionToAll));
@@ -120,8 +127,9 @@ public class CosmosEventStoreTests : EventStoreTestsBase
     private static UncommittedEvent NewLargeEvent()
     {
         var data = new byte[1024 * 512]; //.5 MB
-        return new UncommittedEvent() { Event = new LargeEvent(data) };
+        return new UncommittedEvent() { Event = new LargeEvent(Guid.NewGuid(), data) };
     }
 
-    private record LargeEvent(byte[] Data);
+    [UsedImplicitly]
+    private record LargeEvent(Guid Id, byte[] Data) : Event(Id);
 }

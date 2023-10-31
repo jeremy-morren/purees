@@ -346,4 +346,40 @@ internal class InMemoryEventStore : IInMemoryEventStore
     }
 
     #endregion
+    
+    #region Load
+    
+    public async Task Load(IAsyncEnumerable<EventEnvelope> envelopes, CancellationToken ct)
+    {
+        var records = await envelopes.Select(_serializer.Serialize).ToListAsync(ct);
+        
+        records = records
+            .OrderBy(r => r.Timestamp)
+            .ThenBy(r => r.StreamPos)
+            .ToList();
+        
+        lock (_mutex)
+        {
+            if (_records.Count > 0)
+                throw new InvalidOperationException("Event store already contains records");
+            
+            foreach (var e in records)
+            {
+                if (_streams.TryGetValue(e.StreamId, out var stream))
+                {
+                    stream.Indexes = stream.Indexes.Add(_records.Count);
+                }
+                else
+                {
+                    _streams[e.StreamId] = new IndexList
+                    {
+                        Indexes = ImmutableList.Create(_records.Count)
+                    };;
+                }
+                _records = _records.Add(e);
+            }
+        }
+    }
+    
+    #endregion
 }

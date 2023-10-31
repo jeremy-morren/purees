@@ -1,6 +1,6 @@
 ﻿using PureES.EventBus;
 
-namespace PureES.CosmosDB.Subscription;
+namespace PureES.EventStores.CosmosDB.Subscription;
 
 public class CosmosEventStoreSubscriptionOptions
 {

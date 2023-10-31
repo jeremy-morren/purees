@@ -9,7 +9,7 @@
 #pragma warning disable CS0162 //Unreachable code detected
 
 using System;
-using System;
+using System.Linq;
 using Microsoft.Extensions.Logging;
 
 namespace PureES.EventHandlers
@@ -24,6 +24,9 @@ namespace PureES.EventHandlers
         private readonly global::PureES.Core.PureESEventHandlerOptions _options;
         private readonly global::PureES.Core.Tests.Models.TestEventHandlers _parent;
 
+        [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
+        [global::System.Diagnostics.DebuggerStepThroughAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         public CatchAllEventHandler_PureESCoreTestsModelsTestEventHandlers_CatchAll(
             global::PureES.Core.Tests.Models.TestEventHandlers parent,
             global::Microsoft.Extensions.Options.IOptions<global::PureES.Core.PureESOptions> options,
@@ -35,7 +38,7 @@ namespace PureES.EventHandlers
         }
         private static readonly global::System.Type ParentType = typeof(global::PureES.Core.Tests.Models.TestEventHandlers);
         private static readonly global::System.Type EventType = null;
-        private static readonly global::System.Reflection.MethodInfo _method = ParentType.GetMethod("CatchAll", global::System.Reflection.BindingFlags.Public | global::System.Reflection.BindingFlags.Static);
+        private static readonly global::System.Reflection.MethodInfo _method = ParentType.GetMethod(name: "CatchAll", bindingAttr: global::System.Reflection.BindingFlags.Public | global::System.Reflection.BindingFlags.Static, types: new [] { typeof(global::PureES.Core.EventEnvelope) });
 
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
         public global::System.Reflection.MethodInfo Method
@@ -44,7 +47,7 @@ namespace PureES.EventHandlers
             [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
             [global::System.Diagnostics.DebuggerStepThroughAttribute()]
             [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-            get => _method;
+            get => _method ?? throw new InvalidOperationException($"Could not locate method 'CatchAll' on {ParentType}");
         }
 
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]

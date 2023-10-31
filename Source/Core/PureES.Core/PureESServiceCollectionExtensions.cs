@@ -44,7 +44,7 @@ public static class PureESServiceCollectionExtensions
         
         //See SourceGenerator DependencyInjectionGenerator.cs
         
-        const string fullClassName = $"PureES.DependencyInjection.PureESServiceCollectionExtensions";
+        const string fullClassName = "PureES.DependencyInjection.PureESServiceCollectionExtensions";
         const string methodName = "Register";
         
         var type = assembly.GetTypes().FirstOrDefault(t => t.FullName == fullClassName);

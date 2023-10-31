@@ -3,10 +3,10 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Internal;
 using Microsoft.Extensions.Options;
 using PureES.Core;
-using PureES.CosmosDB.Serialization;
-using PureES.CosmosDB.Subscription;
+using PureES.EventStores.CosmosDB.Serialization;
+using PureES.EventStores.CosmosDB.Subscription;
 
-namespace PureES.CosmosDB;
+namespace PureES.EventStores.CosmosDB;
 
 public static class CosmosServiceCollectionExtensions
 {

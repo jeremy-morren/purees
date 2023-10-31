@@ -134,6 +134,10 @@ namespace PureES.AggregateStores
         public readonly global::Microsoft.Extensions.Logging.ILoggerFactory S0;
         public readonly global::System.IServiceProvider S1;
 
+
+        [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
+        [global::System.Diagnostics.DebuggerStepThroughAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         public TestAggregateAggregateStore_Services(
             global::Microsoft.Extensions.Logging.ILoggerFactory s0,
             global::System.IServiceProvider s1)

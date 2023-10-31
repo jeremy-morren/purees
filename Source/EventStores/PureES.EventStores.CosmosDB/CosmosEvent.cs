@@ -1,7 +1,7 @@
 ﻿using System.Text.Json;
 using JetBrains.Annotations;
 
-namespace PureES.CosmosDB;
+namespace PureES.EventStores.CosmosDB;
 
 /// <summary>
 /// An event stored inside Cosmos

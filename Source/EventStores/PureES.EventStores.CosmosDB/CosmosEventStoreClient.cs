@@ -1,10 +1,11 @@
 ﻿using System.Net;
 using System.Text.Json;
+using Azure.Identity;
 using Microsoft.Azure.Cosmos.Fluent;
 using Microsoft.Extensions.Options;
-using PureES.CosmosDB.Serialization;
+using PureES.EventStores.CosmosDB.Serialization;
 
-namespace PureES.CosmosDB;
+namespace PureES.EventStores.CosmosDB;
 
 internal class CosmosEventStoreClient
 {
@@ -37,25 +38,25 @@ internal class CosmosEventStoreClient
 
         Client = !string.IsNullOrEmpty(_options.ConnectionString) 
             ? new CosmosClient(_options.ConnectionString, clientOptions) 
-            : new CosmosClient(_options.AccountEndpoint!, _options.AccountKey!, clientOptions);
+            : _options.UseManagedIdentity
+                ? new CosmosClient(_options.AccountEndpoint!, new DefaultAzureCredential(), clientOptions)
+                : new CosmosClient(_options.AccountEndpoint!, _options.AccountKey!, clientOptions);
     }
 
     public const string HttpClientName = "CosmosEventStore";
 
-    private Task<Container>? _container;
+    public Container GetContainer() => Client.GetDatabase(_options.Database).GetContainer(_options.Container);
     
-    public Task<Container> GetEventStoreContainerAsync()
+    public async Task<Database> CreateDatabaseIfNotExists(CancellationToken ct)
     {
-        var ct = new CancellationTokenSource(TimeSpan.FromMinutes(1)).Token;
-        _container ??= CreateContainerIfNotExists(ct);
-        return _container;
-    }
-
-    private async Task<Container> CreateContainerIfNotExists(CancellationToken ct)
-    {
-        Database database = await Client.CreateDatabaseIfNotExistsAsync(_options.Database,
+        return await Client.CreateDatabaseIfNotExistsAsync(_options.Database,
             _options.DatabaseThroughput,
             cancellationToken: ct);
+    }
+    
+    public async Task<Container> CreateContainerIfNotExists(CancellationToken ct)
+    {
+        var database = await CreateDatabaseIfNotExists(ct);
 
         const string partitionKeyPath = "/eventStreamId";
 
@@ -76,13 +77,18 @@ internal class CosmosEventStoreClient
 
     private static ContainerBuilder DefineContainer(ContainerBuilder container)
     {
-        var builder = container.WithIndexingPolicy();
+        //Exclude event and metadata from indexing, since we never filter there
 
-        builder = builder.WithIndexingMode(IndexingMode.Consistent)
-            .WithAutomaticIndexing(false)
+        var builder = container.WithIndexingPolicy()
+            .WithIndexingMode(IndexingMode.Consistent)
+            .WithExcludedPaths()
+                .Path("/event/*")
+                .Path("/metadata/*")
+            .Attach()
             .WithIncludedPaths()
+                .Path("/*")
             .Attach();
-
+        
         //Note: For reading, we need OrderBy as follows:
         //created, eventStreamId, eventStreamPosition
 

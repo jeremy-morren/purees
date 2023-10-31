@@ -1,18 +1,14 @@
 ﻿// ReSharper disable InconsistentNaming
 
 using System.Text.Json;
+using Azure.Core;
 using JetBrains.Annotations;
 
-namespace PureES.CosmosDB;
+namespace PureES.EventStores.CosmosDB;
 
 [PublicAPI]
 public class CosmosEventStoreOptions
 {
-    /// <summary>
-    /// Gets or sets a factory used to construct an HTTP client
-    /// </summary>
-    public Func<IServiceProvider, HttpClient>? HttpClientFactory { get; set; }
-
     /// <summary>
     /// Gets or sets the CosmosDB connection string.
     /// </summary>
@@ -38,11 +34,10 @@ public class CosmosEventStoreOptions
     public string? AccountKey { get; set; }
 
     /// <summary>
-    /// Indicates whether Azure Managed identity should be used
-    /// instead of <see cref="AccountKey"/>
+    /// Indicates whether to use Azure managed identity instead of instead of <see cref="AccountKey"/>
     /// </summary>
-    public bool UseManagedIdentity { get; set; }
-    
+    public bool UseManagedIdentity { get; set; } = false;
+
     /// <summary>
     /// Gets or sets a flag indicating whether the server TLS certificate should be verified
     /// </summary>
@@ -94,26 +89,23 @@ public class CosmosEventStoreOptions
 
     internal void Validate()
     {
-        if (HttpClientFactory == null)
+        if (string.IsNullOrWhiteSpace(ConnectionString))
         {
-            if (string.IsNullOrWhiteSpace(ConnectionString))
+            if (string.IsNullOrWhiteSpace(AccountEndpoint))
+                throw new Exception("Either Cosmos connection string or AccountEndpoint/AccountKey must be provided");
+
+            //Account endpoint was provided
+            try
             {
-                if (string.IsNullOrWhiteSpace(AccountEndpoint))
-                    throw new Exception("Either Cosmos connection string or AccountEndpoint/AccountKey must be provided");
-
-                //Account endpoint was provided
-                try
-                {
-                    _ = new Uri(AccountEndpoint, UriKind.Absolute);
-                }
-                catch (Exception e)
-                {
-                    throw new Exception("Invalid Cosmos EventStore account endpoint", e);
-                }
-
-                if (!UseManagedIdentity && string.IsNullOrWhiteSpace(AccountKey))
-                    throw new Exception("Cosmos EventStore account key is required");
+                _ = new Uri(AccountEndpoint, UriKind.Absolute);
             }
+            catch (Exception e)
+            {
+                throw new Exception("Invalid Cosmos EventStore account endpoint", e);
+            }
+
+            if (!UseManagedIdentity && string.IsNullOrWhiteSpace(AccountKey))
+                throw new Exception($"Cosmos EventStore account key is required if {nameof(UseManagedIdentity)} is false");
         }
         
         if (string.IsNullOrWhiteSpace(Database))

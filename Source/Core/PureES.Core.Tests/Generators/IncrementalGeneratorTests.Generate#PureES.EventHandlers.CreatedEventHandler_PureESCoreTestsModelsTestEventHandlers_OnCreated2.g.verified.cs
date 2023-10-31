@@ -9,7 +9,7 @@
 #pragma warning disable CS0162 //Unreachable code detected
 
 using System;
-using System;
+using System.Linq;
 using Microsoft.Extensions.Logging;
 
 namespace PureES.EventHandlers
@@ -25,6 +25,9 @@ namespace PureES.EventHandlers
         private readonly global::Microsoft.Extensions.Logging.ILoggerFactory _service0;
         private readonly global::PureES.Core.Tests.Models.TestEventHandlers _parent;
 
+        [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
+        [global::System.Diagnostics.DebuggerStepThroughAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         public CreatedEventHandler_PureESCoreTestsModelsTestEventHandlers_OnCreated2(
             global::Microsoft.Extensions.Logging.ILoggerFactory service0,
             global::PureES.Core.Tests.Models.TestEventHandlers parent,
@@ -38,7 +41,7 @@ namespace PureES.EventHandlers
         }
         private static readonly global::System.Type ParentType = typeof(global::PureES.Core.Tests.Models.TestEventHandlers);
         private static readonly global::System.Type EventType = typeof(global::PureES.Core.Tests.Models.Events.Created);
-        private static readonly global::System.Reflection.MethodInfo _method = ParentType.GetMethod("OnCreated2", global::System.Reflection.BindingFlags.Public | global::System.Reflection.BindingFlags.Instance);
+        private static readonly global::System.Reflection.MethodInfo _method = ParentType.GetMethod(name: "OnCreated2", bindingAttr: global::System.Reflection.BindingFlags.Public | global::System.Reflection.BindingFlags.Instance, types: new [] { typeof(global::PureES.Core.EventEnvelope<global::PureES.Core.Tests.Models.Events.Created, object>), typeof(global::Microsoft.Extensions.Logging.ILoggerFactory) });
 
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
         public global::System.Reflection.MethodInfo Method
@@ -47,7 +50,7 @@ namespace PureES.EventHandlers
             [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
             [global::System.Diagnostics.DebuggerStepThroughAttribute()]
             [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-            get => _method;
+            get => _method ?? throw new InvalidOperationException($"Could not locate method 'OnCreated2' on {ParentType}");
         }
 
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]

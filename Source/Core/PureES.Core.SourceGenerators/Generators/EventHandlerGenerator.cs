@@ -24,7 +24,7 @@ internal class EventHandlerGenerator
     {
         _w.WriteFileHeader(false);
     
-        _w.WriteLine("using System;");
+        _w.WriteLine("using System.Linq;");
         _w.WriteLine($"using {ExternalTypes.LoggingNamespace};");
     
         _w.WriteLine();
@@ -59,9 +59,8 @@ internal class EventHandlerGenerator
             _w.WriteLine($"private readonly {_handler.Services[i].CSharpName} _service{i};");
         
         _w.WriteLine($"private readonly {_handler.Parent.CSharpName} _parent;");
-        
-        _w.WriteLine();
     
+        _w.WriteMethodAttributes();
         _w.Write($"public {GetClassName(_handler)}(");
         
         _w.WriteParameters(_handler.Services.Select((s,i) => $"{s.CSharpName} service{i}"),
@@ -98,15 +97,19 @@ internal class EventHandlerGenerator
         flags = $"{flags}.{nameof(BindingFlags.Public)} | {flags}.";
         flags += _handler.Method.IsStatic ? $"{nameof(BindingFlags.Static)}" : $"{nameof(BindingFlags.Instance)}";
         
-        _w.WriteLine($"private static readonly {methodInfo} _method = ParentType.GetMethod(\"{_handler.Method.Name}\", {flags});");
+        //Get method include parameter types, to handle methods with multiple overloads
+        var parameters = _handler.Method.Parameters.Select(p => $"typeof({p.Type.CSharpName})");
 
+        _w.WriteLine(
+            $"private static readonly {methodInfo} _method = ParentType.GetMethod(name: \"{_handler.Method.Name}\", bindingAttr: {flags}, types: new [] {{ {string.Join(", ", parameters)} }});");
+        
         _w.WriteLine();
 
         _w.WriteBrowsableState();
         _w.WriteStatement($"public {methodInfo} {nameof(IEventHandler.Method)}", () =>
         {
             _w.WriteMethodAttributes();
-            _w.WriteLine("get => _method;");
+            _w.WriteLine($"get => _method ?? throw new InvalidOperationException($\"Could not locate method '{_handler.Method.Name}' on {{ParentType}}\");");
         });
     }
     
