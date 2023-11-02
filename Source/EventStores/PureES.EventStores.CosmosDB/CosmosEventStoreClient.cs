@@ -20,7 +20,7 @@ internal class CosmosEventStoreClient
 
         var clientOptions = _options.ClientOptions;
         
-        if (!_options.VerifyTLSCert)
+        if (_options.Insecure)
             clientOptions.ServerCertificateCustomValidationCallback = (_, _, _) => true;
         
         clientOptions.HttpClientFactory = () => httpClientFactory.CreateClient(HttpClientName);

@@ -20,7 +20,7 @@ public static class CosmosServiceCollectionExtensions
         services.AddSingleton<CosmosEventStoreClient>();
 
         services.AddSingleton<IEventStore, CosmosEventStore>();
-        
+
         services.AddOptions<CosmosEventStoreOptions>()
             .Configure(configureOptions)
             .Validate(o =>
@@ -35,7 +35,7 @@ public static class CosmosServiceCollectionExtensions
                 var options = sp.GetRequiredService<IOptions<CosmosEventStoreOptions>>().Value;
 
                 var handler = new SocketsHttpHandler();
-                if (!options.VerifyTLSCert)
+                if (options.Insecure)
                     handler.SslOptions.RemoteCertificateValidationCallback = (_, _, _, _) => true;
                 
                 return handler;

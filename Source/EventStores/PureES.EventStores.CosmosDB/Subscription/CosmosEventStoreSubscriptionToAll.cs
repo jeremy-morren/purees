@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks.Dataflow;
+﻿using System.Net;
+using System.Threading.Tasks.Dataflow;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -42,15 +43,17 @@ internal class CosmosEventStoreSubscriptionToAll : IEventStoreSubscription
     public async Task<ChangeFeedProcessor> CreateProcessor(CancellationToken cancellationToken)
     {
         var eventStoreContainer = _client.GetContainer();
-
+        
         if (_options.RestartFromBeginning)
         {
             //Delete lease container if exists
-            var response = await eventStoreContainer.Database.GetContainer(LeaseContainerName)
+            using var response = await eventStoreContainer.Database.GetContainer(LeaseContainerName)
                 .DeleteContainerStreamAsync(cancellationToken: cancellationToken);
-
-            if (response.IsSuccessStatusCode)
+            if (response.StatusCode != HttpStatusCode.NotFound)
+            {
+                response.EnsureSuccessStatusCode();
                 _logger.LogDebug("Deleted lease container {LeaseContainer}", LeaseContainerName);
+            }
         }
 
         Container leaseContainer = await eventStoreContainer.Database

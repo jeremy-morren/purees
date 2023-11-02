@@ -29,19 +29,21 @@ public class CosmosEventStoreOptions
     /// Gets or sets the cosmos account key or resource token to use to create the client.
     /// </summary>
     /// <remarks>
-    /// Will be ignored if <see cref="ConnectionString"/> is set
+    /// Will be ignored if <see cref="ConnectionString"/> is set or <see cref="UseManagedIdentity"/> is <see langword="true"/>
     /// </remarks>
     public string? AccountKey { get; set; }
 
     /// <summary>
-    /// Indicates whether to use Azure managed identity instead of instead of <see cref="AccountKey"/>
+    /// Indicates whether to use Azure managed identity instead of instead of <see cref="AccountKey"/>.
+    /// Default <see langword="false"/>
     /// </summary>
-    public bool UseManagedIdentity { get; set; } = false;
+    public bool UseManagedIdentity { get; set; }
 
     /// <summary>
-    /// Gets or sets a flag indicating whether the server TLS certificate should be verified
+    /// Gets or sets a flag indicating whether the server TLS certificate should not be verified.
+    /// Default <see langword="false" />
     /// </summary>
-    public bool VerifyTLSCert { get; set; } = true;
+    public bool Insecure { get; set; }
 
     /// <summary>
     /// The Cosmos client options
