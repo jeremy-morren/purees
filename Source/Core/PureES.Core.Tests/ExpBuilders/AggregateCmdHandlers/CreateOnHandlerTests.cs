@@ -57,6 +57,7 @@ public class CreateOnHandlerTests
     [Theory]
     [InlineData(nameof(TestAggregate.CreateWithResult))]
     [InlineData(nameof(TestAggregate.CreateWithResultAsync))]
+    [InlineData(nameof(TestAggregate.CreateWithResultValueTaskAsync))]
     [InlineData(nameof(TestAggregate.CreateWithDerivedResult))]
     [InlineData(nameof(TestAggregate.CreateWithDerivedResultAsync))]
     [InlineData(nameof(TestAggregate.CreateWithDerivedResultValueTaskAsync))]
