@@ -25,6 +25,6 @@ internal class BasicAggregateStore<TAggregate> : IAggregateStore<TAggregate> whe
     public Task<TAggregate> Load(string streamId, ulong expectedRevision, CancellationToken cancellationToken) =>
         _factory.Create(_eventStore.Read(Direction.Forwards, streamId, expectedRevision, cancellationToken), cancellationToken);
 
-    public Task<TAggregate> LoadPartial(string streamId, ulong requiredRevision, CancellationToken cancellationToken) =>
-        _factory.Create(_eventStore.ReadPartial(Direction.Forwards, streamId, requiredRevision, cancellationToken), cancellationToken);
+    public Task<TAggregate> LoadSlice(string streamId, ulong requiredRevision, CancellationToken cancellationToken) =>
+        _factory.Create(_eventStore.ReadSlice(streamId, 0, requiredRevision, cancellationToken), cancellationToken);
 }

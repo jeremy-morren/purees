@@ -14,10 +14,10 @@ public abstract class EventStoreTestsBase
         CancellationToken ct);
 
     [DebuggerNonUserCode]
-    protected Task<EventStoreTestHarness> GetStore([CallerMemberName] string testName = null!) =>
-        GetStore(_ => {}, testName);
+    protected Task<EventStoreTestHarness> CreateHarness([CallerMemberName] string testName = null!) =>
+        CreateHarness(_ => {}, testName);
     
-    protected Task<EventStoreTestHarness> GetStore(Action<IServiceCollection> configureServices,
+    protected Task<EventStoreTestHarness> CreateHarness(Action<IServiceCollection> configureServices,
         [CallerMemberName] string testName = null!)
     {
         if (testName == null) throw new ArgumentNullException(nameof(testName));
@@ -31,7 +31,8 @@ public abstract class EventStoreTestsBase
     [Fact]
     public async Task Create()
     {
-        await using var store = await GetStore();
+        await using var harness = await CreateHarness();
+        var store = harness.EventStore;
         const string stream = nameof(Create);
         var events = Enumerable.Range(0, 10)
             .Select(_ => NewEvent())
@@ -51,7 +52,8 @@ public abstract class EventStoreTestsBase
     [Fact]
     public async Task CreateSingle()
     {
-        await using var store = await GetStore();
+        await using var harness = await CreateHarness();
+        var store = harness.EventStore;
         const string stream = nameof(CreateSingle);
         var @event = NewEvent();
         const ulong revision = 0;
@@ -68,7 +70,8 @@ public abstract class EventStoreTestsBase
     [Fact]
     public async Task Create_Single_Existing_Should_Throw()
     {
-        await using var store = await GetStore();
+        await using var harness = await CreateHarness();
+        var store = harness.EventStore;
         const string stream = nameof(Create_Existing_Should_Throw);
         const ulong revision = 0;
         (await store.Create(stream, NewEvent(), CancellationToken)).ShouldBe(revision);
@@ -80,7 +83,8 @@ public abstract class EventStoreTestsBase
     [Fact]
     public async Task Create_Existing_Should_Throw()
     {
-        await using var store = await GetStore();
+        await using var harness = await CreateHarness();
+        var store = harness.EventStore;
         const string stream = nameof(Create);
         var events = Enumerable.Range(0, 10)
             .Select(_ => NewEvent())
@@ -98,7 +102,8 @@ public abstract class EventStoreTestsBase
     [InlineData(false)]
     public async Task Append(bool useOptimisticConcurrency)
     {
-        await using var store = await GetStore($"{nameof(Append)}+{useOptimisticConcurrency}");
+        await using var harness = await CreateHarness($"{nameof(Append)}+{useOptimisticConcurrency}");
+        var store = harness.EventStore;
         const string stream = nameof(Append);
         var events = Enumerable.Range(0, 10)
             .Select(_ => NewEvent())
@@ -119,7 +124,8 @@ public abstract class EventStoreTestsBase
     [InlineData(false)]
     public async Task Append_To_Invalid_Should_Throw(bool useOptimisticConcurrency)
     {
-        await using var store = await GetStore($"{nameof(Append_To_Invalid_Should_Throw)}+{useOptimisticConcurrency}");
+        await using var harness = await CreateHarness($"{nameof(Append_To_Invalid_Should_Throw)}+{useOptimisticConcurrency}");
+        var store = harness.EventStore;
         const string stream = nameof(Append_To_Invalid_Should_Throw);
         await Assert.ThrowsAsync<StreamNotFoundException>(() =>
             useOptimisticConcurrency
@@ -135,7 +141,8 @@ public abstract class EventStoreTestsBase
     [Fact]
     public async Task Append_With_Invalid_Revision_Should_Throw()
     {
-        await using var store = await GetStore();
+        await using var harness = await CreateHarness();
+        var store = harness.EventStore;
         const string stream = nameof(Append_With_Invalid_Revision_Should_Throw);
         var events = Enumerable.Range(0, 10)
             .Select(_ => NewEvent())
@@ -150,7 +157,8 @@ public abstract class EventStoreTestsBase
     [Fact]
     public async Task Append_Single_With_Invalid_Revision_Should_Throw()
     {
-        await using var store = await GetStore();
+        await using var harness = await CreateHarness();
+        var store = harness.EventStore;
         const string stream = nameof(Append_With_Invalid_Revision_Should_Throw);
         var @event = NewEvent();
         (await store.Create(stream, @event, CancellationToken)).ShouldBe(0ul);
@@ -162,11 +170,11 @@ public abstract class EventStoreTestsBase
     [Fact]
     public async Task Read_Invalid_Stream_Should_Throw()
     {
-        await using var store = await GetStore();
+        await using var harness = await CreateHarness();
+        var store = harness.EventStore;
         const string stream = nameof(Read_Invalid_Stream_Should_Throw);
         Assert.False(await store.Exists(stream, CancellationToken));
         await Assert.ThrowsAsync<StreamNotFoundException>(() => store.GetRevision(stream, CancellationToken));
-        
         
         await Assert.ThrowsAsync<StreamNotFoundException>(async () => 
             await store.Read(Direction.Forwards, stream, CancellationToken).FirstAsync());
@@ -179,28 +187,45 @@ public abstract class EventStoreTestsBase
             await store.Read(Direction.Backwards, stream, RandVersion(), CancellationToken).FirstAsync());
         
         await Assert.ThrowsAsync<StreamNotFoundException>(async () =>
+            await store.Read(Direction.Backwards, stream, RandVersion() % (int)short.MaxValue, RandVersion(short.MaxValue), CancellationToken).FirstAsync());
+        
+        await Assert.ThrowsAsync<StreamNotFoundException>(async () =>
             await store.ReadPartial(Direction.Forwards, stream, RandVersion(), CancellationToken).FirstAsync());
         await Assert.ThrowsAsync<StreamNotFoundException>(async () =>
             await store.ReadPartial(Direction.Backwards, stream, RandVersion(), CancellationToken).FirstAsync());
+        
+        await Assert.ThrowsAsync<StreamNotFoundException>(async () =>
+            await store.ReadSlice(stream, RandVersion() % (int)short.MaxValue, RandVersion(short.MaxValue), CancellationToken).FirstAsync());
     }
 
     [Fact]
     public async Task Read()
     {
-        await using var store = await GetStore();
+        await using var harness = await CreateHarness();
+        var store = harness.EventStore;
         const string stream = nameof(Read);
         var events = Enumerable.Range(0, 10)
             .Select(_ => NewEvent())
             .ToList();
         var revision = (ulong) events.Count - 1;
-        Assert.Equal(revision, await store.Create(stream, events, CancellationToken));
-        Assert.Equal(revision, await store.GetRevision(stream, CancellationToken));
+        (await store.Create(stream, events, CancellationToken)).ShouldBe(revision);
+        (await store.GetRevision(stream, CancellationToken)).ShouldBe(revision);
 
         await AssertEqual(events, d => store.Read(d, stream, revision, CancellationToken));
         
-        await AssertEqual(events.Take(5), store.ReadPartial(Direction.Forwards, stream, 4, CancellationToken));
+        await AssertEqual(events.Skip(2), d => store.Read(d, stream, 2, revision, CancellationToken));
         
-        await AssertEqual(events.TakeLast(5).Reverse(), store.ReadPartial(Direction.Backwards, stream, 4, CancellationToken));
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => 
+            store.Read(Direction.Forwards, stream, 3, 2, CancellationToken)
+                .ToListAsync().AsTask());
+        
+        await AssertEqual(events.Take(5), store.ReadPartial(Direction.Forwards, stream, 5, CancellationToken));
+        
+        await AssertEqual(events.TakeLast(3).Reverse(), store.ReadPartial(Direction.Backwards, stream, 3, CancellationToken));
+        
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => 
+            store.ReadSlice(stream, 3, 2, CancellationToken)
+                .ToListAsync().AsTask());
 
         async Task AssertWrongVersion(Func<Direction, IAsyncEnumerable<EventEnvelope>> getEvents)
         {
@@ -222,12 +247,33 @@ public abstract class EventStoreTestsBase
 
         await AssertWrongVersion(d => 
             store.Read(d, stream, RandVersion(events.Count + 1), CancellationToken));
+        
+        await AssertWrongVersion(d => 
+            store.Read(d, stream, 2, RandVersion(events.Count + 1), CancellationToken));
+        
+        
+        await AssertWrongVersion(d => 
+            store.ReadPartial(d, stream, RandVersion(events.Count + 1), CancellationToken));
+
+        await AssertWrongVersion(_ => 
+            store.ReadSlice(stream, 1, RandVersion(events.Count + 1), CancellationToken));
+    }
+    
+    [Fact]
+    public async Task ReadPartial_With_Count_Zero_Should_Throw()
+    {
+        await using var harness = await CreateHarness();
+        var store = harness.EventStore;
+        var ex = await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => 
+            store.ReadPartial(Direction.Forwards, "stream", 0, CancellationToken).ToListAsync().AsTask());
+        ex.ParamName.ShouldBe("count");
     }
 
     [Fact]
     public async Task GetStreamRevision()
     {
-        await using var store = await GetStore();
+        await using var harness = await CreateHarness();
+        var store = harness.EventStore;
         const string stream = nameof(GetStreamRevision);
         var events = Enumerable.Range(0, 10)
             .Select(_ => NewEvent())
@@ -242,7 +288,8 @@ public abstract class EventStoreTestsBase
     [Fact]
     public async Task Get_Revision_Invalid_Should_Throw()
     {
-        await using var store = await GetStore();
+        await using var harness = await CreateHarness();
+        var store = harness.EventStore;
         const string stream = nameof(Get_Revision_Invalid_Should_Throw);
         await Assert.ThrowsAsync<StreamNotFoundException>(() => store.GetRevision(stream, CancellationToken));
     }
@@ -250,7 +297,8 @@ public abstract class EventStoreTestsBase
     [Fact]
     public async Task ReadAll()
     {
-        await using var store = await GetStore();
+        await using var harness = await CreateHarness();
+        var store = harness.EventStore;
         const string stream = nameof(ReadAll);
         var events = Enumerable.Range(0, 10)
             .Select(_ => NewEvent())
@@ -287,7 +335,8 @@ public abstract class EventStoreTestsBase
     [Fact]
     public async Task StreamPosition_Should_Be_Ordered_And_Unique()
     {
-        await using var store = await GetStore();
+        await using var harness = await CreateHarness();
+        var store = harness.EventStore;
         const string stream = nameof(StreamPosition_Should_Be_Ordered_And_Unique);
         const int count = 100;
         var events = Enumerable.Range(0, count).Select(_ => NewEvent()).ToList();
@@ -322,7 +371,8 @@ public abstract class EventStoreTestsBase
     [Fact]
     public async Task ReadByEventType()
     {
-        await using var store = await GetStore();
+        await using var harness = await CreateHarness();
+        var store = harness.EventStore;
         
         const int count = 10;
         for (var i = 0; i < count; i++)
@@ -355,7 +405,8 @@ public abstract class EventStoreTestsBase
     [Fact]
     public async Task Count()
     {
-        await using var store = await GetStore();
+        await using var harness = await CreateHarness();
+        var store = harness.EventStore;
 
         const int count = 10;
         
@@ -370,7 +421,8 @@ public abstract class EventStoreTestsBase
     [Fact]
     public async Task CountByEventType()
     {
-        await using var store = await GetStore();
+        await using var harness = await CreateHarness();
+        var store = harness.EventStore;
 
         const string stream = nameof(CountByEventType);
         const int count = 100;
@@ -383,7 +435,8 @@ public abstract class EventStoreTestsBase
     [Fact]
     public async Task Read_Many_Should_Return_In_Stream_Order()
     {
-        await using var store = await GetStore();
+        await using var harness = await CreateHarness();
+        var store = harness.EventStore;
         
         //We need to add in random order
         var streamIds = Enumerable.Range(0, 10)
@@ -456,7 +509,8 @@ public abstract class EventStoreTestsBase
     [Fact] 
     public async Task Read_Many_Should_Return_All()
     {
-        await using var store = await GetStore();
+        await using var harness = await CreateHarness();
+        var store = harness.EventStore;
         
         //We need to add in random order
         var streamIds = Enumerable.Range(0, 10)

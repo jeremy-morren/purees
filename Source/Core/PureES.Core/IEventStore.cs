@@ -172,26 +172,73 @@ public interface IEventStore
         string streamId,
         ulong expectedRevision,
         CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    ///     Reads events from stream <paramref name="streamId" />,
+    ///     ensuring stream is at <see cref="expectedRevision" />
+    /// </summary>
+    /// <param name="direction">Read direction</param>
+    /// <param name="streamId">Id of stream to load events from</param>
+    /// <param name="startRevision">Revision to start reading from</param>
+    /// <param name="expectedRevision"><c>Revision</c> that the stream is expected to be at</param>
+    /// <param name="cancellationToken"></param>
+    /// <returns>
+    ///     An <see cref="IAsyncEnumerable{T}" /> of <see cref="EventEnvelope" />
+    ///     from the events in the stream in the order in which they were added
+    /// </returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="startRevision" /> &gt; <paramref name="expectedRevision"/></exception>
+    /// <exception cref="StreamNotFoundException">Stream <paramref name="streamId" /> not found</exception>
+    /// <exception cref="WrongStreamRevisionException">
+    ///     Stream <paramref name="streamId" /> not at revision <paramref name="expectedRevision" />
+    /// </exception>
+    public IAsyncEnumerable<EventEnvelope> Read(Direction direction, 
+        string streamId,
+        ulong startRevision,
+        ulong expectedRevision,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    ///     Loads events from stream <paramref name="streamId" /> up
+    ///     to and including <paramref name="count />
+    /// </summary>
+    /// <param name="direction">Read direction</param>
+    /// <param name="streamId">Id of stream to load events from</param>
+    /// <param name="count">The number of events to read</param>
+    /// <param name="cancellationToken"></param>
+    /// <returns>
+    ///     An <see cref="IAsyncEnumerable{T}" /> of <see cref="EventEnvelope" />
+    ///     from the events in the stream in the order in which they were added,
+    ///     up to and including event at <paramref name="count />
+    /// </returns>
+    /// <exception cref="StreamNotFoundException">Stream <paramref name="streamId" /> not found</exception>
+    /// <exception cref="WrongStreamRevisionException">
+    ///     Revision of stream <paramref name="streamId" /> less than <paramref name="count />
+    /// </exception>
+    public IAsyncEnumerable<EventEnvelope> ReadPartial(Direction direction,
+        string streamId,
+        ulong count,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     ///     Loads events from stream <paramref name="streamId" /> up
     ///     to and including <paramref name="requiredRevision" />
     /// </summary>
-    /// <param name="direction">Read direction</param>
     /// <param name="streamId">Id of stream to load events from</param>
-    /// <param name="requiredRevision">Minimum revision that stream must be at (relative to <paramref name="direction"/>)</param>
+    /// <param name="startRevision">Revision to start reading from.</param>
+    /// <param name="requiredRevision">Minimum revision that stream must be at</param>
     /// <param name="cancellationToken"></param>
     /// <returns>
     ///     An <see cref="IAsyncEnumerable{T}" /> of <see cref="EventEnvelope" />
     ///     from the events in the stream in the order in which they were added,
     ///     up to and including event at <paramref name="requiredRevision" />
     /// </returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="startRevision" /> &gt; <paramref name="requiredRevision"/></exception>
     /// <exception cref="StreamNotFoundException">Stream <paramref name="streamId" /> not found</exception>
     /// <exception cref="WrongStreamRevisionException">
     ///     Revision of stream <paramref name="streamId" /> less than <paramref name="requiredRevision" />
     /// </exception>
-    public IAsyncEnumerable<EventEnvelope> ReadPartial(Direction direction,
-        string streamId,
+    public IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId,
+        ulong startRevision,
         ulong requiredRevision,
         CancellationToken cancellationToken = default);
 

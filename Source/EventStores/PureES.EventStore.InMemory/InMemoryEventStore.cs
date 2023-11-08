@@ -203,7 +203,7 @@ internal class InMemoryEventStore : IInMemoryEventStore
             _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
         };
     }
-
+    
     private IAsyncEnumerable<EventEnvelope> ToAsyncEnumerable(IEnumerable<int> indexes, int? maxCount = null)
     {
         var e = indexes.Select(i => _serializer.Deserialize(_records[i]));
@@ -246,12 +246,56 @@ internal class InMemoryEventStore : IInMemoryEventStore
         return ToAsyncEnumerable(GetIndexes(direction, indexes));
     }
 
+    public IAsyncEnumerable<EventEnvelope> Read(Direction direction, 
+        string streamId, 
+        ulong startRevision, 
+        ulong expectedRevision,
+        CancellationToken cancellationToken = default)
+    {
+        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
+        
+        if (startRevision > expectedRevision)
+            throw new ArgumentOutOfRangeException(nameof(startRevision));
+        
+        if (!_streams.TryGetValue(streamId, out var stream))
+            throw new StreamNotFoundException(streamId);
+        
+        var indexes = stream.Indexes;
+        if (indexes.Count - 1 != (int)expectedRevision)
+            throw new WrongStreamRevisionException(streamId, expectedRevision, (ulong)indexes.Count - 1);
+
+        return ToAsyncEnumerable(indexes.Skip((int)startRevision));
+    }
+
     public IAsyncEnumerable<EventEnvelope> ReadPartial(Direction direction, 
         string streamId,
-        ulong requiredRevision, 
+        ulong count, 
         CancellationToken _)
     {
         if (streamId == null) throw new ArgumentNullException(nameof(streamId));
+
+        if (count == 0)
+            throw new ArgumentOutOfRangeException(nameof(count));
+        
+        if (!_streams.TryGetValue(streamId, out var stream))
+            throw new StreamNotFoundException(streamId);
+
+        var indexes = stream.Indexes;
+        if (indexes.Count <= (int)count)
+            throw new WrongStreamRevisionException(streamId, count, (ulong)indexes.Count - 1);
+        
+        return ToAsyncEnumerable(GetIndexes(direction, indexes).Take((int)count));
+    }
+
+    public IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId, 
+        ulong startRevision, 
+        ulong requiredRevision,
+        CancellationToken cancellationToken = default)
+    {
+        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
+
+        if (startRevision > requiredRevision)
+            throw new ArgumentOutOfRangeException(nameof(startRevision));
         
         if (!_streams.TryGetValue(streamId, out var stream))
             throw new StreamNotFoundException(streamId);
@@ -260,9 +304,9 @@ internal class InMemoryEventStore : IInMemoryEventStore
         if (indexes.Count <= (int)requiredRevision)
             throw new WrongStreamRevisionException(streamId, requiredRevision, (ulong)indexes.Count - 1);
         
-        return ToAsyncEnumerable(GetIndexes(direction, indexes).Take((int)requiredRevision + 1));
+        return ToAsyncEnumerable(indexes.Take((int)requiredRevision + 1).Skip((int)startRevision));
     }
-    
+
     public IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(Direction direction, 
         IEnumerable<string> streams, 
         CancellationToken cancellationToken)

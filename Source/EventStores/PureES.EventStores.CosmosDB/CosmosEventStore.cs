@@ -323,6 +323,8 @@ internal class CosmosEventStore : IEventStore
         ulong expectedRevision, 
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
+        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
+        
         var queryDef = direction switch 
         {
             Direction.Forwards => new QueryDefinition(
@@ -352,26 +354,114 @@ internal class CosmosEventStore : IEventStore
             throw new WrongStreamRevisionException(streamId, expectedRevision, revision);
     }
 
-    public async IAsyncEnumerable<EventEnvelope> ReadPartial(Direction direction, string streamId, ulong requiredRevision, [EnumeratorCancellation] CancellationToken cancellationToken)
+    public async IAsyncEnumerable<EventEnvelope> Read(Direction direction, 
+        string streamId,
+        ulong startRevision, 
+        ulong expectedRevision,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        if (requiredRevision == ulong.MaxValue)
-            throw new ArgumentOutOfRangeException(nameof(requiredRevision));
+        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
+
+        if (startRevision > expectedRevision)
+            throw new ArgumentOutOfRangeException(nameof(startRevision));
+        
+        var queryDef = direction switch 
+        {
+            Direction.Forwards => new QueryDefinition(
+                "select * from c where c.eventStreamId = @streamId and c.eventStreamPosition >= @startPos ORDER BY c.eventStreamPosition"),
+            Direction.Backwards => new QueryDefinition(
+                "select * from c where c.eventStreamId = @streamId and c.eventStreamPosition >= @startPos ORDER BY c.eventStreamPosition desc"),
+            _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
+        };
+
+        queryDef = queryDef.WithParameter("@streamId", streamId)
+            .WithParameter("@startPos", startRevision);
+
+        using var iterator = CreateIterator(streamId, queryDef);
+        var revision = startRevision;
+        while (iterator.HasMoreResults)
+        {
+            var result = await iterator.ReadNextAsync(cancellationToken);
+            foreach (var e in result)
+            {
+                yield return _serializer.Deserialize(e);
+                ++revision;
+            }
+        }
+        
+        if (revision == startRevision)
+            throw new StreamNotFoundException(streamId);
+        --revision; //The revision will have advanced too far
+        if (expectedRevision != revision)
+            throw new WrongStreamRevisionException(streamId, expectedRevision, revision);
+    }
+
+    public async IAsyncEnumerable<EventEnvelope> ReadPartial(Direction direction,
+        string streamId,
+        ulong count, 
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
+        
+        if (count == 0)
+            throw new ArgumentOutOfRangeException(nameof(count));
         
         var queryDef = direction switch
         {
             Direction.Forwards => new QueryDefinition(
-                "select TOP @required * from c where c.eventStreamId = @streamId ORDER BY c.eventStreamPosition"),
+                "select TOP @count * from c where c.eventStreamId = @streamId ORDER BY c.eventStreamPosition"),
             Direction.Backwards => new QueryDefinition(
-                "select TOP @required * from c where c.eventStreamId = @streamId ORDER BY c.eventStreamPosition desc"),
+                "select TOP @count * from c where c.eventStreamId = @streamId ORDER BY c.eventStreamPosition desc"),
             _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
         };
         
         queryDef = queryDef
             .WithParameter("@streamId", streamId)
-            .WithParameter("@required", requiredRevision + 1);
+            .WithParameter("@count", count);
 
         using var iterator = CreateIterator(streamId, queryDef);
-        var revision = ulong.MaxValue;
+        var read = 0ul;
+        while (iterator.HasMoreResults)
+        {
+            var result = await iterator.ReadNextAsync(cancellationToken);
+            foreach (var e in result)
+            {
+                yield return _serializer.Deserialize(e);
+                ++read;
+                if (count == read)
+                    yield break;
+            }
+        }
+
+        if (read == 0ul)
+            throw new StreamNotFoundException(streamId);
+        if (read < count)
+            throw new WrongStreamRevisionException(streamId, count - 1, read - 1);
+    }
+
+    public async IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId,
+        ulong startRevision, 
+        ulong requiredRevision,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
+        
+        if (requiredRevision == ulong.MaxValue)
+            throw new ArgumentOutOfRangeException(nameof(requiredRevision));
+
+        if (startRevision > requiredRevision)
+            throw new ArgumentOutOfRangeException(nameof(startRevision));
+
+        var queryDef = new QueryDefinition(
+            "select * from c where c.eventStreamId = @streamId and c.eventStreamPosition >= @start and c.eventStreamPosition <= @required ORDER BY c.eventStreamPosition");
+        
+        queryDef = queryDef
+            .WithParameter("@streamId", streamId)
+            .WithParameter("@start", startRevision)
+            .WithParameter("@required", requiredRevision);
+
+        using var iterator = CreateIterator(streamId, queryDef);
+        var revision = startRevision;
         while (iterator.HasMoreResults)
         {
             var result = await iterator.ReadNextAsync(cancellationToken);
@@ -384,8 +474,9 @@ internal class CosmosEventStore : IEventStore
             }
         }
 
-        if (revision == ulong.MaxValue)
+        if (revision == startRevision)
             throw new StreamNotFoundException(streamId);
+        --revision; //The revision will have advanced too far
         if (revision < requiredRevision)
             throw new WrongStreamRevisionException(streamId, requiredRevision, revision);
     }

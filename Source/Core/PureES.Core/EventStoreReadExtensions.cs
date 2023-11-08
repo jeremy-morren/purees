@@ -84,29 +84,54 @@ public static class EventStoreReadExtensions
     }
 
     /// <summary>
-    ///     Loads events from stream <paramref name="streamId" /> up
-    ///     to and including <paramref name="requiredRevision" />
+    ///     Reads events from stream <paramref name="streamId" />,
+    ///     ensuring stream is at <see cref="expectedRevision" />
     /// </summary>
     /// <param name="eventStore">Event store</param>
     /// <param name="streamId">Id of stream to load events from</param>
-    /// <param name="requiredRevision">Minimum revision that stream must be at (relative to <paramref name="direction"/>)</param>
+    /// <param name="startRevision">Revision to start reading from</param>
+    /// <param name="expectedRevision"><c>Revision</c> that the stream is expected to be at</param>
+    /// <param name="cancellationToken"></param>
+    /// <returns>
+    ///     An <see cref="IAsyncEnumerable{T}" /> of <see cref="EventEnvelope" />
+    ///     from the events in the stream in the order in which they were added
+    /// </returns>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="startRevision" /> &gt; <paramref name="expectedRevision"/></exception>
+    /// <exception cref="StreamNotFoundException">Stream <paramref name="streamId" /> not found</exception>
+    /// <exception cref="WrongStreamRevisionException">
+    ///     Stream <paramref name="streamId" /> not at revision <paramref name="expectedRevision" />
+    /// </exception>
+    public static IAsyncEnumerable<EventEnvelope> Read(this IEventStore eventStore,
+        string streamId,
+        ulong startRevision,
+        ulong expectedRevision,
+        CancellationToken cancellationToken = default) =>
+        eventStore.Read(Direction.Forwards, streamId, startRevision, expectedRevision, cancellationToken);
+
+    /// <summary>
+    ///     Loads events from stream <paramref name="streamId" /> up
+    ///     to and including <paramref name="count" />
+    /// </summary>
+    /// <param name="eventStore">Event store</param>
+    /// <param name="streamId">Id of stream to load events from</param>
+    /// <param name="count">Maximum number of events to read</param>
     /// <param name="cancellationToken"></param>
     /// <returns>
     ///     An <see cref="IAsyncEnumerable{T}" /> of <see cref="EventEnvelope" />
     ///     from the events in the stream in the order in which they were added,
-    ///     up to and including event at <paramref name="requiredRevision" />
+    ///     up to and including event at <paramref name="count" />
     /// </returns>
     /// <exception cref="StreamNotFoundException">Stream <paramref name="streamId" /> not found</exception>
     /// <exception cref="WrongStreamRevisionException">
-    ///     Revision of stream <paramref name="streamId" /> less than <paramref name="requiredRevision" />
+    ///     Revision of stream <paramref name="streamId" /> less than <paramref name="count" />
     /// </exception>
     public static IAsyncEnumerable<EventEnvelope> ReadPartial(this IEventStore eventStore,
         string streamId,
-        ulong requiredRevision,
+        ulong count,
         CancellationToken cancellationToken = default)
     {
         if (eventStore == null) throw new ArgumentNullException(nameof(eventStore));
-        return eventStore.ReadPartial(Direction.Forwards, streamId, requiredRevision, cancellationToken);
+        return eventStore.ReadPartial(Direction.Forwards, streamId, count, cancellationToken);
     }
 
     /// <summary>

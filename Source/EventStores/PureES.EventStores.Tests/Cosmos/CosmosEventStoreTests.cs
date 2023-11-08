@@ -4,6 +4,7 @@ using Microsoft.Extensions.Hosting;
 using PureES.Core;
 using PureES.EventStores.CosmosDB;
 using PureES.EventStores.CosmosDB.Subscription;
+using Shouldly;
 
 namespace PureES.EventStores.Tests.Cosmos;
 
@@ -19,7 +20,6 @@ public class CosmosEventStoreTests : EventStoreTestsBase
         
         return new EventStoreTestHarness(harness, harness.GetRequiredService<IEventStore>());
     }
-
 
     //TODO: Assert that restartFromBeginning actually does result in replay
     [Theory]
@@ -51,35 +51,43 @@ public class CosmosEventStoreTests : EventStoreTestsBase
     [Fact]
     public async Task Bulk_Create()
     {
-        await using var store = await GetStore();
+        await using var harness = await CreateHarness();
+        var store = harness.EventStore;
         const string stream = nameof(Bulk_Create);
         var events = Enumerable.Range(0, 10_000)
             .Select(_ => NewEvent())
             .ToList();
         var revision = (ulong) events.Count - 1;
-        Assert.False(await store.Exists(stream, CancellationToken));
-        Assert.Equal(revision, await store.Create(stream, events, CancellationToken));
-        Assert.Equal(revision, await store.GetRevision(stream, CancellationToken));
-        Assert.True(await store.Exists(stream, CancellationToken));
+        (await store.Exists(stream, CancellationToken)).ShouldBeFalse();
+        (await store.Create(stream, events, CancellationToken)).ShouldBe(revision);
+
+        (await store.GetRevision(stream, CancellationToken)).ShouldBe(revision);
+
+        (await store.Exists(stream, CancellationToken)).ShouldBeTrue();
+        
         await AssertEqual(events, d => store.Read(d, stream, CancellationToken));
-        Assert.Equal((ulong) events.Count - 1, await store.GetRevision(stream, CancellationToken));
+        (await store.GetRevision(stream, CancellationToken)).ShouldBe((ulong) events.Count - 1);
     }
     
     [Fact]
     public async Task Bulk_Create_With_Large_Event()
     {
-        await using var store = await GetStore();
+        await using var harness = await CreateHarness();
+        var store = harness.EventStore;
         const string stream = nameof(Bulk_Create_With_Large_Event);
         var events = Enumerable.Range(0, 25)
             .Select(_ => NewLargeEvent())
             .ToList();
         var revision = (ulong) events.Count - 1;
-        Assert.False(await store.Exists(stream, CancellationToken));
-        Assert.Equal(revision, await store.Create(stream, events, CancellationToken));
-        Assert.Equal(revision, await store.GetRevision(stream, CancellationToken));
-        Assert.True(await store.Exists(stream, CancellationToken));
+        (await store.Exists(stream, CancellationToken)).ShouldBeFalse();
+        (await store.Create(stream, events, CancellationToken)).ShouldBe(revision);
+
+        (await store.GetRevision(stream, CancellationToken)).ShouldBe(revision);
+
+        (await store.Exists(stream, CancellationToken)).ShouldBeTrue();
+        
         await AssertEqual(events, d => store.Read(d, stream, CancellationToken));
-        Assert.Equal((ulong) events.Count - 1, await store.GetRevision(stream, CancellationToken));
+        (await store.GetRevision(stream, CancellationToken)).ShouldBe((ulong) events.Count - 1);
     }
     
     [Theory]
@@ -87,7 +95,8 @@ public class CosmosEventStoreTests : EventStoreTestsBase
     [InlineData(false)]
     public async Task Bulk_Append(bool useOptimisticConcurrency)
     {
-        await using var store = await GetStore($"{nameof(Bulk_Append)}+{useOptimisticConcurrency}+{Environment.Version}");
+        await using var harness = await CreateHarness($"{nameof(Bulk_Append)}+{useOptimisticConcurrency}+{Environment.Version}");
+        var store = harness.EventStore;
         const string stream = nameof(Bulk_Append);
         var events = Enumerable.Range(0, 10_000)
             .Select(_ => NewEvent())
@@ -108,7 +117,8 @@ public class CosmosEventStoreTests : EventStoreTestsBase
     [InlineData(false)]
     public async Task Bulk_Append_With_Large_Event(bool useOptimisticConcurrency)
     {
-        await using var store = await GetStore($"{nameof(Bulk_Append_With_Large_Event)}+{useOptimisticConcurrency}+{Environment.Version}");
+        await using var harness = await CreateHarness($"{nameof(Bulk_Append_With_Large_Event)}+{useOptimisticConcurrency}+{Environment.Version}");
+        var store = harness.EventStore;
         const string stream = nameof(Bulk_Append_With_Large_Event);
         var events = Enumerable.Range(0, 25)
             .Select(_ => NewLargeEvent())

@@ -33,14 +33,14 @@ public class MartenEventStoreTests : EventStoreTestsBase
                 }
             });
 
-        await using var harness = await GetStore(s => s.AddSingleton(handler.Object));
+        await using var harness = await CreateHarness(s => s.AddSingleton(handler.Object));
 
         var subscription = harness.GetRequiredService<IEnumerable<IHostedService>>()
             .OfType<MartenSubscriptionToAll>().Single();
 
         await subscription.StartAsync(default); //noop
         
-        (await harness.Create(streamId, Enumerable.Range(0, 10).Select(_ => NewEvent()), default)).ShouldBe(9ul);
+        (await harness.EventStore.Create(streamId, Enumerable.Range(0, 10).Select(_ => NewEvent()), default)).ShouldBe(9ul);
         
         await subscription.StopAsync(default);
 

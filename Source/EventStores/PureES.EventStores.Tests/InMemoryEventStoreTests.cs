@@ -30,14 +30,15 @@ public class InMemoryEventStoreTests : EventStoreTestsBase
                 }
             });
 
-        await using var harness = await GetStore(s => s.AddSingleton(handler.Object));
+        await using var harness = await CreateHarness(s => s.AddSingleton(handler.Object));
+        var store = harness.EventStore;
 
         var subscription = harness.GetRequiredService<IEnumerable<IHostedService>>()
             .OfType<InMemoryEventStoreSubscriptionToAll>().Single();
         
         await subscription.StartAsync(default); //noop
         
-        (await harness.Create(streamId, Enumerable.Range(0, 10).Select(_ => NewEvent()), default)).ShouldBe(9ul);
+        (await store.Create(streamId, Enumerable.Range(0, 10).Select(_ => NewEvent()), default)).ShouldBe(9ul);
         
         await subscription.StopAsync(default);
 
@@ -58,11 +59,11 @@ public class InMemoryEventStoreTests : EventStoreTestsBase
     {
         const string streamId = nameof(HandleLoad);
 
-        await using var harness = await GetStore();
+        await using var harness = await CreateHarness();
 
         for (var i = 0; i < 10; i++)
         {
-            (await harness.Create($"{streamId}-{i}", 
+            (await harness.EventStore.Create($"{streamId}-{i}", 
                 Enumerable.Range(0, 10).Select(_ => NewEvent()), 
                 default)).ShouldBe(9ul);
         }
@@ -74,7 +75,7 @@ public class InMemoryEventStoreTests : EventStoreTestsBase
             .BuildServiceProvider()
             .GetRequiredService<IInMemoryEventStore>();
         
-        await store.Load(harness.ReadAll(Direction.Forwards), default);
+        await store.Load(harness.EventStore.ReadAll(Direction.Forwards), default);
 
         store.ReadAll().Should().HaveCount(100);
         Assert.All(Enumerable.Range(0, 10), i =>

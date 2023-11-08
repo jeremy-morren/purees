@@ -1,4 +1,5 @@
 ﻿using System.Runtime.CompilerServices;
+using JetBrains.Annotations;
 using Marten;
 using Marten.Exceptions;
 using PureES.Core;
@@ -230,6 +231,7 @@ internal class MartenEventStore : IEventStore
         ulong expectedRevision,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
+        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
         await using var session = ReadSession();
         var query = session
             .Query<MartenEvent>()
@@ -253,33 +255,103 @@ internal class MartenEventStore : IEventStore
             throw new WrongStreamRevisionException(streamId, expectedRevision, count);
     }
 
-    public async IAsyncEnumerable<EventEnvelope> ReadPartial(Direction direction, 
+    public async IAsyncEnumerable<EventEnvelope> Read(Direction direction, 
         string streamId, 
-        ulong requiredRevision,
+        ulong startRevision, 
+        ulong expectedRevision,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
+        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
+
+        if (startRevision > expectedRevision)
+            throw new ArgumentOutOfRangeException(nameof(startRevision));
+        
         await using var session = ReadSession();
         var query = session
             .Query<MartenEvent>()
-            .Where(e => e.StreamId == streamId);
+            .Where(e => e.StreamId == streamId)
+            .Where(e => e.StreamPosition >= (int)startRevision);
         query = direction switch
         {
             Direction.Forwards => query.OrderBy(e => e.StreamPosition),
             Direction.Backwards => query.OrderByDescending(e => e.StreamPosition),
             _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
         };
-        query = query.Take((int)requiredRevision + 1);
-        var count = ulong.MaxValue;
+        var count = startRevision;
         await foreach (var e in query.ToAsyncEnumerable(cancellationToken))
         {
             yield return _serializer.Deserialize(e);
             ++count;
         }
-
-        if (count == ulong.MaxValue)
+        if (count == startRevision)
             throw new StreamNotFoundException(streamId);
-        if (count != requiredRevision)
-            throw new WrongStreamRevisionException(streamId, requiredRevision, count);
+        --count;
+        if (count != expectedRevision)
+            throw new WrongStreamRevisionException(streamId, expectedRevision, count);
+    }
+
+    public async IAsyncEnumerable<EventEnvelope> ReadPartial(Direction direction, 
+        string streamId, 
+        ulong count,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
+        if (count == 0)
+            throw new ArgumentOutOfRangeException(nameof(count));
+        
+        await using var session = ReadSession();
+        var query = session
+            .Query<MartenEvent>()
+            .Where(e => e.StreamId == streamId)
+            .Take((int)count);
+        query = direction switch
+        {
+            Direction.Forwards => query.OrderBy(e => e.StreamPosition),
+            Direction.Backwards => query.OrderByDescending(e => e.StreamPosition),
+            _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
+        };
+        var read = 0ul;
+        await foreach (var e in query.ToAsyncEnumerable(cancellationToken))
+        {
+            yield return _serializer.Deserialize(e);
+            ++read;
+        }
+
+        if (read == 0)
+            throw new StreamNotFoundException(streamId);
+        if (read != count)
+            throw new WrongStreamRevisionException(streamId, count - 1, read - 1);
+    }
+
+    public async IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId, 
+        ulong startRevision, 
+        ulong requiredRevision,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
+
+        if (startRevision > requiredRevision)
+            throw new ArgumentOutOfRangeException(nameof(startRevision));
+        
+        await using var session = ReadSession();
+        var query = session
+            .Query<MartenEvent>()
+            .Where(e => e.StreamId == streamId)
+            .Where(e => e.StreamPosition >= (int)startRevision)
+            .Where(e => e.StreamPosition <= (int)requiredRevision);
+        
+        var revision = startRevision;
+        await foreach (var e in query.ToAsyncEnumerable(cancellationToken))
+        {
+            yield return _serializer.Deserialize(e);
+            ++revision;
+        }
+
+        if (revision == startRevision)
+            throw new StreamNotFoundException(streamId);
+        --revision;
+        if (revision != requiredRevision)
+            throw new WrongStreamRevisionException(streamId, requiredRevision, revision);
     }
 
     public async IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(Direction direction,
