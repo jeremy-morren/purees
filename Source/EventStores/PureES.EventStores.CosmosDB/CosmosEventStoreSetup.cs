@@ -1,7 +1,9 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using JetBrains.Annotations;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace PureES.EventStores.CosmosDB;
 
+[PublicAPI]
 public static class CosmosEventStoreSetup
 {
     public static Task InitializeEventStore(IServiceProvider services, CancellationToken ct)
