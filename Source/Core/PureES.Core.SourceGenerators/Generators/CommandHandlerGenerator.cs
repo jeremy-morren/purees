@@ -29,9 +29,6 @@ internal class CommandHandlerGenerator
     {
         _w.WriteFileHeader(false);
 
-        _w.WriteLine("using System.Threading.Tasks;"); //Enable WithCancellation extension method
-        _w.WriteLine($"using {ExternalTypes.LoggingNamespace};"); //Enable log extension methods
-
         _w.WriteLine();
         
         _w.WriteLine($"namespace {Namespace}");

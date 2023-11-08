@@ -8,9 +8,14 @@
 #nullable disable
 #pragma warning disable CS0162 //Unreachable code detected
 
+#pragma warning disable CS8019 //Unnecessary using directive
 using System;
+using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
+
 
 namespace PureES.CommandHandlers
 {

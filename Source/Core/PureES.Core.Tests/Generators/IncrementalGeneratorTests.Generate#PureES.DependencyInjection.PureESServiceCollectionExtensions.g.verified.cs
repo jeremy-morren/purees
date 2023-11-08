@@ -8,7 +8,14 @@
 #nullable enable
 #pragma warning disable CS0162 //Unreachable code detected
 
+#pragma warning disable CS8019 //Unnecessary using directive
 using System;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Linq;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
+
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -41,19 +48,19 @@ namespace PureES.DependencyInjection
                 }
             }
             // Aggregate: PureES.Core.Tests.Models.TestAggregate. Command handlers: 5
-            if (registeredServices.Contains(typeof(global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.TestAggregate>)))
+            if (registeredServices.Contains(typeof(global::PureES.Core.IAggregateFactory<global::PureES.Core.Tests.Models.TestAggregate>)))
             {
-                services.RemoveAll(typeof(global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.TestAggregate>));
+                services.RemoveAll(typeof(global::PureES.Core.IAggregateFactory<global::PureES.Core.Tests.Models.TestAggregate>));
             }
             services.Add(new ServiceDescriptor(
-                serviceType: typeof(global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.TestAggregate>),
-                implementationType: typeof(global::PureES.AggregateStores.TestAggregateAggregateStore),
+                serviceType: typeof(global::PureES.Core.IAggregateFactory<global::PureES.Core.Tests.Models.TestAggregate>),
+                implementationType: typeof(global::PureES.AggregateFactories.TestAggregateFactory),
                 lifetime: ServiceLifetime.Transient));
-            if (!registeredImplementations.Contains(typeof(global::PureES.AggregateStores.TestAggregateAggregateStore_Services)))
+            if (!registeredImplementations.Contains(typeof(global::PureES.AggregateFactories.TestAggregateFactory_Services)))
             {
                 services.Add(new ServiceDescriptor(
-                    serviceType: typeof(global::PureES.AggregateStores.TestAggregateAggregateStore_Services),
-                    implementationType: typeof(global::PureES.AggregateStores.TestAggregateAggregateStore_Services),
+                    serviceType: typeof(global::PureES.AggregateFactories.TestAggregateFactory_Services),
+                    implementationType: typeof(global::PureES.AggregateFactories.TestAggregateFactory_Services),
                     lifetime: ServiceLifetime.Transient));
             }
             if (registeredServices.Contains(typeof(global::PureES.Core.ICommandHandler<global::PureES.Core.Tests.Models.Commands.Create>)))
@@ -98,13 +105,13 @@ namespace PureES.DependencyInjection
                 lifetime: ServiceLifetime.Transient));
 
             // Aggregate: PureES.Core.Tests.Models.ImplementedGenericAggregate. Command handlers: 2
-            if (registeredServices.Contains(typeof(global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.ImplementedGenericAggregate>)))
+            if (registeredServices.Contains(typeof(global::PureES.Core.IAggregateFactory<global::PureES.Core.Tests.Models.ImplementedGenericAggregate>)))
             {
-                services.RemoveAll(typeof(global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.ImplementedGenericAggregate>));
+                services.RemoveAll(typeof(global::PureES.Core.IAggregateFactory<global::PureES.Core.Tests.Models.ImplementedGenericAggregate>));
             }
             services.Add(new ServiceDescriptor(
-                serviceType: typeof(global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.ImplementedGenericAggregate>),
-                implementationType: typeof(global::PureES.AggregateStores.ImplementedGenericAggregateAggregateStore),
+                serviceType: typeof(global::PureES.Core.IAggregateFactory<global::PureES.Core.Tests.Models.ImplementedGenericAggregate>),
+                implementationType: typeof(global::PureES.AggregateFactories.ImplementedGenericAggregateFactory),
                 lifetime: ServiceLifetime.Transient));
             if (registeredServices.Contains(typeof(global::PureES.Core.ICommandHandler<object>)))
             {

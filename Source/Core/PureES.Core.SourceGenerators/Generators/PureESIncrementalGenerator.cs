@@ -58,7 +58,7 @@ public class PureESIncrementalGenerator : IIncrementalGenerator
                         continue;
                     aggregates.Add(aggregate);
 
-                    cs = AggregateStoreGenerator.Generate(aggregate, out filename);
+                    cs = AggregateFactoryGenerator.Generate(aggregate, out filename);
                     AddSource(filename, cs);
                     foreach (var handler in aggregate.Handlers)
                     {

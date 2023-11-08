@@ -33,7 +33,7 @@ public class AggregateStoreGeneratorTests
         aggregate.When.ShouldNotBeEmpty();
         aggregate.When.Should().HaveCount(whenCount);
 
-        var result = AggregateStoreGenerator.Generate(aggregate, out var filename);
+        var result = AggregateFactoryGenerator.Generate(aggregate, out var filename);
         filename.ShouldNotBeNullOrWhiteSpace();
         result.ShouldNotBeNullOrEmpty();
         _output.WriteLine(result);

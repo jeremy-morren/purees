@@ -76,17 +76,17 @@ internal class DependencyInjectionGenerator
         {
             _w.WriteLine($"// Aggregate: {aggregate.Type.FullName}. Command handlers: {aggregate.Handlers.Length}");
             
-            //Store
-            var serviceType = $"typeof({AggregateStoreGenerator.GetInterface(aggregate)})";
+            //Factory
+            var serviceType = $"typeof({AggregateFactoryGenerator.GetInterface(aggregate)})";
 
             AddService(serviceType,
-                $"global::{AggregateStoreGenerator.Namespace}.{AggregateStoreGenerator.GetClassName(aggregate)}",
+                $"global::{AggregateFactoryGenerator.Namespace}.{AggregateFactoryGenerator.GetClassName(aggregate)}",
                 true);
             
             //Store services
             if (aggregate.When.Any(w => w.Services.Any()))
             {
-                var services = $"typeof(global::{AggregateStoreGenerator.Namespace}.{AggregateStoreGenerator.GetServicesClassName(aggregate)})";
+                var services = $"typeof(global::{AggregateFactoryGenerator.Namespace}.{AggregateFactoryGenerator.GetServicesClassName(aggregate)})";
                 _w.WriteStatement($"if (!{registeredImplementations}({services}))",
                     () => AddService(services, services, false));
             }

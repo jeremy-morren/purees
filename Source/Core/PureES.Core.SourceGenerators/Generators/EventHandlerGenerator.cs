@@ -24,9 +24,6 @@ internal class EventHandlerGenerator
     {
         _w.WriteFileHeader(false);
     
-        _w.WriteLine("using System.Linq;");
-        _w.WriteLine($"using {ExternalTypes.LoggingNamespace};");
-    
         _w.WriteLine();
         
         _w.WriteStatement($"namespace {Namespace}", () =>

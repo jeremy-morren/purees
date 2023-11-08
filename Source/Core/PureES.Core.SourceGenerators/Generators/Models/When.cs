@@ -13,4 +13,6 @@ internal record When
     public required bool IsUpdate { get; init; }
     
     public required IType[] Services { get; init; }
+
+    public bool IsAsync => Method.ReturnType != null && Method.ReturnType.IsAsync(out _);
 }

@@ -4,7 +4,7 @@ using PureES.Core.SourceGenerators.Generators.Models;
 
 namespace PureES.Core.SourceGenerators.Generators;
 
-internal class AggregateStoreGenerator
+internal class AggregateFactoryGenerator
 {
     /*
      * We have to generate an aggregate store, and a _services class
@@ -16,7 +16,7 @@ internal class AggregateStoreGenerator
     public static string Generate(Aggregate aggregate, out string filename)
     {
         filename = $"{Namespace}.{GetClassName(aggregate)}";
-        return new AggregateStoreGenerator(aggregate).GenerateInternal();
+        return new AggregateFactoryGenerator(aggregate).GenerateInternal();
     }
 
     private readonly IndentedWriter _w = new();
@@ -24,7 +24,7 @@ internal class AggregateStoreGenerator
     private readonly Aggregate _aggregate;
     private readonly IType[] _services;
     
-    private AggregateStoreGenerator(Aggregate aggregate)
+    private AggregateFactoryGenerator(Aggregate aggregate)
     {
         _aggregate = aggregate;
         _services = aggregate.When.SelectMany(w => w.Services).Distinct().ToArray();
@@ -33,10 +33,6 @@ internal class AggregateStoreGenerator
     private string GenerateInternal()
     {
         _w.WriteFileHeader(false);
-        
-        _w.WriteLine("using System.Threading.Tasks;"); //Enable WithCancellation extension method
-        _w.WriteLine("using Microsoft.Extensions.Logging;"); //Enable log extension methods
-        _w.WriteLine("using Microsoft.Extensions.DependencyInjection;"); //DI extension methods
 
         _w.WriteLine();
         
@@ -49,9 +45,7 @@ internal class AggregateStoreGenerator
         
         WriteConstructor();
         
-        WriteNonFactoryMethods();
-        
-        WriteFactory();
+        WriteFactories();
 
         _w.PopBrace();
         
@@ -82,71 +76,71 @@ internal class AggregateStoreGenerator
         _w.PopBrace();
     }
 
-    private void WriteNonFactoryMethods()
+    private void WriteFactories()
     {
-        var taskName = GetTaskType(_aggregate.Type.CSharpName);
-
-        var forwards = $"global::{typeof(Direction).FullName}.{Direction.Forwards}";
+        var services = _services.Any() ? $"{ServicesClassName} services, " : null;
+        var servicesParam =  _services.Any() ? $"services, " : null;
+        
+        const string moveNext = "await enumerator.MoveNextAsync()";
+        
+        //So that we can generate the create factory, we have to implement the MoveNext methods manually
+        
+        //Create when
+        _w.WriteMethodAttributes();
+        _w.WriteStatement(
+            $"private async Task<{_aggregate.Type.CSharpName}> CreateWhen({AsyncEnumeratorEventEnvelope} enumerator, {services}CancellationToken ct)",
+            () =>
+            {
+                //Get the first item, or throw
+                _w.WriteStatement($"if (!{moveNext})",
+                    "throw new ArgumentException(\"Stream is empty\");");
+                
+                _w.WriteLine($"{_aggregate.Type.CSharpName} current;");
+                
+                WriteWhenSwitch(_aggregate.When.Where(w => !w.IsUpdate).ToList(), "CreateWhen");
+                
+                _w.WriteLine("return current;");
+            });
+        
+        //Update when
+        _w.WriteMethodAttributes();
+        _w.WriteStatement(
+            $"private async Task<{_aggregate.Type.CSharpName}> UpdateWhen({_aggregate.Type.CSharpName} current, {AsyncEnumeratorEventEnvelope} enumerator, {services}CancellationToken ct)",
+            () =>
+            {
+                _w.WriteStatement($"while ({moveNext})", () =>
+                {
+                    WriteWhenSwitch(_aggregate.When.Where(w => w.IsUpdate).ToList(), "UpdateWhen");
+                });
+                _w.WriteLine("return current;");
+            });
+        
+        //Wrapping implementations (CreateAsync/UpdateAsync)
         
         _w.WriteMethodAttributes();
-        _w.WriteStatement($"public {taskName} Load(string streamId, CancellationToken cancellationToken)",
+        _w.WriteStatement($"public async Task<{_aggregate.Type.CSharpName}> {nameof(IAggregateFactory<object>.Create)}({AsyncEnumerableEventEnvelope} @events, CancellationToken cancellationToken)",
             () =>
             {
-                _w.WriteLine($"var @events = this._eventStore.{nameof(IEventStore.Read)}({forwards}, streamId, cancellationToken);");
-                _w.WriteLine("return Create(@events, cancellationToken);");
-            });
-
-        _w.WriteMethodAttributes();
-        _w.WriteStatement(
-            $"public {taskName} Load(string streamId, ulong expectedRevision, CancellationToken cancellationToken)",
-            () =>
-            {
-                _w.WriteLine($"var @events = this._eventStore.{nameof(IEventStore.Read)}({forwards}, streamId, expectedRevision, cancellationToken);");
-                _w.WriteLine("return Create(@events, cancellationToken);");
-            });
-        
-        _w.WriteMethodAttributes();
-        _w.WriteStatement(
-            $"public {taskName} {nameof(IAggregateStore<int>.LoadPartial)}(string streamId, ulong requiredRevision, CancellationToken cancellationToken)",
-            () =>
-            {
-                _w.WriteLine($"var @events = this._eventStore.ReadPartial({forwards}, streamId, requiredRevision, cancellationToken);");
-                _w.WriteLine("return Create(@events, cancellationToken);");
-            });
-    }
-
-    private void WriteFactory()
-    {
-        _w.WriteMethodAttributes();
-
-        _w.WriteStatement(
-            $"public async {GetTaskType(_aggregate.Type.CSharpName)} Create({AsyncEnumerableEventEnvelope} @events, CancellationToken cancellationToken)",
-            () =>
-            {
-                //So that we can generate the create method, we have to implement the MoveNext methods manually
-
+                if (_services.Any())
+                    _w.WriteLine($"var services = this._services.GetRequiredService<{ServicesClassName}>();");
                 _w.WriteStatement("await using (var enumerator = @events.GetAsyncEnumerator(cancellationToken))", () =>
                 {
-                    const string moveNext = "await enumerator.MoveNextAsync()";
-        
-                    //Get the first item, or throw
-                    _w.WriteStatement($"if (!{moveNext})",
-                        "throw new ArgumentException(\"Stream is empty\", nameof(@events));");
-
-                    _w.WriteLine($"{_aggregate.Type.CSharpName} current;");
-                    
-                    if (_services.Any())
-                        _w.WriteLine($"{ServicesClassName} services = this._services.GetRequiredService<{ServicesClassName}>();");
-                    
-                    WriteWhenSwitch(_aggregate.When.Where(w => !w.IsUpdate).ToList(), "CreateWhen");
-
-                    _w.WriteStatement($"while ({moveNext})", () =>
-                    {
-                        WriteWhenSwitch(_aggregate.When.Where(w => w.IsUpdate).ToList(), "UpdateWhen");
-                    });
-                    _w.WriteLine("return current;");
+                    _w.WriteLine($"var aggregate = await CreateWhen(enumerator, {servicesParam}cancellationToken);");
+                    _w.WriteLine($"return await UpdateWhen(aggregate, enumerator, {servicesParam}cancellationToken);");
                 });
-
+            });
+        
+        _w.WriteMethodAttributes();
+        _w.WriteStatement($"public async Task<{_aggregate.Type.CSharpName}> {nameof(IAggregateFactory<object>.Update)}({_aggregate.Type.CSharpName} aggregate, {AsyncEnumerableEventEnvelope} @events, CancellationToken cancellationToken)",
+            () =>
+            {
+                if (_services.Any())
+                    _w.WriteLine($"var services = this._services.GetRequiredService<{ServicesClassName}>();");
+                _w.WriteStatement("await using (var enumerator = @events.GetAsyncEnumerator(cancellationToken))", () =>
+                {
+                    _w.WriteLine(
+                        $"return await UpdateWhen(aggregate, enumerator, {servicesParam}cancellationToken);");
+                });
             });
     }
 
@@ -182,13 +176,11 @@ internal class AggregateStoreGenerator
 
     private void InvokeWhen(When when)
     {
-        var async = when.Method.ReturnType != null && when.Method.ReturnType.IsAsync(out _)
-            ? "await "
-            : string.Empty;
+        var @await = when.IsAsync ? "await " : string.Empty;
 
         _w.Write(when.Method.IsStatic
-            ? $"current = {async}{_aggregate.Type.CSharpName}.{when.Method.Name}("
-            : $"{async}current.{when.Method.Name}(");
+            ? $"current = {@await}{_aggregate.Type.CSharpName}.{when.Method.Name}("
+            : $"{@await}current.{when.Method.Name}(");
 
         var parameters = when.Method.Parameters.Select(p =>
         {
@@ -214,7 +206,7 @@ internal class AggregateStoreGenerator
                 return "current"; //Provide current aggregate parameter
 
             if (p.Type.IsCancellationToken())
-                return "cancellationToken";
+                return "ct";
             
             throw new NotImplementedException("Unknown parameter");
         });
@@ -248,14 +240,14 @@ internal class AggregateStoreGenerator
     
     #region Names
 
-    public const string Namespace = "PureES.AggregateStores";
+    public const string Namespace = "PureES.AggregateFactories";
     
-    public static string GetClassName(Aggregate aggregate) => $"{TypeNameHelpers.SanitizeName(aggregate.Type)}AggregateStore";
+    public static string GetClassName(Aggregate aggregate) => $"{TypeNameHelpers.SanitizeName(aggregate.Type)}Factory";
 
     public static string GetServicesClassName(Aggregate aggregate) => $"{GetClassName(aggregate)}_Services";
 
     public static string GetInterface(Aggregate aggregate) =>
-        TypeNameHelpers.GetGenericTypeName(typeof(IAggregateStore<>), aggregate.Type.CSharpName);
+        TypeNameHelpers.GetGenericTypeName(typeof(IAggregateFactory<>), aggregate.Type.CSharpName);
     
     private string ClassName => GetClassName(_aggregate);
     private string ServicesClassName => GetServicesClassName(_aggregate);
@@ -268,6 +260,7 @@ internal class AggregateStoreGenerator
         TypeNameHelpers.GetGenericTypeName(typeof(Task<>), genericParameter);
 
     private static string AsyncEnumerableEventEnvelope => ExternalTypes.IAsyncEnumerable($"global::{typeof(EventEnvelope)}");
+    private static string AsyncEnumeratorEventEnvelope => ExternalTypes.IAsyncEnumerator($"global::{typeof(EventEnvelope)}");
 
     #endregion
 }

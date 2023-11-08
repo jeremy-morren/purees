@@ -61,8 +61,6 @@ public static class PureESServiceCollectionExtensions
     /// <summary>
     /// Adds a basic <see cref="IEventTypeMap"/> that uses the fully qualified type name
     /// </summary>
-    /// <param name="builder"></param>
-    /// <returns></returns>
     public static PureESBuilder AddBasicEventTypeMap(this PureESBuilder builder)
     {
         if (builder == null) throw new ArgumentNullException(nameof(builder));
@@ -70,6 +68,19 @@ public static class PureESServiceCollectionExtensions
         builder.Services.RemoveAll(typeof(IEventTypeMap));
         builder.Services.AddSingleton<IEventTypeMap, BasicEventTypeMap>();
         
+        return builder;
+    }
+
+    /// <summary>
+    /// Adds a basic <see cref="IAggregateStore{T}"/> that does not include any snapshotting
+    /// </summary>
+    public static PureESBuilder AddBasicAggregateStore(this PureESBuilder builder)
+    {
+        if (builder == null) throw new ArgumentNullException(nameof(builder));
+
+        builder.Services.RemoveAll(typeof(IAggregateStore<>));
+        builder.Services.AddTransient(typeof(IAggregateStore<>), typeof(BasicAggregateStore<>));
+
         return builder;
     }
 

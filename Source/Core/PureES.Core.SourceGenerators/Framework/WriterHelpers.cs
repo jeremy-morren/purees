@@ -22,7 +22,16 @@ internal static class WriterHelpers
         writer.WriteLine("#pragma warning disable CS0162 //Unreachable code detected");
         writer.WriteLine();
         
+        //Common using
+        writer.WriteLine("#pragma warning disable CS8019 //Unnecessary using directive");
         writer.WriteLine("using System;");
+        writer.WriteLine("using System.Threading;");
+        writer.WriteLine("using System.Threading.Tasks;");
+        writer.WriteLine("using System.Linq;");
+        writer.WriteLine($"using {ExternalTypes.LoggingNamespace};");
+        writer.WriteLine($"using {ExternalTypes.DINamespace};");
+
+        writer.WriteLine();
     }
     
     private static Version Version => typeof(WriterHelpers).Assembly.GetName().Version;

@@ -152,19 +152,18 @@ internal class CosmosEventStore : IEventStore
         CancellationToken cancellationToken)
     {
         var queryDef = new QueryDefinition(
-                "select TOP 1 c.eventStreamPosition from c where c.eventStreamId = @streamId order by c.eventStreamPosition desc")
+                "select TOP 1 value c.eventStreamPosition from c where c.eventStreamId = @streamId order by c.eventStreamPosition desc")
             .WithParameter("@streamId", streamId);
-        using var iterator = container.GetItemQueryIterator<CosmosEvent>(queryDef,
+        using var iterator = container.GetItemQueryIterator<ulong?>(queryDef,
             requestOptions: new QueryRequestOptions()
             {
                 PartitionKey = new PartitionKey(streamId)
             });
         var result = await iterator.ReadNextAsync(cancellationToken);
-        var actual = result.Resource.FirstOrDefault()?.EventStreamPosition ?? throw new StreamNotFoundException(streamId);
+        var actual = result.Resource.FirstOrDefault() ?? throw new StreamNotFoundException(streamId);
         if (actual != expectedRevision)
             throw new WrongStreamRevisionException(streamId, expectedRevision, actual);
     }
-
 
     public async Task<ulong> Append(string streamId, IEnumerable<UncommittedEvent> events, CancellationToken cancellationToken)
     {
@@ -225,13 +224,17 @@ internal class CosmosEventStore : IEventStore
 
     public async Task<ulong> GetRevision(string streamId, CancellationToken cancellationToken)
     {
+        var container = _client.GetContainer();
         var queryDef = new QueryDefinition(
-                "select TOP 1 c.eventStreamPosition from c where c.eventStreamId = @stream order by c.eventStreamPosition desc")
-            .WithParameter("@stream", streamId);
-
-        using var iterator = CreateIterator(streamId, queryDef);
+                "select TOP 1 value c.eventStreamPosition from c where c.eventStreamId = @streamId order by c.eventStreamPosition desc")
+            .WithParameter("@streamId", streamId);
+        using var iterator = container.GetItemQueryIterator<ulong?>(queryDef,
+            requestOptions: new QueryRequestOptions()
+            {
+                PartitionKey = new PartitionKey(streamId)
+            });
         var result = await iterator.ReadNextAsync(cancellationToken);
-        return result.Resource.FirstOrDefault()?.EventStreamPosition ?? throw new StreamNotFoundException(streamId);
+        return result.Resource.FirstOrDefault() ?? throw new StreamNotFoundException(streamId);
     }
 
     public async Task<ulong> GetRevision(string streamId, ulong expectedRevision, CancellationToken cancellationToken)

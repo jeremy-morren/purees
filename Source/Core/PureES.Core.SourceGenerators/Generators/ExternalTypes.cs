@@ -13,6 +13,7 @@ public static class ExternalTypes
     public const string IAsyncEnumerableBase = "System.Collections.Generic.IAsyncEnumerable";
     
     public static string IAsyncEnumerable(string tOut) => $"global::{IAsyncEnumerableBase}<{tOut}>";
+    public static string IAsyncEnumerator(string tOut) => $"global::System.Collections.Generic.IAsyncEnumerator<{tOut}>";
     
     public const string LoggingNamespace = "Microsoft.Extensions.Logging";
     
