@@ -24,7 +24,7 @@ public class EventEnvelopeTests
             Rand.NextULong(),
             DateTime.Now,
             Events.Created.New(),
-            new Lazy<object?>(() => Object)));
+            Object));
     }
 
     private static EventEnvelope NewEnvelope() => new (
@@ -32,7 +32,7 @@ public class EventEnvelopeTests
         Rand.NextULong(),
         DateTime.UtcNow,
         Events.Created.New(),
-        new Lazy<object?>(() => Object));
+        Object);
 
     private static readonly object Object = new();
 }

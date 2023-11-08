@@ -19,8 +19,8 @@ public class EventStreamBlockTests
             .Select(i => new EventEnvelope($"{i / streamSize}",
                 (ulong) (i % streamSize),
                 DateTime.UtcNow,
-                new Lazy<object>(() => new object(), true),
-                new Lazy<object?>(() => null)))
+                new object(),
+                null))
             .ToList();
 
         var completions = envelopes

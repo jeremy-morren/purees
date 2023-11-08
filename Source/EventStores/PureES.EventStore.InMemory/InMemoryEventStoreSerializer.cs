@@ -18,16 +18,12 @@ internal class InMemoryEventStoreSerializer
 
     public EventEnvelope Deserialize(EventRecord record)
     {
-        var metadata = new Lazy<object?>(() => 
-            record.Metadata?.Deserialize(_options.MetadataType, _options.JsonSerializerOptions),
-            true);
-        var @event = new Lazy<object>(() =>
-            {
-                var type = _typeMap.GetCLRType(record.EventType);
-                return record.Event.Deserialize(type, _options.JsonSerializerOptions)
-                       ?? throw new InvalidOperationException($"Event data is null for event {record.StreamId}/{record.StreamPos}");
-            }, 
-            true);
+        var metadata = record.Metadata?.Deserialize(_options.MetadataType, _options.JsonSerializerOptions);
+        
+        var eventType = _typeMap.GetCLRType(record.EventType);
+        var @event = record.Event.Deserialize(eventType, _options.JsonSerializerOptions) 
+                     ?? throw new InvalidOperationException($"Event data is null for event {record.StreamId}/{record.StreamPos}");
+        
         return new EventEnvelope(record.StreamId,
             (ulong)record.StreamPos,
             record.Timestamp,

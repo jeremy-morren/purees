@@ -1,13 +1,11 @@
-﻿using System;
-
-namespace PureES.Core.Tests.Models;
+﻿namespace PureES.Core.Tests.Models;
 
 public static class Events
 {
     public record Created(TestAggregateId Id, int Value)
     {
         public bool Equals(Commands.Create cmd) => cmd.Id == Id && cmd.Value == Value;
-        public static Lazy<object> New() => new(() => new Created(TestAggregateId.New(), Rand.NextInt()), true);
+        public static Created New() => new (TestAggregateId.New(), Rand.NextInt());
     }
 
     public record Updated(TestAggregateId Id, int Value)

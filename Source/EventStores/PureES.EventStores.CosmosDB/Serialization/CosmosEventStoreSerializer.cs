@@ -17,16 +17,11 @@ internal class CosmosEventStoreSerializer
 
     public EventEnvelope Deserialize(CosmosEvent cosmosEvent)
     {
-        const LazyThreadSafetyMode threadMode = LazyThreadSafetyMode.ExecutionAndPublication;
-        var metadata = new Lazy<object?>(() => 
-                cosmosEvent.Metadata?.Deserialize(_options.MetadataType, _options.JsonSerializerOptions), 
-            threadMode);
-        var @event = new Lazy<object>(() =>
-        {
-            var type = _typeMap.GetCLRType(cosmosEvent.EventType);
-            return cosmosEvent.Event?.Deserialize(type, _options.JsonSerializerOptions)
-                   ?? throw new InvalidOperationException($"Event data is null for event {cosmosEvent.Id}");
-        }, threadMode);
+        var metadata = cosmosEvent.Metadata?.Deserialize(_options.MetadataType, _options.JsonSerializerOptions);
+        
+        var eventType = _typeMap.GetCLRType(cosmosEvent.EventType);
+        var @event = cosmosEvent.Event?.Deserialize(eventType, _options.JsonSerializerOptions) 
+                     ?? throw new InvalidOperationException($"Event data is null for event {cosmosEvent.Id}");
         return new EventEnvelope(cosmosEvent.EventStreamId,
             cosmosEvent.EventStreamPosition,
             cosmosEvent.Created,

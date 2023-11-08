@@ -11,13 +11,10 @@ namespace PureES.Core;
 [PublicAPI]
 public class EventEnvelope : IEquatable<EventEnvelope>
 {
-    internal readonly Lazy<object> _event;
-    internal readonly Lazy<object?> _metadata;
-
     public EventEnvelope(EventEnvelope other)
     {
-        _event = other._event;
-        _metadata = other._metadata;
+        Event = other.Event;
+        Metadata = other.Metadata;
         StreamId = other.StreamId;
         StreamPosition = other.StreamPosition;
         Timestamp = other.Timestamp;
@@ -26,11 +23,11 @@ public class EventEnvelope : IEquatable<EventEnvelope>
     public EventEnvelope(string streamId, 
         ulong streamPosition, 
         DateTime timestamp,
-        Lazy<object> @event,
-        Lazy<object?> metadata)
+        object @event,
+        object? metadata)
     {
-        _event = @event;
-        _metadata = metadata;
+        Event = @event ?? throw new ArgumentNullException(nameof(@event));
+        Metadata = metadata;
         StreamId = streamId ?? throw new ArgumentNullException(nameof(streamId));
         StreamPosition = streamPosition;
         Timestamp = timestamp;
@@ -48,10 +45,10 @@ public class EventEnvelope : IEquatable<EventEnvelope>
     public DateTime Timestamp { get; }
 
     /// <summary>The underlying event</summary>
-    public object Event => _event.Value;
+    public object Event { get; }
 
     /// <summary>The metadata pertaining to the event</summary>
-    public object? Metadata => _metadata.Value;
+    public object? Metadata { get; }
 
     public override string? ToString() => new
     {
@@ -116,28 +113,25 @@ public class EventEnvelope : IEquatable<EventEnvelope>
 public class EventEnvelope<TEvent, TMetadata> : IEquatable<EventEnvelope<TEvent, TMetadata>>, IEquatable<EventEnvelope>
     where TEvent : notnull
 {
-    private readonly Lazy<TEvent> _event;
-    private readonly Lazy<TMetadata> _metadata;
-    
     public EventEnvelope(EventEnvelope source)
     {
         StreamId = source.StreamId;
         StreamPosition = source.StreamPosition;
         Timestamp = source.Timestamp;
-        _event = new Lazy<TEvent>(() =>
+        
+        if (source.Event == null)
+            throw new ArgumentException($"{nameof(source.Event)} is null");
+        if (source.Event is not TEvent e)
+            throw new ArgumentException($"Could not convert {source.Event.GetType()} to {typeof(TEvent)}");
+        Event = e;
+        
+        if (source.Metadata is not TMetadata m)
         {
-            if (source.Event == null)
-                throw new ArgumentException($"{nameof(source.Event)} is null");
-            if (source.Event is not TEvent e)
-                throw new ArgumentException($"Could not convert {source.Event.GetType()} to {typeof(TEvent)}");
-            return e;
-        }, LazyThreadSafetyMode.ExecutionAndPublication);
-        _metadata = new Lazy<TMetadata>(() =>
-        {
-            if (source.Metadata is TMetadata m) return m;
             var type = source.Metadata?.GetType().ToString() ?? "null";
             throw new ArgumentException($"Could not convert {type} to {typeof(TMetadata)}");
-        }, LazyThreadSafetyMode.ExecutionAndPublication);
+        }
+
+        Metadata = m;
     }
 
     public EventEnvelope(EventEnvelope<TEvent, TMetadata> source)
@@ -146,8 +140,8 @@ public class EventEnvelope<TEvent, TMetadata> : IEquatable<EventEnvelope<TEvent,
         StreamId = source.StreamId;
         StreamPosition = source.StreamPosition;
         Timestamp = source.Timestamp;
-        _event = source._event;
-        _metadata = source._metadata;
+        Event = source.Event;
+        Metadata = source.Metadata;
     }
 
     /// <summary>
@@ -173,12 +167,12 @@ public class EventEnvelope<TEvent, TMetadata> : IEquatable<EventEnvelope<TEvent,
     /// <summary>
     ///     The underlying event
     /// </summary>
-    public TEvent Event => _event.Value;
+    public TEvent Event { get; }
 
     /// <summary>
     ///     The metadata pertaining to the event
     /// </summary>
-    public TMetadata Metadata => _metadata.Value;
+    public TMetadata Metadata { get; }
 
     public override string? ToString() => new 
     {

@@ -17,16 +17,10 @@ internal class MartenEventSerializer
 
     public EventEnvelope Deserialize(MartenEvent marvenEvent)
     {
-        const LazyThreadSafetyMode threadMode = LazyThreadSafetyMode.ExecutionAndPublication;
-        var metadata = new Lazy<object?>(() => 
-                marvenEvent.Metadata?.Deserialize(_options.MetadataType, _options.JsonSerializerOptions), 
-            threadMode);
-        var @event = new Lazy<object>(() =>
-        {
-            var type = _typeMap.GetCLRType(marvenEvent.EventType);
-            return marvenEvent.Event?.Deserialize(type, _options.JsonSerializerOptions)
-                   ?? throw new InvalidOperationException($"Event data is null for event {marvenEvent.Id}");
-        }, threadMode);
+        var metadata = marvenEvent.Metadata?.Deserialize(_options.MetadataType, _options.JsonSerializerOptions);
+        var eventType = _typeMap.GetCLRType(marvenEvent.EventType);
+        var @event = marvenEvent.Event?.Deserialize(eventType, _options.JsonSerializerOptions) 
+                     ?? throw new InvalidOperationException($"Event data is null for event {marvenEvent.Id}");
         return new EventEnvelope(marvenEvent.StreamId,
             (ulong)marvenEvent.StreamPosition,
             marvenEvent.Timestamp.UtcDateTime,
