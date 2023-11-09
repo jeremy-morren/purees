@@ -221,25 +221,25 @@ public interface IEventStore
 
     /// <summary>
     ///     Loads events from stream <paramref name="streamId" /> up
-    ///     to and including <paramref name="requiredRevision" />
+    ///     to and including <paramref name="endRevision" />
     /// </summary>
     /// <param name="streamId">Id of stream to load events from</param>
     /// <param name="startRevision">Revision to start reading from.</param>
-    /// <param name="requiredRevision">Minimum revision that stream must be at</param>
+    /// <param name="endRevision">Minimum revision that stream must be at</param>
     /// <param name="cancellationToken"></param>
     /// <returns>
     ///     An <see cref="IAsyncEnumerable{T}" /> of <see cref="EventEnvelope" />
     ///     from the events in the stream in the order in which they were added,
-    ///     up to and including event at <paramref name="requiredRevision" />
+    ///     up to and including event at <paramref name="endRevision" />
     /// </returns>
-    /// <exception cref="ArgumentOutOfRangeException"><paramref name="startRevision" /> &gt; <paramref name="requiredRevision"/></exception>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="startRevision" /> &gt; <paramref name="endRevision"/></exception>
     /// <exception cref="StreamNotFoundException">Stream <paramref name="streamId" /> not found</exception>
     /// <exception cref="WrongStreamRevisionException">
-    ///     Revision of stream <paramref name="streamId" /> less than <paramref name="requiredRevision" />
+    ///     Revision of stream <paramref name="streamId" /> less than <paramref name="endRevision" />
     /// </exception>
     public IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId,
         ulong startRevision,
-        ulong requiredRevision,
+        ulong endRevision,
         CancellationToken cancellationToken = default);
 
     /// <summary>

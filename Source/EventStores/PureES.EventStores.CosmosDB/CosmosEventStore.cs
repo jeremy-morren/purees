@@ -441,24 +441,24 @@ internal class CosmosEventStore : IEventStore
 
     public async IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId,
         ulong startRevision, 
-        ulong requiredRevision,
+        ulong endRevision,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         if (streamId == null) throw new ArgumentNullException(nameof(streamId));
         
-        if (requiredRevision == ulong.MaxValue)
-            throw new ArgumentOutOfRangeException(nameof(requiredRevision));
+        if (endRevision == ulong.MaxValue)
+            throw new ArgumentOutOfRangeException(nameof(endRevision));
 
-        if (startRevision > requiredRevision)
+        if (startRevision > endRevision)
             throw new ArgumentOutOfRangeException(nameof(startRevision));
 
         var queryDef = new QueryDefinition(
-            "select * from c where c.eventStreamId = @streamId and c.eventStreamPosition >= @start and c.eventStreamPosition <= @required ORDER BY c.eventStreamPosition");
+            "select * from c where c.eventStreamId = @streamId and c.eventStreamPosition >= @start and c.eventStreamPosition <= @end ORDER BY c.eventStreamPosition");
         
         queryDef = queryDef
             .WithParameter("@streamId", streamId)
             .WithParameter("@start", startRevision)
-            .WithParameter("@required", requiredRevision);
+            .WithParameter("@end", endRevision);
 
         using var iterator = CreateIterator(streamId, queryDef);
         var revision = startRevision;
@@ -469,7 +469,7 @@ internal class CosmosEventStore : IEventStore
             {
                 yield return _serializer.Deserialize(e);
                 ++revision;
-                if (requiredRevision == revision)
+                if (revision > endRevision)
                     yield break;
             }
         }
@@ -477,8 +477,8 @@ internal class CosmosEventStore : IEventStore
         if (revision == startRevision)
             throw new StreamNotFoundException(streamId);
         --revision; //The revision will have advanced too far
-        if (revision < requiredRevision)
-            throw new WrongStreamRevisionException(streamId, requiredRevision, revision);
+        if (revision < endRevision)
+            throw new WrongStreamRevisionException(streamId, endRevision, revision);
     }
 
     public async IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(Direction direction, 

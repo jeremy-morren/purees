@@ -86,7 +86,7 @@ internal class CosmosEventStoreClient
                 .Path("/metadata/*")
             .Attach()
             .WithIncludedPaths()
-                .Path("/*")
+                .Path("/")
             .Attach();
         
         //Note: For reading, we need OrderBy as follows:

@@ -223,6 +223,11 @@ public abstract class EventStoreTestsBase
         
         await AssertEqual(events.TakeLast(3).Reverse(), store.ReadPartial(Direction.Backwards, stream, 3, CancellationToken));
         
+        
+        await AssertEqual(events.Take(3), store.ReadSlice(stream, 0, 2, CancellationToken));
+        
+        await AssertEqual(events.Skip(4).Take(2), store.ReadSlice(stream, 4, 5, CancellationToken));
+        
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => 
             store.ReadSlice(stream, 3, 2, CancellationToken)
                 .ToListAsync().AsTask());

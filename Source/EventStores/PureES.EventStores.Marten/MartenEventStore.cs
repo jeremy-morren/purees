@@ -325,12 +325,12 @@ internal class MartenEventStore : IEventStore
 
     public async IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId, 
         ulong startRevision, 
-        ulong requiredRevision,
+        ulong endRevision,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         if (streamId == null) throw new ArgumentNullException(nameof(streamId));
 
-        if (startRevision > requiredRevision)
+        if (startRevision > endRevision)
             throw new ArgumentOutOfRangeException(nameof(startRevision));
         
         await using var session = ReadSession();
@@ -338,7 +338,7 @@ internal class MartenEventStore : IEventStore
             .Query<MartenEvent>()
             .Where(e => e.StreamId == streamId)
             .Where(e => e.StreamPosition >= (int)startRevision)
-            .Where(e => e.StreamPosition <= (int)requiredRevision);
+            .Where(e => e.StreamPosition <= (int)endRevision);
         
         var revision = startRevision;
         await foreach (var e in query.ToAsyncEnumerable(cancellationToken))
@@ -350,8 +350,8 @@ internal class MartenEventStore : IEventStore
         if (revision == startRevision)
             throw new StreamNotFoundException(streamId);
         --revision;
-        if (revision != requiredRevision)
-            throw new WrongStreamRevisionException(streamId, requiredRevision, revision);
+        if (revision != endRevision)
+            throw new WrongStreamRevisionException(streamId, endRevision, revision);
     }
 
     public async IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(Direction direction,

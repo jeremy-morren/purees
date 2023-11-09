@@ -289,22 +289,22 @@ internal class InMemoryEventStore : IInMemoryEventStore
 
     public IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId, 
         ulong startRevision, 
-        ulong requiredRevision,
+        ulong endRevision,
         CancellationToken cancellationToken = default)
     {
         if (streamId == null) throw new ArgumentNullException(nameof(streamId));
 
-        if (startRevision > requiredRevision)
+        if (startRevision > endRevision)
             throw new ArgumentOutOfRangeException(nameof(startRevision));
         
         if (!_streams.TryGetValue(streamId, out var stream))
             throw new StreamNotFoundException(streamId);
 
         var indexes = stream.Indexes;
-        if (indexes.Count <= (int)requiredRevision)
-            throw new WrongStreamRevisionException(streamId, requiredRevision, (ulong)indexes.Count - 1);
+        if (indexes.Count <= (int)endRevision)
+            throw new WrongStreamRevisionException(streamId, endRevision, (ulong)indexes.Count - 1);
         
-        return ToAsyncEnumerable(indexes.Take((int)requiredRevision + 1).Skip((int)startRevision));
+        return ToAsyncEnumerable(indexes.Take((int)endRevision + 1).Skip((int)startRevision));
     }
 
     public IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(Direction direction, 
