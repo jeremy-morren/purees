@@ -411,14 +411,19 @@ internal class InMemoryEventStore : IInMemoryEventStore
             {
                 if (_streams.TryGetValue(e.StreamId, out var stream))
                 {
+                    var end = _records[stream.Indexes[^1]];
+                    if (e.StreamPos != end.StreamPos + 1)
+                        throw new InvalidOperationException($"Stream {e.StreamId} is not sequential");
                     stream.Indexes = stream.Indexes.Add(_records.Count);
                 }
                 else
                 {
+                    if (e.StreamPos != 0)
+                        throw new InvalidOperationException($"Stream {e.StreamId} does not start at 0");
                     _streams[e.StreamId] = new IndexList
                     {
                         Indexes = ImmutableList.Create(_records.Count)
-                    };;
+                    };
                 }
                 _records = _records.Add(e);
             }

@@ -86,7 +86,7 @@ internal class CosmosEventStoreClient
                 .Path("/metadata/*")
             .Attach()
             .WithIncludedPaths()
-                .Path("/")
+                .Path("/*")
             .Attach();
         
         //Note: For reading, we need OrderBy as follows:
@@ -94,37 +94,41 @@ internal class CosmosEventStoreClient
 
         //We also need to be able to filter by /eventType
 
-        //Read Single stream
-        builder = builder.WithCompositeIndex()
-            .Path("/eventStreamId", CompositePathSortOrder.Ascending)
-            .Path("/eventStreamPosition", CompositePathSortOrder.Ascending)
-            .Attach();
+        //Because we want to be able to read backwards, we need to do all indexes both ways
+        foreach (var order in new[] { CompositePathSortOrder.Ascending, CompositePathSortOrder.Descending })
+        {
+            //Read Single stream
+            builder = builder.WithCompositeIndex()
+                .Path("/eventStreamId", order)
+                .Path("/eventStreamPosition", order)
+                .Attach();
 
-        //Read All
-        builder = builder.WithCompositeIndex()
-            .Path("/_ts", CompositePathSortOrder.Ascending)
-            .Path("/created", CompositePathSortOrder.Ascending)
-            .Path("/eventStreamId", CompositePathSortOrder.Ascending)
-            .Path("/eventStreamPosition", CompositePathSortOrder.Ascending)
-            .Attach();
+            //Read All
+            builder = builder.WithCompositeIndex()
+                .Path("/_ts", order)
+                .Path("/created", order)
+                .Path("/eventStreamId", order)
+                .Path("/eventStreamPosition", order)
+                .Attach();
 
-        //Read multiple streams
-        builder = builder.WithCompositeIndex()
-            .Path("/eventStreamId", CompositePathSortOrder.Ascending)
-            .Path("/_ts", CompositePathSortOrder.Ascending)
-            .Path("/created", CompositePathSortOrder.Ascending)
-            .Path("/eventStreamPosition", CompositePathSortOrder.Ascending)
-            .Attach();
+            //Read multiple streams
+            builder = builder.WithCompositeIndex()
+                .Path("/eventStreamId", order)
+                .Path("/_ts", order)
+                .Path("/created", order)
+                .Path("/eventStreamPosition", order)
+                .Attach();
 
-        //Read by event type
-        builder = builder.WithCompositeIndex()
-            .Path("/eventType", CompositePathSortOrder.Ascending)
-            .Path("/_ts", CompositePathSortOrder.Ascending)
-            .Path("/created", CompositePathSortOrder.Ascending)
-            .Path("/eventStreamId", CompositePathSortOrder.Ascending)
-            .Path("/eventStreamPosition", CompositePathSortOrder.Ascending)
-            .Attach();
-
+            //Read by event type
+            builder = builder.WithCompositeIndex()
+                .Path("/eventType", order)
+                .Path("/_ts", order)
+                .Path("/created", order)
+                .Path("/eventStreamId", order)
+                .Path("/eventStreamPosition", order)
+                .Attach();
+        }
+        
         return builder.Attach();
     }
 }

@@ -1,7 +1,9 @@
-﻿using PureES.EventBus;
+﻿using JetBrains.Annotations;
+using PureES.EventBus;
 
 namespace PureES.EventStores.CosmosDB.Subscription;
 
+[PublicAPI]
 public class CosmosEventStoreSubscriptionOptions
 {
     /// <summary>
