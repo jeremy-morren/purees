@@ -1,4 +1,5 @@
-﻿using FluentAssertions;
+﻿using System.IO.Compression;
+using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
@@ -76,6 +77,46 @@ public class InMemoryEventStoreTests : EventStoreTestsBase
             .GetRequiredService<IInMemoryEventStore>();
         
         await store.Load(harness.EventStore.ReadAll(Direction.Forwards), default);
+
+        store.ReadAll().Should().HaveCount(100);
+        Assert.All(Enumerable.Range(0, 10), i =>
+        {
+            var sId = $"{streamId}-{i}";
+            store.Exists(sId, default).Result.ShouldBeTrue();
+            
+            var events = store.Read(sId).ToListAsync().AsTask().Result;
+            events.Should().HaveCount(10);
+            events.ShouldAllBe(e => e.StreamId == sId);
+            events.Should().BeInAscendingOrder(e => e.StreamPosition);
+        });
+    }
+
+    [Fact]
+    public async Task Serialize()
+    {
+        const string streamId = nameof(Serialize);
+
+        await using var harness = await CreateHarness();
+        
+        var store = ((IInMemoryEventStore)harness.EventStore);
+
+        for (var i = 0; i < 10; i++)
+        {
+            (await store.Create($"{streamId}-{i}", 
+                Enumerable.Range(0, 10).Select(_ => NewEvent()), 
+                default)).ShouldBe(9ul);
+        }
+
+        var serialized = store.Serialize();
+        
+        store = new ServiceCollection()
+            .AddInMemoryEventStore()
+            .AddInMemorySubscriptionToAll()
+            .AddSingleton<IEventTypeMap, BasicEventTypeMap>()
+            .BuildServiceProvider()
+            .GetRequiredService<IInMemoryEventStore>();
+
+        store.Deserialize(serialized);
 
         store.ReadAll().Should().HaveCount(100);
         Assert.All(Enumerable.Range(0, 10), i =>

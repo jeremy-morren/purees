@@ -45,6 +45,8 @@ internal class AggregateFactoryGenerator
         
         WriteConstructor();
         
+        _w.WriteLine($"private static readonly global::{typeof(Type).FullName} AggregateType = typeof({_aggregate.Type.CSharpName});");
+        
         WriteFactories();
 
         _w.PopBrace();
@@ -88,7 +90,7 @@ internal class AggregateFactoryGenerator
         //Create when
         _w.WriteMethodAttributes();
         _w.WriteStatement(
-            $"private async Task<{_aggregate.Type.CSharpName}> CreateWhen({AsyncEnumeratorEventEnvelope} enumerator, {services}CancellationToken ct)",
+            $"private async Task<{_aggregate.Type.CSharpName}> CreateWhen(string streamId, {AsyncEnumeratorEventEnvelope} enumerator, {services}CancellationToken ct)",
             () =>
             {
                 //Get the first item, or throw
@@ -105,7 +107,7 @@ internal class AggregateFactoryGenerator
         //Update when
         _w.WriteMethodAttributes();
         _w.WriteStatement(
-            $"private async Task<{_aggregate.Type.CSharpName}> UpdateWhen({_aggregate.Type.CSharpName} current, {AsyncEnumeratorEventEnvelope} enumerator, {services}CancellationToken ct)",
+            $"private async Task<{_aggregate.Type.CSharpName}> UpdateWhen(string streamId, {_aggregate.Type.CSharpName} current, {AsyncEnumeratorEventEnvelope} enumerator, {services}CancellationToken ct)",
             () =>
             {
                 _w.WriteStatement($"while ({moveNext})", () =>
@@ -118,28 +120,43 @@ internal class AggregateFactoryGenerator
         //Wrapping implementations (CreateAsync/UpdateAsync)
         
         _w.WriteMethodAttributes();
-        _w.WriteStatement($"public async Task<{_aggregate.Type.CSharpName}> {nameof(IAggregateFactory<object>.Create)}({AsyncEnumerableEventEnvelope} @events, CancellationToken cancellationToken)",
+        _w.WriteStatement($"public async Task<{_aggregate.Type.CSharpName}> {nameof(IAggregateFactory<object>.Create)}(string streamId, {AsyncEnumerableEventEnvelope} @events, CancellationToken cancellationToken)",
             () =>
             {
-                if (_services.Any())
-                    _w.WriteLine($"var services = this._services.GetRequiredService<{ServicesClassName}>();");
-                _w.WriteStatement("await using (var enumerator = @events.GetAsyncEnumerator(cancellationToken))", () =>
+                _w.WriteStatement("try", () =>
                 {
-                    _w.WriteLine($"var aggregate = await CreateWhen(enumerator, {servicesParam}cancellationToken);");
-                    _w.WriteLine($"return await UpdateWhen(aggregate, enumerator, {servicesParam}cancellationToken);");
+                    if (_services.Any())
+                        _w.WriteLine($"var services = this._services.GetRequiredService<{ServicesClassName}>();");
+                    _w.WriteStatement("await using (var enumerator = @events.GetAsyncEnumerator(cancellationToken))", () =>
+                    {
+                        _w.WriteLine($"var current = await CreateWhen(streamId, enumerator, {servicesParam}cancellationToken);");
+                        _w.WriteLine($"return await UpdateWhen(streamId, current, enumerator, {servicesParam}cancellationToken);");
+                    });
+                });
+                _w.WriteStatement("catch (Exception ex)", () =>
+                {
+                    ThrowRehydrationException("ex");
                 });
             });
         
         _w.WriteMethodAttributes();
-        _w.WriteStatement($"public async Task<{_aggregate.Type.CSharpName}> {nameof(IAggregateFactory<object>.Update)}({_aggregate.Type.CSharpName} aggregate, {AsyncEnumerableEventEnvelope} @events, CancellationToken cancellationToken)",
+        _w.WriteStatement($"public async Task<{_aggregate.Type.CSharpName}> {nameof(IAggregateFactory<object>.Update)}(string streamId, {_aggregate.Type.CSharpName} current, {AsyncEnumerableEventEnvelope} @events, CancellationToken cancellationToken)",
             () =>
             {
-                if (_services.Any())
-                    _w.WriteLine($"var services = this._services.GetRequiredService<{ServicesClassName}>();");
-                _w.WriteStatement("await using (var enumerator = @events.GetAsyncEnumerator(cancellationToken))", () =>
+                _w.WriteStatement("try", () =>
                 {
-                    _w.WriteLine(
-                        $"return await UpdateWhen(aggregate, enumerator, {servicesParam}cancellationToken);");
+                    if (_services.Any())
+                        _w.WriteLine($"var services = this._services.GetRequiredService<{ServicesClassName}>();");
+                
+                    _w.WriteStatement("await using (var enumerator = @events.GetAsyncEnumerator(cancellationToken))", () =>
+                    {
+                        _w.WriteLine(
+                            $"return await UpdateWhen(streamId, current, enumerator, {servicesParam}cancellationToken);");
+                    });
+                });
+                _w.WriteStatement("catch (Exception ex)", () =>
+                {
+                    ThrowRehydrationException("ex");
                 });
             });
     }
@@ -160,18 +177,21 @@ internal class AggregateFactoryGenerator
 
             _w.WriteStatement("default:", () =>
             {
-                var getName = $"global::{typeof(BasicEventTypeMap).FullName}.{nameof(BasicEventTypeMap.GetTypeName)}";
                 //Fallthrough error
-                _w.WriteLine($"var eventType = {getName}(enumerator.Current.Event.GetType());");
-                _w.WriteLine($"var aggregateType = {getName}(typeof({_aggregate.Type.CSharpName}));");
-                _w.WriteLine(
-                    $"throw new NotImplementedException($\"No suitable {fallthroughName} method found for event '{{eventType}}' on '{{aggregateType}}'\");");
+                _w.WriteLine($"var eventType = {GetTypeName}(enumerator.Current.Event.GetType());");
+                ThrowRehydrationException($"$\"No suitable {fallthroughName} method found for event '{{eventType}}'\"");
             });
         });
         
         //catch-all handlers
         foreach (var w in _aggregate.When.Where(w => w.Event == null && !w.Method.IsStatic))
             InvokeWhen(w);
+    }
+
+    private void ThrowRehydrationException(string parameter)
+    {
+        var type = $"global::{typeof(RehydrationException).FullName}";
+        _w.WriteLine($"throw new {type}(streamId, AggregateType, {parameter});");
     }
 
     private void InvokeWhen(When when)
@@ -252,6 +272,8 @@ internal class AggregateFactoryGenerator
     private string ClassName => GetClassName(_aggregate);
     private string ServicesClassName => GetServicesClassName(_aggregate);
     private string Interface => GetInterface(_aggregate);
+    
+    private static string GetTypeName => $"global::{typeof(BasicEventTypeMap).FullName}.{nameof(BasicEventTypeMap.GetTypeName)}";
 
     private static string EventStoreType => $"global::{typeof(IEventStore).FullName}";
     private static string ServiceProviderType => $"global::{typeof(IServiceProvider).FullName}";

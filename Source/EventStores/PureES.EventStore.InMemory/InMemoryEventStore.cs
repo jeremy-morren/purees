@@ -1,6 +1,8 @@
 ﻿using System.Collections.Concurrent;
 using System.Collections.Immutable;
+using System.IO.Compression;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Internal;
 using PureES.Core;
@@ -392,16 +394,9 @@ internal class InMemoryEventStore : IInMemoryEventStore
     #endregion
     
     #region Load
-    
-    public async Task Load(IAsyncEnumerable<EventEnvelope> envelopes, CancellationToken ct)
+
+    private void LoadRecords(List<EventRecord> records)
     {
-        var records = await envelopes.Select(_serializer.Serialize).ToListAsync(ct);
-        
-        records = records
-            .OrderBy(r => r.Timestamp)
-            .ThenBy(r => r.StreamPos)
-            .ToList();
-        
         lock (_mutex)
         {
             if (_records.Count > 0)
@@ -430,5 +425,55 @@ internal class InMemoryEventStore : IInMemoryEventStore
         }
     }
     
+    public async Task Load(IAsyncEnumerable<EventEnvelope> envelopes, CancellationToken ct)
+    {
+        var records = await envelopes.Select(_serializer.Serialize).ToListAsync(ct);
+        
+        records = records
+            .OrderBy(r => r.Timestamp)
+            .ThenBy(r => r.StreamPos)
+            .ToList();
+        
+        LoadRecords(records);
+    }
+
+    public IReadOnlyList<JsonElement> Serialize()
+    {
+        return _records.Select(e => JsonSerializer.SerializeToElement(e)).ToList();
+    }
+
+    public void Deserialize(IEnumerable<JsonElement> events)
+    {
+        if (events == null) throw new ArgumentNullException(nameof(events));
+        var records = events.Select(e => e.Deserialize<EventRecord>()!).ToList();
+        if (records == null)
+            throw new ArgumentOutOfRangeException(nameof(events));
+        LoadRecords(records);
+    }
+
+    //For serializing, we just save a JSON array of EventRecords
+
+    public async Task Save(Stream stream, CompressionLevel compressionLevel, CancellationToken ct = default)
+    {
+        await using var brotli = new BrotliStream(stream, compressionLevel, leaveOpen: true);
+        await JsonSerializer.SerializeAsync(brotli, _records, cancellationToken: ct);
+    }
+
+    public async Task Load(Stream stream, CancellationToken ct = default)
+    {
+        try
+        {
+            await using var brotli = new BrotliStream(stream, CompressionMode.Decompress, leaveOpen: true);
+            var records = await JsonSerializer.DeserializeAsync<List<EventRecord>>(brotli, cancellationToken: ct);
+            if (records == null)
+                throw new ArgumentException("Stream does not contain a valid JSON array of EventRecords", nameof(stream));
+            LoadRecords(records);
+        }
+        catch (Exception e)
+        {
+            throw new ArgumentException("Stream does not contain a valid JSON array of EventRecords", nameof(stream), e);
+        }
+    }
+
     #endregion
 }

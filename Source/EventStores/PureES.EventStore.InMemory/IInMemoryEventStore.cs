@@ -1,4 +1,6 @@
-﻿using JetBrains.Annotations;
+﻿using System.IO.Compression;
+using System.Text.Json;
+using JetBrains.Annotations;
 using PureES.Core;
 
 namespace PureES.EventStore.InMemory;
@@ -6,6 +8,10 @@ namespace PureES.EventStore.InMemory;
 [PublicAPI]
 public interface IInMemoryEventStore : IEventStore
 {
+    /// <summary>
+    /// Reads all events as a synchronous operation
+    /// </summary>
+    /// <returns></returns>
     IReadOnlyList<EventEnvelope> ReadAll();
 
     /// <summary>
@@ -16,4 +22,7 @@ public interface IInMemoryEventStore : IEventStore
     /// <returns></returns>
     /// <exception cref="InvalidOperationException">The event store already events</exception>
     Task Load(IAsyncEnumerable<EventEnvelope> envelopes, CancellationToken ct);
+
+    public IReadOnlyList<JsonElement> Serialize();
+    public void Deserialize(IEnumerable<JsonElement> events);
 }

@@ -20,11 +20,11 @@ internal class BasicAggregateStore<TAggregate> : IAggregateStore<TAggregate> whe
     }
 
     public Task<TAggregate> Load(string streamId, CancellationToken cancellationToken) =>
-        _factory.Create(_eventStore.Read(Direction.Forwards, streamId, cancellationToken), cancellationToken);
+        _factory.Create(streamId, _eventStore.Read(Direction.Forwards, streamId, cancellationToken), cancellationToken);
 
     public Task<TAggregate> Load(string streamId, ulong expectedRevision, CancellationToken cancellationToken) =>
-        _factory.Create(_eventStore.Read(Direction.Forwards, streamId, expectedRevision, cancellationToken), cancellationToken);
+        _factory.Create(streamId, _eventStore.Read(Direction.Forwards, streamId, expectedRevision, cancellationToken), cancellationToken);
 
     public Task<TAggregate> LoadSlice(string streamId, ulong endRevision, CancellationToken cancellationToken) =>
-        _factory.Create(_eventStore.ReadSlice(streamId, 0, endRevision, cancellationToken), cancellationToken);
+        _factory.Create(streamId, _eventStore.ReadSlice(streamId, 0, endRevision, cancellationToken), cancellationToken);
 }
