@@ -235,7 +235,8 @@ internal class MartenEventStore : IEventStore
         await using var session = ReadSession();
         var query = session
             .Query<MartenEvent>()
-            .Where(e => e.StreamId == streamId);
+            .Where(e => e.StreamId == streamId)
+            .OrderBy(e => e.StreamPosition);
         query = direction switch
         {
             Direction.Forwards => query.OrderBy(e => e.StreamPosition),
@@ -270,7 +271,8 @@ internal class MartenEventStore : IEventStore
         var query = session
             .Query<MartenEvent>()
             .Where(e => e.StreamId == streamId)
-            .Where(e => e.StreamPosition >= (int)startRevision);
+            .Where(e => e.StreamPosition >= (int)startRevision)
+            .OrderBy(e => e.StreamPosition);
         query = direction switch
         {
             Direction.Forwards => query.OrderBy(e => e.StreamPosition),
@@ -303,6 +305,7 @@ internal class MartenEventStore : IEventStore
         var query = session
             .Query<MartenEvent>()
             .Where(e => e.StreamId == streamId)
+            .OrderBy(e => e.StreamPosition)
             .Take((int)count);
         query = direction switch
         {
@@ -338,7 +341,8 @@ internal class MartenEventStore : IEventStore
             .Query<MartenEvent>()
             .Where(e => e.StreamId == streamId)
             .Where(e => e.StreamPosition >= (int)startRevision)
-            .Where(e => e.StreamPosition <= (int)endRevision);
+            .Where(e => e.StreamPosition <= (int)endRevision)
+            .OrderBy(e => e.StreamPosition);
         
         var revision = startRevision;
         await foreach (var e in query.ToAsyncEnumerable(cancellationToken))
