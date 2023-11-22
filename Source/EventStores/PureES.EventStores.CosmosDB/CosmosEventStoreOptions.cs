@@ -63,17 +63,28 @@ public class CosmosEventStoreOptions
     /// if database must be created
     /// </summary>
     public int? DatabaseThroughput { get; set; }
-    
+
     /// <summary>
     /// The name of the container to use for events
     /// </summary>
-    public string Container { get; set; } = null!;
+    public string Container { get; set; } = "EventStore";
+    
+    /// <summary>
+    /// The name of the lease container for subscriptions
+    /// </summary>
+    public string SubscriptionsLeaseContainerName { get; set; } = "EventStoreSubscriptions";
 
     /// <summary>
     /// The throughput to provision for the container
     /// if the container must be created
     /// </summary>
     public int? ContainerThroughput { get; set; }
+    
+    /// <summary>
+    /// The throughput to provision for the subscriptions lease container
+    /// if the container must be created
+    /// </summary>
+    public int? SubscriptionsLeaseContainerThroughput { get; set; }
 
     /// <summary>
     /// Gets or sets the JSON serializer options to use
@@ -117,6 +128,9 @@ public class CosmosEventStoreOptions
         
         if (string.IsNullOrWhiteSpace(Container))
             throw new Exception("Cosmos EventStore container is required");
+
+        if (string.IsNullOrWhiteSpace(SubscriptionsLeaseContainerName))
+            throw new Exception("Cosmos EventStore subscription lease container is required");
 
         if (ContainerThroughput is <= 0)
             throw new Exception("Cosmos EventStore container throughput must be greater than 0");

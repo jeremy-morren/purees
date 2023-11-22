@@ -46,6 +46,9 @@ internal class CosmosEventStoreClient
     public const string HttpClientName = "CosmosEventStore";
 
     public Container GetContainer() => Client.GetDatabase(_options.Database).GetContainer(_options.Container);
+
+    public Container GetLeaseContainer() =>
+        Client.GetDatabase(_options.Database).GetContainer(_options.SubscriptionsLeaseContainerName);
     
     public async Task<Database> CreateDatabaseIfNotExists(CancellationToken ct)
     {
@@ -54,7 +57,7 @@ internal class CosmosEventStoreClient
             cancellationToken: ct);
     }
     
-    public async Task<Container> CreateContainerIfNotExists(CancellationToken ct)
+    public async Task<Container> InitializeEventStoreContainer(CancellationToken ct)
     {
         var database = await CreateDatabaseIfNotExists(ct);
 
@@ -130,5 +133,14 @@ internal class CosmosEventStoreClient
         }
         
         return builder.Attach();
+    }
+
+    public async Task<Container> InitializeLeaseContainer(CancellationToken ct)
+    {
+        var database = await CreateDatabaseIfNotExists(ct);
+        return await database.CreateContainerIfNotExistsAsync(id: _options.SubscriptionsLeaseContainerName, 
+            partitionKeyPath: "/partitionKey",
+            throughput: _options.SubscriptionsLeaseContainerThroughput,
+            cancellationToken: ct);
     }
 }

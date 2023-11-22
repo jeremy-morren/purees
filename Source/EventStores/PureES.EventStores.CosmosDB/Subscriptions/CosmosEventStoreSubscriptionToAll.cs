@@ -1,14 +1,13 @@
-﻿using System.Net;
-using System.Threading.Tasks.Dataflow;
+﻿using System.Threading.Tasks.Dataflow;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using PureES.EventBus;
 using PureES.EventStores.CosmosDB.Serialization;
 
-namespace PureES.EventStores.CosmosDB.Subscription;
+namespace PureES.EventStores.CosmosDB.Subscriptions;
 
-internal class CosmosEventStoreSubscriptionToAll : IEventStoreSubscription
+internal class CosmosEventStoreSubscriptionToAll : ICosmosEventStoreSubscription
 {
     private readonly CosmosEventStoreClient _client;
     private readonly CosmosEventStoreSerializer _serializer;
@@ -36,42 +35,23 @@ internal class CosmosEventStoreSubscriptionToAll : IEventStoreSubscription
             loggerFactory?.CreateLogger<EventBus.EventBus>());
     }
 
-    private string LeaseContainerName => _options.LeaseContainerName ?? nameof(CosmosEventStoreSubscriptionToAll);
-
     private string ProcessorName => _options.ChangeFeedProcessorName ?? nameof(CosmosEventStoreSubscriptionToAll);
 
-    public async Task<ChangeFeedProcessor> CreateProcessor(CancellationToken cancellationToken)
+    public ChangeFeedProcessor CreateProcessor()
     {
         var eventStoreContainer = _client.GetContainer();
         
-        if (_options.RestartFromBeginning)
-        {
-            //Delete lease container if exists
-            using var response = await eventStoreContainer.Database.GetContainer(LeaseContainerName)
-                .DeleteContainerStreamAsync(cancellationToken: cancellationToken);
-            if (response.StatusCode != HttpStatusCode.NotFound)
-            {
-                response.EnsureSuccessStatusCode();
-                _logger.LogDebug("Deleted lease container {LeaseContainer}", LeaseContainerName);
-            }
-        }
-
-        Container leaseContainer = await eventStoreContainer.Database
-            .CreateContainerIfNotExistsAsync(id: LeaseContainerName,
-                partitionKeyPath: "/partitionKey",
-                throughput: _options.LeaseContainerThroughput,
-                cancellationToken: cancellationToken);
+        var leaseContainer = _client.GetLeaseContainer();
 
         var builder = eventStoreContainer
             .GetChangeFeedProcessorBuilder<CosmosEvent>(processorName: ProcessorName,
                 onChangesDelegate: HandleChangesAsync)
             .WithInstanceName(_options.InstanceName)
             .WithLeaseContainer(leaseContainer)
-            .WithPollInterval(_options.PollInterval);
-
-        if (_options.RestartFromBeginning)
-            builder.WithStartTime(DateTime.SpecifyKind(DateTime.MinValue, DateTimeKind.Utc));
-
+            .WithPollInterval(_options.PollInterval)
+            .WithLeaseAcquireNotification(OnLeaseAcquired)
+            .WithLeaseReleaseNotification(OnLeaseReleased);
+        
         return builder.Build();
     }
 
@@ -84,7 +64,9 @@ internal class CosmosEventStoreSubscriptionToAll : IEventStoreSubscription
         
         try
         {
-            _processor = await CreateProcessor(cancellationToken);
+            _logger.LogDebug("Starting CosmosDB change feed processor {ProcessorName}", ProcessorName);
+            
+            _processor = CreateProcessor();
             
             await _processor.StartAsync();
 
@@ -153,5 +135,17 @@ internal class CosmosEventStoreSubscriptionToAll : IEventStoreSubscription
             _logger.LogError(e, "Error handling changes for lease {LeaseToken}", context.LeaseToken);
             throw;
         }
+    }
+
+    private Task OnLeaseAcquired(string leaseName)
+    {
+        _logger.LogInformation("Acquired lease {LeaseName}", leaseName);
+        return Task.CompletedTask;
+    }
+    
+    private Task OnLeaseReleased(string leaseName)
+    {
+        _logger.LogInformation("Released lease {LeaseName}", leaseName);
+        return Task.CompletedTask;
     }
 }

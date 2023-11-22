@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using PureES.Core;
 using PureES.EventStores.CosmosDB;
-using PureES.EventStores.CosmosDB.Subscription;
+using PureES.EventStores.CosmosDB.Subscriptions;
 using Shouldly;
 
 namespace PureES.EventStores.Tests.Cosmos;
@@ -21,26 +21,24 @@ public class CosmosEventStoreTests : EventStoreTestsBase
         return new EventStoreTestHarness(harness, harness.GetRequiredService<IEventStore>());
     }
 
-    //TODO: Assert that restartFromBeginning actually does result in replay
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task StartSubscription(bool restartFromBeginning)
+    [Fact]
+    public async Task StartSubscription()
     {
-        var name = $"{nameof(StartSubscription)}+{restartFromBeginning}+{Environment.Version}";
-        
+        var name = $"{nameof(StartSubscription)}+{Environment.Version}";
+
         await using var harness = await CosmosTestHarness.Create(name,
-            services => services
-                .AddCosmosEventStoreSubscriptionToAll(o => o.RestartFromBeginning = restartFromBeginning));
+            services => services.AddCosmosEventStoreSubscriptionToAll());
         
         await CosmosEventStoreSetup.InitializeEventStore(harness, CancellationToken);
         
         var subscription = (CosmosEventStoreSubscriptionToAll)harness.GetServices<IHostedService>()
             .Single(s => s.GetType() == typeof(CosmosEventStoreSubscriptionToAll));
 
-        var processor = await subscription.CreateProcessor(default);
-
+        var processor = subscription.CreateProcessor();
+        
         await processor.StartAsync();
+
+        await Task.Delay(TimeSpan.FromSeconds(1));
 
         await processor.StopAsync();
     }

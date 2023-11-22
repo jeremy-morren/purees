@@ -1,15 +1,23 @@
-﻿using JetBrains.Annotations;
+﻿using System.Collections;
+using JetBrains.Annotations;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using PureES.EventStores.CosmosDB.Subscriptions;
 
 namespace PureES.EventStores.CosmosDB;
 
 [PublicAPI]
 public static class CosmosEventStoreSetup
 {
-    public static Task InitializeEventStore(IServiceProvider services, CancellationToken ct)
+    public static async Task InitializeEventStore(IServiceProvider services, CancellationToken ct)
     {
         var svc = services.GetRequiredService<CosmosEventStoreClient>();
         
-        return svc.CreateContainerIfNotExists(ct);
+        await svc.InitializeEventStoreContainer(ct);
+
+        var hostedServices = services.GetService<IEnumerable<IHostedService>>() ?? Enumerable.Empty<IHostedService>();
+        
+        if (hostedServices.OfType<ICosmosEventStoreSubscription>().Any())
+            await svc.InitializeLeaseContainer(ct);
     }
 }

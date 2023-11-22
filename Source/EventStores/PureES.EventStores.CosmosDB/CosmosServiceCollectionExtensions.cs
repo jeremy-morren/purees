@@ -4,7 +4,7 @@ using Microsoft.Extensions.Internal;
 using Microsoft.Extensions.Options;
 using PureES.Core;
 using PureES.EventStores.CosmosDB.Serialization;
-using PureES.EventStores.CosmosDB.Subscription;
+using PureES.EventStores.CosmosDB.Subscriptions;
 
 namespace PureES.EventStores.CosmosDB;
 

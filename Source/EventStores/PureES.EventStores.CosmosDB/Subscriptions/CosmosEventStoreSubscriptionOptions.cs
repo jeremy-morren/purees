@@ -1,17 +1,11 @@
 ﻿using JetBrains.Annotations;
 using PureES.EventBus;
 
-namespace PureES.EventStores.CosmosDB.Subscription;
+namespace PureES.EventStores.CosmosDB.Subscriptions;
 
 [PublicAPI]
 public class CosmosEventStoreSubscriptionOptions
 {
-    /// <summary>
-    /// Gets or sets whether the subscription should be restarted from the beginning
-    /// i.e. whether all existing events should be replayed
-    /// </summary>
-    public bool RestartFromBeginning { get; set; } = false;
-
     /// <summary>
     /// Gets or sets the poll interval (in seconds) of the change feed processor
     /// </summary>
