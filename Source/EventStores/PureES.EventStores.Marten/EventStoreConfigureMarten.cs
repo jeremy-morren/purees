@@ -1,4 +1,5 @@
-﻿using Marten;
+﻿using System.Linq.Expressions;
+using Marten;
 using Marten.Schema;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
@@ -24,6 +25,7 @@ internal class EventStoreConfigureMarten : IConfigureMarten
             .Identity(x => x.Id)
             .DatabaseSchemaName(_options.Value.DatabaseSchema)
             .UniqueIndex(UniqueIndexType.Computed, x => x.StreamId, x => x.StreamPosition)
+            .Index(new Expression<Func<MartenEvent, object>>[] { i => i.EventType, i => i.Timestamp })
             .Metadata(c =>
             {
                 c.LastModified.MapTo(x => x.Timestamp);

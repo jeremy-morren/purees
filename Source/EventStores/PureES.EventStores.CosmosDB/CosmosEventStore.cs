@@ -38,7 +38,6 @@ internal class CosmosEventStore : IEventStore
         //And a maximum count of 100
         //See https://learn.microsoft.com/en-us/azure/cosmos-db/concepts-limits#per-request-limits
         
-        
         //Therefore we will create transactions that are under 2MB and no more than 100 items
         //Unfortunately, this means that the insert of huge event lists is not atomic
         //A better solution would be good
@@ -100,6 +99,19 @@ internal class CosmosEventStore : IEventStore
         return transactions;
     }
 
+    private static async Task ExecuteBatch(string streamId, TransactionalBatch transaction, CancellationToken ct)
+    {
+        using var response = await transaction.ExecuteAsync(ct);
+        if (response.StatusCode == HttpStatusCode.Conflict)
+            throw new StreamAlreadyExistsException(streamId);
+        if (!response.IsSuccessStatusCode)
+            throw new CosmosException(response.ErrorMessage, 
+                response.StatusCode, 
+                (int)response.First(r => !r.IsSuccessStatusCode).StatusCode, 
+                response.ActivityId,
+                response.RequestCharge);
+    }
+
 
     public async Task<ulong> Create(string streamId, IEnumerable<UncommittedEvent> events, CancellationToken cancellationToken)
     {
@@ -108,17 +120,7 @@ internal class CosmosEventStore : IEventStore
         var transactions = CreateTransactions(streamId, 0, container, events, out var revision);
 
         foreach (var transaction in transactions)
-        {
-            using var response = await transaction.ExecuteAsync(cancellationToken);
-            if (response.StatusCode == HttpStatusCode.Conflict)
-                throw new StreamAlreadyExistsException(streamId);
-            if (!response.IsSuccessStatusCode)
-                throw new CosmosException(response.ErrorMessage, 
-                    response.StatusCode, 
-                    (int)response.First(r => !r.IsSuccessStatusCode).StatusCode, 
-                    response.ActivityId,
-                    response.RequestCharge);
-        }
+            await ExecuteBatch(streamId, transaction, cancellationToken);
 
         return revision;
     }
@@ -133,15 +135,7 @@ internal class CosmosEventStore : IEventStore
         
         var transactions = CreateTransactions(streamId, expectedRevision + 1, container, events, out var revision);
         foreach (var transaction in transactions)
-        {
-            using var response = await transaction.ExecuteAsync(cancellationToken);
-            if (!response.IsSuccessStatusCode)
-                throw new CosmosException(response.ErrorMessage, 
-                    response.StatusCode, 
-                    (int)response.First(r => !r.IsSuccessStatusCode).StatusCode, 
-                    response.ActivityId,
-                    response.RequestCharge);
-        }
+            await ExecuteBatch(streamId, transaction, cancellationToken);
         
         return revision;
     }
@@ -172,15 +166,7 @@ internal class CosmosEventStore : IEventStore
         
         var transactions = CreateTransactions(streamId, revision + 1, container, events, out revision);
         foreach (var transaction in transactions)
-        {
-            using var response = await transaction.ExecuteAsync(cancellationToken);
-            if (!response.IsSuccessStatusCode)
-                throw new CosmosException(response.ErrorMessage, 
-                    response.StatusCode, 
-                    (int)response.First(r => !r.IsSuccessStatusCode).StatusCode, 
-                    response.ActivityId,
-                    response.RequestCharge);
-        }
+            await ExecuteBatch(streamId, transaction, cancellationToken);
         
         return revision;
     }
@@ -196,6 +182,87 @@ internal class CosmosEventStore : IEventStore
 
         await container.CreateItemAsync(_serializer.Serialize(@event, streamId, revision, _systemClock.UtcNow), cancellationToken: cancellationToken);
         return revision;
+    }
+
+    public async Task SubmitTransaction(IReadOnlyDictionary<string, UncommittedEventsList> transaction, CancellationToken cancellationToken)
+    {
+        if (transaction == null) throw new ArgumentNullException(nameof(transaction));
+
+        if (transaction.Count == 0)
+            return;
+        
+        var container = _client.GetContainer();
+        
+        const string sql = "select c.eventStreamId, max(c.eventStreamPosition) as position from c where ARRAY_CONTAINS(@streams, c.eventStreamId, false) group by c.eventStreamId";
+
+        var query = new QueryDefinition(sql).WithParameter("@streams", transaction.Keys);
+
+        var current = new Dictionary<string, ulong>(capacity: transaction.Count);
+        using (var iterator = container.GetItemQueryIterator<StreamPosition>(query))
+            while (iterator.HasMoreResults)
+                foreach (var i in await iterator.ReadNextAsync(cancellationToken))
+                    current.Add(i.EventStreamId, i.Position);
+
+        var batches = new Dictionary<string, List<TransactionalBatch>>();
+        var exceptions = new List<Exception>();
+        
+        foreach (var (streamId, list) in transaction)
+        {
+            if (current.TryGetValue(streamId, out var actual))
+            {
+                if (list.ExpectedRevision == null)
+                {
+                    exceptions.Add(new StreamAlreadyExistsException(streamId));
+                }
+                else if (list.ExpectedRevision != actual)
+                {
+                    exceptions.Add(new WrongStreamRevisionException(streamId, list.ExpectedRevision.Value, actual));
+                }
+                else if (list.Events.Count > 0)
+                {
+                    var transactions = CreateTransactions(streamId, actual + 1, container, list.Events, out _);
+                    batches.Add(streamId, transactions);
+                }
+            }
+            else
+            {
+                if (list.ExpectedRevision != null)
+                {
+                    exceptions.Add(new StreamNotFoundException(streamId));
+                }
+                else if (list.Events.Count > 0)
+                {
+                    var transactions = CreateTransactions(streamId, 0, container, list.Events, out _);
+                    batches.Add(streamId, transactions);
+                }
+            }
+        }
+
+        switch (exceptions.Count)
+        {
+            case 0:
+                break;
+            case 1:
+                throw exceptions[0];
+            default:
+                throw new EventsTransactionException(exceptions);
+        }
+        
+        
+        //CosmosDB requires a partition key for all operations
+        //Therefore we can't make this atomic
+
+        if (batches.Count == 0) return;
+
+        await Task.WhenAll(batches.Select(Execute));
+        
+        return;
+
+        async Task Execute(KeyValuePair<string, List<TransactionalBatch>> list)
+        {
+            foreach (var t in list.Value)
+                await ExecuteBatch(list.Key, t, cancellationToken);
+        }
     }
 
     public async Task<bool> Exists(string streamId, CancellationToken cancellationToken)
@@ -445,15 +512,12 @@ internal class CosmosEventStore : IEventStore
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         if (streamId == null) throw new ArgumentNullException(nameof(streamId));
-        
-        if (endRevision == ulong.MaxValue)
-            throw new ArgumentOutOfRangeException(nameof(endRevision));
 
         if (startRevision > endRevision)
             throw new ArgumentOutOfRangeException(nameof(startRevision));
 
         var queryDef = new QueryDefinition(
-            "select * from c where c.eventStreamId = @streamId and c.eventStreamPosition >= @start and c.eventStreamPosition <= @end ORDER BY c.eventStreamPosition");
+            "select * from c where c.eventStreamId = @streamId and (c.eventStreamPosition = 0 or (c.eventStreamPosition >= @start and c.eventStreamPosition <= @end)) ORDER BY c.eventStreamPosition");
         
         queryDef = queryDef
             .WithParameter("@streamId", streamId)
@@ -461,24 +525,64 @@ internal class CosmosEventStore : IEventStore
             .WithParameter("@end", endRevision);
 
         using var iterator = CreateIterator(streamId, queryDef);
-        var revision = startRevision;
+        var exists = false;
+        ulong? actual = null;
         while (iterator.HasMoreResults)
         {
             var result = await iterator.ReadNextAsync(cancellationToken);
             foreach (var e in result)
             {
-                yield return _serializer.Deserialize(e);
-                ++revision;
-                if (revision > endRevision)
-                    yield break;
+                exists = true;
+                var env = _serializer.Deserialize(e);
+                if (env.StreamPosition == 0 && startRevision != 0)
+                    continue;
+                yield return env;
+                actual = env.StreamPosition;
             }
         }
 
-        if (revision == startRevision)
+        if (!exists)
             throw new StreamNotFoundException(streamId);
-        --revision; //The revision will have advanced too far
-        if (revision < endRevision)
-            throw new WrongStreamRevisionException(streamId, endRevision, revision);
+        
+        if (actual == null || actual.Value < endRevision)
+            throw new WrongStreamRevisionException(streamId, endRevision, 
+                await GetRevision(streamId, cancellationToken));
+    }
+
+    public async IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId, 
+        ulong startRevision, 
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
+
+        var queryDef = new QueryDefinition(
+            "select * from c where c.eventStreamId = @streamId and (c.eventStreamPosition = 0 OR c.eventStreamPosition >= @start) ORDER BY c.eventStreamPosition");
+        
+        queryDef = queryDef
+            .WithParameter("@streamId", streamId)
+            .WithParameter("@start", startRevision);
+
+        using var iterator = CreateIterator(streamId, queryDef);
+        var exists = false;
+        ulong? actual = null;
+        while (iterator.HasMoreResults)
+        {
+            var result = await iterator.ReadNextAsync(cancellationToken);
+            foreach (var e in result)
+            {
+                exists = true;
+                var env = _serializer.Deserialize(e);
+                if (env.StreamPosition == 0 && startRevision != 0) continue;
+                yield return env;
+                actual = env.StreamPosition;
+            }
+        }
+
+        if (!exists)
+            throw new StreamNotFoundException(streamId);
+        if (actual == null)
+            throw new WrongStreamRevisionException(streamId, startRevision, 
+                await GetRevision(streamId, cancellationToken));
     }
 
     public async IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(Direction direction, 

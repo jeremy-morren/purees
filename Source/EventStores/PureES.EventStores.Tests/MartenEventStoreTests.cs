@@ -8,13 +8,20 @@ using Npgsql;
 using PureES.Core;
 using PureES.EventStores.Marten;
 using PureES.EventStores.Marten.Subscriptions;
+using PureES.EventStores.Tests.Logging;
+using Serilog.Events;
 using Shouldly;
 using Weasel.Core;
+using Xunit.Abstractions;
 
 namespace PureES.EventStores.Tests;
 
 public class MartenEventStoreTests : EventStoreTestsBase
 {
+    private readonly ITestOutputHelper _output;
+
+    public MartenEventStoreTests(ITestOutputHelper output) => _output = output;
+
     [Fact]
     public async Task Subscription_To_All_Should_Handle_All_Events()
     {
@@ -63,6 +70,7 @@ public class MartenEventStoreTests : EventStoreTestsBase
         testName = new[] { '.', '_', '+','-' }.Aggregate(testName, (s, c) => s.Replace(c, '_'));
         testName = $"testing_{testName}";
         var services = new ServiceCollection()
+            .AddTestLogging(_output)
             .AddSingleton<IEventTypeMap>(new BasicEventTypeMap())
             .AddMarten(o =>
             {

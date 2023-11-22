@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Data;
+using System.Runtime.CompilerServices;
 using JetBrains.Annotations;
 using Marten;
 using Marten.Exceptions;
@@ -165,6 +166,71 @@ internal class MartenEventStore : IEventStore
         return actual;
     }
 
+    public async Task SubmitTransaction(IReadOnlyDictionary<string, UncommittedEventsList> transaction, 
+        CancellationToken cancellationToken)
+    {
+        if (transaction == null) throw new ArgumentNullException(nameof(transaction));
+
+        if (transaction.Count == 0)
+            return;
+
+        await using var session = WriteSession();
+        var table = _documentStore.GetTableName(typeof(MartenEvent)).QualifiedName;
+        var sql =
+            $"select data->>'StreamId', max((data->>'StreamPosition')::int) from {table} where data->>'StreamId' = ANY(:ids) group by data->>'StreamId'";
+        var current = await session.QueryRaw(sql,
+                new Dictionary<string, object?>()
+                {
+                    {"ids", transaction.Keys.ToArray()}
+                },
+                r => new
+                {
+                    Id = r.GetString(0),
+                    Position = (ulong)r.GetInt32(1)
+                },
+                cancellationToken)
+            .ToDictionaryAsync(g => g.Id, g => g.Position, cancellationToken);
+        var exceptions = new List<Exception>();
+        foreach (var (streamId, list) in transaction)
+        {
+            if (current.TryGetValue(streamId, out var actual))
+            {
+                if (list.ExpectedRevision == null)
+                    exceptions.Add(new StreamAlreadyExistsException(streamId));
+                else if (list.ExpectedRevision != actual)
+                    exceptions.Add(new WrongStreamRevisionException(streamId, list.ExpectedRevision.Value, actual));
+                else
+                    session.Insert(
+                        list.Events.Select(e => _serializer.Serialize(e, streamId, ++actual)));
+            }
+            else
+            {
+                if (list.ExpectedRevision != null)
+                {
+                    exceptions.Add(new StreamNotFoundException(streamId));
+                }
+                else
+                {
+                    ulong pos = 0;
+                    var records = list.Events.Select(e => _serializer.Serialize(e, streamId, pos++));
+                    session.Insert(records);
+                }
+            }
+        }
+
+        switch (exceptions.Count)
+        {
+            case 0:
+                break;
+            case 1:
+                throw exceptions[0];
+            default:
+                throw new EventsTransactionException(exceptions);
+        }
+        
+        await session.SaveChangesAsync(cancellationToken);
+    }
+
     public async IAsyncEnumerable<EventEnvelope> ReadAll(Direction direction, 
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
@@ -325,6 +391,8 @@ internal class MartenEventStore : IEventStore
         if (read != count)
             throw new WrongStreamRevisionException(streamId, count - 1, read - 1);
     }
+    
+    //NB: For reading slice: We always include at position '0'. The reason is to differentiate between 'doesn't exist' and 'read after end'
 
     public async IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId, 
         ulong startRevision, 
@@ -340,22 +408,62 @@ internal class MartenEventStore : IEventStore
         var query = session
             .Query<MartenEvent>()
             .Where(e => e.StreamId == streamId)
-            .Where(e => e.StreamPosition >= (int)startRevision)
-            .Where(e => e.StreamPosition <= (int)endRevision)
+            .Where(e => e.StreamPosition == 0 
+                        || (e.StreamPosition >= (int)startRevision && e.StreamPosition <= (int)endRevision))
             .OrderBy(e => e.StreamPosition);
-        
-        var revision = startRevision;
+
+        var exists = false;
+        ulong? actual = null;
         await foreach (var e in query.ToAsyncEnumerable(cancellationToken))
         {
-            yield return _serializer.Deserialize(e);
-            ++revision;
+            exists = true;
+            if (e.StreamPosition == 0 && startRevision != 0) continue;
+            var env = _serializer.Deserialize(e);
+            yield return env;
+            actual = env.StreamPosition;
+        }
+        
+        if (!exists)
+            throw new StreamNotFoundException(streamId);
+
+        //Stream does exists, ensure we read to the end
+        actual ??= await GetRevision(streamId, cancellationToken);
+        if (actual.Value != endRevision)
+            throw new WrongStreamRevisionException(streamId, endRevision, actual.Value);
+    }
+
+    public async IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId,
+        ulong startRevision, 
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
+        
+        await using var session = ReadSession();
+        var query = session
+            .Query<MartenEvent>()
+            .Where(e => e.StreamId == streamId)
+            .Where(e => e.StreamPosition == 0 || e.StreamPosition >= (int)startRevision)
+            .OrderBy(e => e.StreamPosition);
+
+        var exists = false;
+        ulong? actual = null;
+        await foreach (var e in query.ToAsyncEnumerable(cancellationToken))
+        {
+            exists = true;
+            if (e.StreamPosition == 0 && startRevision != 0) continue;
+            var env = _serializer.Deserialize(e);
+            actual = env.StreamPosition;
+            yield return env;
         }
 
-        if (revision == startRevision)
+        if (!exists)
             throw new StreamNotFoundException(streamId);
-        --revision;
-        if (revision != endRevision)
-            throw new WrongStreamRevisionException(streamId, endRevision, revision);
+
+        if (actual.HasValue) yield break;
+        
+        //Stream exists, but before start
+        actual = await GetRevision(streamId, cancellationToken);
+        throw new WrongStreamRevisionException(streamId, startRevision, actual.Value);
     }
 
     public async IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(Direction direction,

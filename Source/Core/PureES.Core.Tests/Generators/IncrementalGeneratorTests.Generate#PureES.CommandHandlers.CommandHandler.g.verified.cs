@@ -121,7 +121,7 @@ namespace PureES.CommandHandlers
                     var events = new List<global::PureES.Core.UncommittedEvent>();
                     await foreach (var e in result.WithCancellation(cancellationToken))
                     {
-                        events.Add(new global::PureES.Core.UncommittedEvent() { Event = e });
+                        events.Add(new global::PureES.Core.UncommittedEvent(e));
                     }
                     if (events.Count > 0)
                     {

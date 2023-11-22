@@ -245,7 +245,7 @@ internal class CommandHandlerGenerator
     {
         var type = $"global::{typeof(UncommittedEvent).FullName}";
         var list = $"var events = new List<{type}>();";
-        var newEvent = $"new {type}() {{ Event = e }}";
+        var newEvent = $"new {type}(e)";
         
         //local var 'result' is the source
         var source = _handler.ResultType != null ? $"result.{nameof(CommandResult<int,int>.Event)}" : "result";
@@ -263,7 +263,7 @@ internal class CommandHandlerGenerator
                 $"events.Add({newEvent});");
             return true;
         }
-        _w.WriteLine($"var e = new {type}() {{ Event = {source} }};");
+        _w.WriteLine($"var e = new {type}({source});");
         return false;
     }
 

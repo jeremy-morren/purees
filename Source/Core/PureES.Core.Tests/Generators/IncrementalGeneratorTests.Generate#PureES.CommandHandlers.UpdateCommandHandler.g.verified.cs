@@ -123,7 +123,7 @@ namespace PureES.CommandHandlers
                     var events = new List<global::PureES.Core.UncommittedEvent>();
                     foreach (var e in result)
                     {
-                        events.Add(new global::PureES.Core.UncommittedEvent() { Event = e });
+                        events.Add(new global::PureES.Core.UncommittedEvent(e));
                     }
                     if (events.Count > 0)
                     {

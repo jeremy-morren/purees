@@ -16,7 +16,7 @@ internal class InMemoryEventStore : IInMemoryEventStore
 {
     private readonly object _mutex = new();
     private ImmutableList<EventRecord> _records = ImmutableList<EventRecord>.Empty;
-    private readonly ConcurrentDictionary<string, IndexList> _streams = new();
+    private readonly ConcurrentDictionary<string, ImmutableList<int>> _streams = new();
     
     private readonly IEventTypeMap _eventTypeMap;
 
@@ -38,14 +38,6 @@ internal class InMemoryEventStore : IInMemoryEventStore
                          new List<IInMemoryEventStoreSubscription>();
     }
 
-    private class IndexList
-    {
-        /// <summary>
-        /// Indexes of events inside the _records list
-        /// </summary>
-        public required ImmutableList<int> Indexes;
-    }
-
     /// <summary>
     /// Posts events to <see cref="_subscriptions"/>
     /// </summary>
@@ -60,7 +52,7 @@ internal class InMemoryEventStore : IInMemoryEventStore
     public Task<ulong> GetRevision(string streamId, CancellationToken _)
     {
         return _streams.TryGetValue(streamId, out var s)
-            ? Task.FromResult((ulong)s.Indexes.Count - 1)
+            ? Task.FromResult((ulong)s.Count - 1)
             : Task.FromException<ulong>(new StreamNotFoundException(streamId));
     }
     
@@ -69,9 +61,9 @@ internal class InMemoryEventStore : IInMemoryEventStore
         if (!_streams.TryGetValue(streamId, out var current))
             return Task.FromException<ulong>(new StreamNotFoundException(streamId));
 
-        var actual = current.Indexes.Count - 1;
+        var actual = current.Count - 1;
         
-        return actual == (int)expectedRevision
+        return (ulong)actual == expectedRevision
             ? Task.FromResult(expectedRevision)
             : Task.FromException<ulong>(new WrongStreamRevisionException(streamId, expectedRevision, (ulong)actual));
     }
@@ -96,6 +88,8 @@ internal class InMemoryEventStore : IInMemoryEventStore
 
         var ts = _systemClock.UtcNow;
         records = events.Select(e => _serializer.Serialize(e, streamId, startPos++, ts)).ToList();
+        if (records.Count == 0)
+            throw new ArgumentOutOfRangeException(nameof(events));
         result = Task.FromResult((ulong)startPos - 1);
     }
 
@@ -107,10 +101,7 @@ internal class InMemoryEventStore : IInMemoryEventStore
         {
             if (_streams.ContainsKey(streamId))
                 return Task.FromException<ulong>(new StreamAlreadyExistsException(streamId));
-            _streams[streamId] = new IndexList()
-            {
-                Indexes = ImmutableList.CreateRange(Enumerable.Range(_records.Count, records.Count))
-            };
+            _streams[streamId] = ImmutableList.CreateRange(Enumerable.Range(_records.Count, records.Count));
             _records = _records.AddRange(records);
         }
 
@@ -136,12 +127,11 @@ internal class InMemoryEventStore : IInMemoryEventStore
         {
             if (!_streams.TryGetValue(streamId, out var current))
                 return Task.FromException<ulong>(new StreamNotFoundException(streamId));
-            if (current.Indexes.Count - 1 != (int)expectedRevision)
+            if (current.Count - 1 != (int)expectedRevision)
                 return Task.FromException<ulong>(new WrongStreamRevisionException(streamId, 
-                    expectedRevision, (ulong)current.Indexes.Count - 1));
+                    expectedRevision, (ulong)current.Count - 1));
             
-            current.Indexes = current.Indexes.AddRange(Enumerable.Range(_records.Count, records.Count));
-            _streams[streamId] = current;
+            _streams[streamId] = current.AddRange(Enumerable.Range(_records.Count, records.Count));
             
             _records = _records.AddRange(records);
         }
@@ -159,14 +149,14 @@ internal class InMemoryEventStore : IInMemoryEventStore
                 return Task.FromException<ulong>(new StreamNotFoundException(streamId));
             
             foreach (var r in records)
-                r.StreamPos += current.Indexes.Count; //Update to actual position
+                r.StreamPos += current.Count; //Update to actual position
             
-            current.Indexes = current.Indexes.AddRange(Enumerable.Range(_records.Count, records.Count));
+            current = current.AddRange(Enumerable.Range(_records.Count, records.Count));
             _streams[streamId] = current;
             
             _records = _records.AddRange(records);
             
-            result = Task.FromResult((ulong)current.Indexes.Count - 1);
+            result = Task.FromResult((ulong)current.Count - 1);
         }
         
         AfterCommit(records);
@@ -186,7 +176,59 @@ internal class InMemoryEventStore : IInMemoryEventStore
         
         return Append(streamId, new [] { @event }, _);
     }
-    
+
+    public Task SubmitTransaction(IReadOnlyDictionary<string, UncommittedEventsList> transaction, CancellationToken cancellationToken)
+    {
+        if (transaction == null) throw new ArgumentNullException(nameof(transaction));
+        
+        if (transaction.Count == 0)
+            return Task.CompletedTask; //No events to submit
+        
+        lock (_mutex)
+        {
+            var exceptions = new List<Exception>();
+            foreach (var (streamId, list) in transaction)
+            {
+                if (_streams.TryGetValue(streamId, out var current))
+                {
+                    var actual = (ulong)current.Count - 1;
+                    if (list.ExpectedRevision == null)
+                        exceptions.Add(new StreamAlreadyExistsException(streamId));
+                    else if (actual != list.ExpectedRevision.Value)
+                        exceptions.Add(new WrongStreamRevisionException(streamId, list.ExpectedRevision.Value, actual));
+                }
+                else if (list.ExpectedRevision != null)
+                {
+                    exceptions.Add(new StreamNotFoundException(streamId));
+                }
+            }
+            switch (exceptions.Count)
+            {
+                case 0:
+                    break;
+                case 1:
+                    throw exceptions[0];
+                default:
+                    throw new EventsTransactionException(exceptions);
+            }
+
+            foreach (var (streamId, list) in transaction)
+            {
+                if (list.Events.Count == 0) continue; //No events to append
+                
+                var current = _streams.TryGetValue(streamId, out var c)
+                    ? c
+                    : ImmutableList<int>.Empty;
+                
+                CreateRecords(streamId, current.Count, list.Events, out var records, out _);
+                _streams[streamId] = current.AddRange(Enumerable.Range(_records.Count, records.Count));
+                _records = _records.AddRange(records);
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
     #endregion
     
     #region Read
@@ -232,7 +274,7 @@ internal class InMemoryEventStore : IInMemoryEventStore
         
         if (!_streams.TryGetValue(streamId, out var stream))
             throw new StreamNotFoundException(streamId);
-        return ToAsyncEnumerable(GetIndexes(direction, stream.Indexes));
+        return ToAsyncEnumerable(GetIndexes(direction, stream));
     }
 
     public IAsyncEnumerable<EventEnvelope> Read(Direction direction, string streamId, ulong expectedRevision, CancellationToken _)
@@ -241,11 +283,10 @@ internal class InMemoryEventStore : IInMemoryEventStore
         
         if (!_streams.TryGetValue(streamId, out var stream))
             throw new StreamNotFoundException(streamId);
-        
-        var indexes = stream.Indexes;
-        if (indexes.Count - 1 != (int)expectedRevision)
-            throw new WrongStreamRevisionException(streamId, expectedRevision, (ulong)indexes.Count - 1);
-        return ToAsyncEnumerable(GetIndexes(direction, indexes));
+
+        if (stream.Count - 1 != (int)expectedRevision)
+            throw new WrongStreamRevisionException(streamId, expectedRevision, (ulong)stream.Count - 1);
+        return ToAsyncEnumerable(GetIndexes(direction, stream));
     }
 
     public IAsyncEnumerable<EventEnvelope> Read(Direction direction, 
@@ -261,12 +302,11 @@ internal class InMemoryEventStore : IInMemoryEventStore
         
         if (!_streams.TryGetValue(streamId, out var stream))
             throw new StreamNotFoundException(streamId);
-        
-        var indexes = stream.Indexes;
-        if (indexes.Count - 1 != (int)expectedRevision)
-            throw new WrongStreamRevisionException(streamId, expectedRevision, (ulong)indexes.Count - 1);
 
-        return ToAsyncEnumerable(indexes.Skip((int)startRevision));
+        if (stream.Count - 1 != (int)expectedRevision)
+            throw new WrongStreamRevisionException(streamId, expectedRevision, (ulong)stream.Count - 1);
+
+        return ToAsyncEnumerable(stream.Skip((int)startRevision));
     }
 
     public IAsyncEnumerable<EventEnvelope> ReadPartial(Direction direction, 
@@ -282,11 +322,10 @@ internal class InMemoryEventStore : IInMemoryEventStore
         if (!_streams.TryGetValue(streamId, out var stream))
             throw new StreamNotFoundException(streamId);
 
-        var indexes = stream.Indexes;
-        if (indexes.Count <= (int)count)
-            throw new WrongStreamRevisionException(streamId, count, (ulong)indexes.Count - 1);
+        if (stream.Count <= (int)count)
+            throw new WrongStreamRevisionException(streamId, count, (ulong)stream.Count - 1);
         
-        return ToAsyncEnumerable(GetIndexes(direction, indexes).Take((int)count));
+        return ToAsyncEnumerable(GetIndexes(direction, stream).Take((int)count));
     }
 
     public IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId, 
@@ -302,11 +341,23 @@ internal class InMemoryEventStore : IInMemoryEventStore
         if (!_streams.TryGetValue(streamId, out var stream))
             throw new StreamNotFoundException(streamId);
 
-        var indexes = stream.Indexes;
-        if (indexes.Count <= (int)endRevision)
-            throw new WrongStreamRevisionException(streamId, endRevision, (ulong)indexes.Count - 1);
+        if ((ulong)stream.Count <= endRevision)
+            throw new WrongStreamRevisionException(streamId, endRevision, (ulong)stream.Count - 1);
         
-        return ToAsyncEnumerable(indexes.Take((int)endRevision + 1).Skip((int)startRevision));
+        return ToAsyncEnumerable(stream.Take((int)endRevision + 1).Skip((int)startRevision));
+    }
+
+    public IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId, ulong startRevision, CancellationToken cancellationToken = default)
+    {
+        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
+        
+        if (!_streams.TryGetValue(streamId, out var stream))
+            throw new StreamNotFoundException(streamId);
+
+        if ((ulong)stream.Count <= startRevision)
+            throw new WrongStreamRevisionException(streamId, startRevision, (ulong)stream.Count - 1);
+        
+        return ToAsyncEnumerable(stream.Skip((int)startRevision));
     }
 
     public IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(Direction direction, 
@@ -327,7 +378,7 @@ internal class InMemoryEventStore : IInMemoryEventStore
         {
             if (!_streams.TryGetValue(s, out var stream))
                 continue;
-            result.Add(ToAsyncEnumerable(GetIndexes(direction, stream.Indexes)));
+            result.Add(ToAsyncEnumerable(GetIndexes(direction, stream)));
         }
         
         return result.ToAsyncEnumerable();
@@ -347,7 +398,7 @@ internal class InMemoryEventStore : IInMemoryEventStore
         {
             if (!_streams.TryGetValue(s, out var stream))
                 continue;
-            yield return ToAsyncEnumerable(GetIndexes(direction, stream.Indexes));
+            yield return ToAsyncEnumerable(GetIndexes(direction, stream));
         }
     }
 
@@ -390,6 +441,8 @@ internal class InMemoryEventStore : IInMemoryEventStore
         var count = _records.Count;
         return Task.FromResult((ulong)count);
     }
+    
+    public int GetCount() => _records.Count;
 
     #endregion
     
@@ -406,19 +459,16 @@ internal class InMemoryEventStore : IInMemoryEventStore
             {
                 if (_streams.TryGetValue(e.StreamId, out var stream))
                 {
-                    var end = _records[stream.Indexes[^1]];
+                    var end = _records[stream[^1]];
                     if (e.StreamPos != end.StreamPos + 1)
                         throw new InvalidOperationException($"Stream {e.StreamId} is not sequential");
-                    stream.Indexes = stream.Indexes.Add(_records.Count);
+                    _streams[e.StreamId] = stream.Add(_records.Count);
                 }
                 else
                 {
                     if (e.StreamPos != 0)
                         throw new InvalidOperationException($"Stream {e.StreamId} does not start at 0");
-                    _streams[e.StreamId] = new IndexList
-                    {
-                        Indexes = ImmutableList.Create(_records.Count)
-                    };
+                    _streams[e.StreamId] = ImmutableList.Create(_records.Count);
                 }
                 _records = _records.Add(e);
             }

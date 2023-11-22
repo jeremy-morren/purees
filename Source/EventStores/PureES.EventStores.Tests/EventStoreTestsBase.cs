@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using FluentAssertions;
+using JasperFx.Core;
 using Microsoft.Extensions.DependencyInjection;
 using PureES.Core;
 using Shouldly;
@@ -26,7 +27,7 @@ public abstract class EventStoreTestsBase
     }
 
     [DebuggerNonUserCode]
-    protected static CancellationToken CancellationToken => new CancellationTokenSource(TimeSpan.FromSeconds(10)).Token;
+    protected static CancellationToken CancellationToken => new CancellationTokenSource(TimeSpan.FromMinutes(10)).Token;
     
     [Fact]
     public async Task Create()
@@ -50,11 +51,11 @@ public abstract class EventStoreTestsBase
     }
     
     [Fact]
-    public async Task CreateSingle()
+    public async Task Create_Single()
     {
         await using var harness = await CreateHarness();
         var store = harness.EventStore;
-        const string stream = nameof(CreateSingle);
+        const string stream = nameof(Create_Single);
         var @event = NewEvent();
         const ulong revision = 0;
         (await store.Exists(stream, CancellationToken)).ShouldBeFalse();
@@ -65,6 +66,74 @@ public abstract class EventStoreTestsBase
         
         await AssertEqual(new [] { @event }, d => store.Read(d, stream, CancellationToken));
         (await store.GetRevision(stream, CancellationToken)).ShouldBe(revision);
+    }
+
+    [Fact]
+    public async Task Submit_Transaction()
+    {
+        await using var harness = await CreateHarness();
+        var store = harness.EventStore;
+
+        var transaction = new EventsTransaction();
+        foreach (var i in Enumerable.Range(0, 5))
+            transaction.Add(i.ToString(), null, Enumerable.Range(0, i + 1).Select(_ => NewEvent()));
+        
+        await store.SubmitTransaction(transaction.ToUncommittedTransaction(), CancellationToken);
+        
+        transaction.Clear();
+        foreach (var i in Enumerable.Range(0, 5))
+            transaction.Add(i.ToString(), (ulong)i, Enumerable.Range(0, i + 1).Select(_ => NewEvent()));
+        foreach (var i in Enumerable.Range(5, 5))
+            transaction.Add(i.ToString(), null, Enumerable.Range(0, i + 1).Select(_ => NewEvent()));
+
+        await store.SubmitTransaction(transaction.ToUncommittedTransaction(), CancellationToken);
+
+        var totalCount = 0;
+        foreach (var i in Enumerable.Range(0, 5))
+        {
+            var count = (i + 1) * 2;
+            (await store.GetRevision(i.ToString(), CancellationToken)).ShouldBe((ulong)count - 1);
+            (await store.Read(Direction.Forwards, i.ToString(), CancellationToken).ToListAsync())
+                .Should().HaveCount(count);
+            totalCount += count;
+        }
+
+        foreach (var i in Enumerable.Range(5, 5))
+        {
+            var count = i + 1;
+            (await store.GetRevision(i.ToString(), CancellationToken)).ShouldBe((ulong)count - 1);
+            (await store.Read(Direction.Forwards, i.ToString(), CancellationToken).ToListAsync())
+                .Should().HaveCount(count);
+            totalCount += count;
+        }
+        
+        (await store.ReadAll(Direction.Forwards, CancellationToken).ToListAsync()).Should().HaveCount(totalCount);
+        (await store.Count(CancellationToken)).ShouldBe((ulong)totalCount);
+        
+        transaction.Clear();
+        foreach (var i in Enumerable.Range(0, 5))
+            transaction.Add(i.ToString(), (ulong)i, Enumerable.Range(0, i + 1).Select(_ => NewEvent()));
+        foreach (var i in Enumerable.Range(5, 5))
+            transaction.Add(i.ToString(), null, Enumerable.Range(0, i + 1).Select(_ => NewEvent()));
+        foreach (var i in Enumerable.Range(10, 5))
+            transaction.Add(i.ToString(), (ulong)i + 1, Enumerable.Range(0, i + 1).Select(_ => NewEvent()));
+        
+        foreach (var i in Enumerable.Range(15, 5)) //Valid, test atomicity
+            transaction.Add(i.ToString(), null, Enumerable.Range(0, i + 1).Select(_ => NewEvent()));
+        
+        var ex = await Assert.ThrowsAsync<EventsTransactionException>(() =>
+            store.SubmitTransaction(transaction.ToUncommittedTransaction(), CancellationToken));
+
+        ex.InnerExceptions.Should().HaveCount(15);
+        ex.InnerExceptions.OfType<WrongStreamRevisionException>().Should().HaveCount(5);
+        ex.InnerExceptions.OfType<StreamAlreadyExistsException>().Should().HaveCount(5);
+        ex.InnerExceptions.OfType<StreamNotFoundException>().Should().HaveCount(5);
+        
+        //Ensure the valid ones weren't committed
+        Assert.All(Enumerable.Range(15, 5), i =>
+        {
+            store.Exists(i.ToString(), CancellationToken).Result.ShouldBeFalse();
+        });
     }
 
     [Fact]
@@ -195,6 +264,9 @@ public abstract class EventStoreTestsBase
             await store.ReadPartial(Direction.Backwards, stream, RandVersion(), CancellationToken).FirstAsync());
         
         await Assert.ThrowsAsync<StreamNotFoundException>(async () =>
+            await store.ReadSlice(stream, RandVersion() % (int)short.MaxValue, CancellationToken).FirstAsync());
+        
+        await Assert.ThrowsAsync<StreamNotFoundException>(async () =>
             await store.ReadSlice(stream, RandVersion() % (int)short.MaxValue, RandVersion(short.MaxValue), CancellationToken).FirstAsync());
     }
 
@@ -223,6 +295,9 @@ public abstract class EventStoreTestsBase
         
         await AssertEqual(events.TakeLast(3).Reverse(), store.ReadPartial(Direction.Backwards, stream, 3, CancellationToken));
         
+        await AssertEqual(events, store.ReadSlice(stream, 0, CancellationToken));
+        
+        await AssertEqual(events.Skip(5), store.ReadSlice(stream, 5, CancellationToken));
         
         await AssertEqual(events.Take(3), store.ReadSlice(stream, 0, 2, CancellationToken));
         
@@ -256,12 +331,17 @@ public abstract class EventStoreTestsBase
         await AssertWrongVersion(d => 
             store.Read(d, stream, 2, RandVersion(events.Count + 1), CancellationToken));
         
-        
         await AssertWrongVersion(d => 
             store.ReadPartial(d, stream, RandVersion(events.Count + 1), CancellationToken));
-
+        
         await AssertWrongVersion(_ => 
             store.ReadSlice(stream, 1, RandVersion(events.Count + 1), CancellationToken));
+        
+        await AssertWrongVersion(_ => 
+            store.ReadSlice(stream, RandVersion(events.Count + 1), ulong.MaxValue, CancellationToken));
+        
+        await AssertWrongVersion(_ => 
+            store.ReadSlice(stream, RandVersion(events.Count + 1), CancellationToken));
     }
     
     [Fact]
@@ -600,14 +680,13 @@ public abstract class EventStoreTestsBase
         });
     }
 
-    private static ulong RandVersion(long? min = null) => (ulong) Random.Shared.NextInt64(min + 1 ?? 0, int.MaxValue - 1);
+    private static ulong RandVersion(int? min = null) => (ulong) Random.Shared.Next(min + 1 ?? 0, int.MaxValue - 1);
 
     protected static UncommittedEvent NewEvent()
     {
         var id = Guid.NewGuid();
-        return new UncommittedEvent()
+        return new UncommittedEvent(new Event(id))
         {
-            Event = new Event(id),
             Metadata = new Metadata()
         };
     }

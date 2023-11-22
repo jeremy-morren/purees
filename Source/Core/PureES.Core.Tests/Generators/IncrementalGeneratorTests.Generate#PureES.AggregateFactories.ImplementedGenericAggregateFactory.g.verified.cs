@@ -42,7 +42,7 @@ namespace PureES.AggregateFactories
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        private async Task<global::PureES.Core.Tests.Models.ImplementedGenericAggregate> CreateWhen(string streamId, global::System.Collections.Generic.IAsyncEnumerator<global::PureES.Core.EventEnvelope> enumerator, CancellationToken ct)
+        private async Task<global::PureES.Core.RehydratedAggregate<global::PureES.Core.Tests.Models.ImplementedGenericAggregate>> CreateWhen(string streamId, global::System.Collections.Generic.IAsyncEnumerator<global::PureES.Core.EventEnvelope> enumerator, CancellationToken ct)
         {
             if (!await enumerator.MoveNextAsync())
             {
@@ -53,7 +53,14 @@ namespace PureES.AggregateFactories
             {
                 case object e:
                 {
-                    current = global::PureES.Core.Tests.Models.ImplementedGenericAggregate.When(e);
+                    try
+                    {
+                        current = global::PureES.Core.Tests.Models.ImplementedGenericAggregate.When(e);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new global::PureES.Core.RehydrationException(streamId, AggregateType, "PureES.Core.Tests.Models.TestGenericAggregate<PureES.Core.Tests.Models.ImplementedGenericAggregate, object, object>.When(object)", ex);
+                    }
                     break;
                 }
                 default:
@@ -62,14 +69,16 @@ namespace PureES.AggregateFactories
                     throw new global::PureES.Core.RehydrationException(streamId, AggregateType, $"No suitable CreateWhen method found for event '{eventType}'");
                 }
             }
-            return current;
+            return new global::PureES.Core.RehydratedAggregate<global::PureES.Core.Tests.Models.ImplementedGenericAggregate>(current, 0ul);
         }
 
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        private async Task<global::PureES.Core.Tests.Models.ImplementedGenericAggregate> UpdateWhen(string streamId, global::PureES.Core.Tests.Models.ImplementedGenericAggregate current, global::System.Collections.Generic.IAsyncEnumerator<global::PureES.Core.EventEnvelope> enumerator, CancellationToken ct)
+        private async Task<global::PureES.Core.RehydratedAggregate<global::PureES.Core.Tests.Models.ImplementedGenericAggregate>> UpdateWhen(string streamId, global::PureES.Core.RehydratedAggregate<global::PureES.Core.Tests.Models.ImplementedGenericAggregate> aggregate, global::System.Collections.Generic.IAsyncEnumerator<global::PureES.Core.EventEnvelope> enumerator, CancellationToken ct)
         {
+            global::PureES.Core.Tests.Models.ImplementedGenericAggregate current = aggregate.Aggregate;
+            var revision = aggregate.StreamPosition;
             while (await enumerator.MoveNextAsync())
             {
                 switch (enumerator.Current.Event)
@@ -80,44 +89,31 @@ namespace PureES.AggregateFactories
                         throw new global::PureES.Core.RehydrationException(streamId, AggregateType, $"No suitable UpdateWhen method found for event '{eventType}'");
                     }
                 }
+                ++revision;
             }
-            return current;
+            return new global::PureES.Core.RehydratedAggregate<global::PureES.Core.Tests.Models.ImplementedGenericAggregate>(current, revision);
         }
 
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        public async Task<global::PureES.Core.Tests.Models.ImplementedGenericAggregate> Create(string streamId, global::System.Collections.Generic.IAsyncEnumerable<global::PureES.Core.EventEnvelope> @events, CancellationToken cancellationToken)
+        public async Task<global::PureES.Core.RehydratedAggregate<global::PureES.Core.Tests.Models.ImplementedGenericAggregate>> Create(string streamId, global::System.Collections.Generic.IAsyncEnumerable<global::PureES.Core.EventEnvelope> @events, CancellationToken cancellationToken)
         {
-            try
+            await using (var enumerator = @events.GetAsyncEnumerator(cancellationToken))
             {
-                await using (var enumerator = @events.GetAsyncEnumerator(cancellationToken))
-                {
-                    var current = await CreateWhen(streamId, enumerator, cancellationToken);
-                    return await UpdateWhen(streamId, current, enumerator, cancellationToken);
-                }
-            }
-            catch (Exception ex)
-            {
-                throw new global::PureES.Core.RehydrationException(streamId, AggregateType, ex);
+                var current = await CreateWhen(streamId, enumerator, cancellationToken);
+                return await UpdateWhen(streamId, current, enumerator, cancellationToken);
             }
         }
 
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        public async Task<global::PureES.Core.Tests.Models.ImplementedGenericAggregate> Update(string streamId, global::PureES.Core.Tests.Models.ImplementedGenericAggregate current, global::System.Collections.Generic.IAsyncEnumerable<global::PureES.Core.EventEnvelope> @events, CancellationToken cancellationToken)
+        public async Task<global::PureES.Core.RehydratedAggregate<global::PureES.Core.Tests.Models.ImplementedGenericAggregate>> Update(string streamId, global::PureES.Core.RehydratedAggregate<global::PureES.Core.Tests.Models.ImplementedGenericAggregate> aggregate, global::System.Collections.Generic.IAsyncEnumerable<global::PureES.Core.EventEnvelope> @events, CancellationToken cancellationToken)
         {
-            try
+            await using (var enumerator = @events.GetAsyncEnumerator(cancellationToken))
             {
-                await using (var enumerator = @events.GetAsyncEnumerator(cancellationToken))
-                {
-                    return await UpdateWhen(streamId, current, enumerator, cancellationToken);
-                }
-            }
-            catch (Exception ex)
-            {
-                throw new global::PureES.Core.RehydrationException(streamId, AggregateType, ex);
+                return await UpdateWhen(streamId, aggregate, enumerator, cancellationToken);
             }
         }
     }

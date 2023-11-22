@@ -112,6 +112,14 @@ public interface IEventStore
         CancellationToken cancellationToken);
 
     /// <summary>
+    ///    Appends multiple event streams as an atomic operation
+    /// </summary>
+    /// <param name="transaction">The event streams to append</param>
+    /// <param name="cancellationToken"></param>
+    /// <exception cref="EventsTransactionException">Multiple transactions were not valid</exception>
+    public Task SubmitTransaction(IReadOnlyDictionary<string, UncommittedEventsList> transaction, CancellationToken cancellationToken);
+
+    /// <summary>
     ///     Reads all events in chronological order
     /// </summary>
     /// <param name="direction">Read direction</param>
@@ -199,7 +207,7 @@ public interface IEventStore
 
     /// <summary>
     ///     Loads events from stream <paramref name="streamId" /> up
-    ///     to and including <paramref name="count />
+    ///     to and including <paramref name="count" />
     /// </summary>
     /// <param name="direction">Read direction</param>
     /// <param name="streamId">Id of stream to load events from</param>
@@ -208,11 +216,11 @@ public interface IEventStore
     /// <returns>
     ///     An <see cref="IAsyncEnumerable{T}" /> of <see cref="EventEnvelope" />
     ///     from the events in the stream in the order in which they were added,
-    ///     up to and including event at <paramref name="count />
+    ///     up to and including event at <paramref name="count" />
     /// </returns>
     /// <exception cref="StreamNotFoundException">Stream <paramref name="streamId" /> not found</exception>
     /// <exception cref="WrongStreamRevisionException">
-    ///     Revision of stream <paramref name="streamId" /> less than <paramref name="count />
+    ///     Revision of stream <paramref name="streamId" /> less than <paramref name="count" />
     /// </exception>
     public IAsyncEnumerable<EventEnvelope> ReadPartial(Direction direction,
         string streamId,
@@ -220,7 +228,8 @@ public interface IEventStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    ///     Loads events from stream <paramref name="streamId" /> up
+    ///     Loads events from stream <paramref name="streamId" />
+    ///     starting at <paramref name="startRevision"/> up
     ///     to and including <paramref name="endRevision" />
     /// </summary>
     /// <param name="streamId">Id of stream to load events from</param>
@@ -240,6 +249,26 @@ public interface IEventStore
     public IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId,
         ulong startRevision,
         ulong endRevision,
+        CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    ///     Loads events from stream <paramref name="streamId" />
+    ///     starting from <paramref name="startRevision"/> until end of stream
+    /// </summary>
+    /// <param name="streamId">Id of stream to load events from</param>
+    /// <param name="startRevision">Revision to start reading from.</param>
+    /// <param name="cancellationToken"></param>
+    /// <returns>
+    ///     An <see cref="IAsyncEnumerable{T}" /> of <see cref="EventEnvelope" />
+    ///     from the events in the stream in the order in which they were added,
+    ///     starting from <paramref name="startRevision"/> to the end of the stream
+    /// </returns>
+    /// <exception cref="StreamNotFoundException">Stream <paramref name="streamId" /> not found</exception>
+    /// <exception cref="WrongStreamRevisionException">
+    ///     Revision of stream <paramref name="streamId" /> less than <paramref name="startRevision" />
+    /// </exception>
+    public IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId,
+        ulong startRevision,
         CancellationToken cancellationToken = default);
 
     /// <summary>

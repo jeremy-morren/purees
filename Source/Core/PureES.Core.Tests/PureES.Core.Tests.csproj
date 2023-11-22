@@ -1,12 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net7.0</TargetFramework>
+        <TargetFrameworks>net6.0;net7.0</TargetFrameworks>
         <Nullable>enable</Nullable>
         <ImplicitUsings>disable</ImplicitUsings>
 
         <IsPackable>false</IsPackable>
-        <LangVersion>latest</LangVersion>
+        <LangVersion>11</LangVersion>
     </PropertyGroup>
     
     <ItemGroup>
@@ -42,5 +42,6 @@
     
     <ItemGroup>
         <None Include="Models\*.cs" CopyToOutputDirectory="Always" />
+        <None Include="CompilerAttributes.cs" CopyToOutputDirectory="Always" />
     </ItemGroup>
 </Project>

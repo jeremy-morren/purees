@@ -9,6 +9,12 @@ namespace PureES.EventStore.InMemory;
 public interface IInMemoryEventStore : IEventStore
 {
     /// <summary>
+    /// Gets the number of events in the store
+    /// </summary>
+    /// <returns></returns>
+    int GetCount();
+    
+    /// <summary>
     /// Reads all events as a synchronous operation
     /// </summary>
     /// <returns></returns>

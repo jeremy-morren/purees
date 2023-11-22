@@ -24,6 +24,7 @@ public class IncrementalGeneratorTests
     public Task Generate()
     {
         var syntaxTrees = Directory.GetFiles(Source)
+            .Concat(new[] { CompilerAttributes })
             .Select(file => CSharpSyntaxTree.ParseText(File.ReadAllText(file)));
         
         var compilation = CSharpCompilation.Create(
@@ -55,6 +56,7 @@ public class IncrementalGeneratorTests
     }
     
     private static readonly string Source = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Models");
+    private static readonly string CompilerAttributes = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "CompilerAttributes.cs");
 
     private static IEnumerable<MetadataReference> GetReferences(params Type[] types)
     {

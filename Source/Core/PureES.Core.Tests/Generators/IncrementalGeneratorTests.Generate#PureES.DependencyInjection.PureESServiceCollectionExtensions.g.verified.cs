@@ -56,11 +56,11 @@ namespace PureES.DependencyInjection
                 serviceType: typeof(global::PureES.Core.IAggregateFactory<global::PureES.Core.Tests.Models.TestAggregate>),
                 implementationType: typeof(global::PureES.AggregateFactories.TestAggregateFactory),
                 lifetime: ServiceLifetime.Transient));
-            if (!registeredImplementations.Contains(typeof(global::PureES.AggregateFactories.TestAggregateFactory_Services)))
+            if (!registeredImplementations.Contains(typeof(global::PureES.AggregateFactories.TestAggregateFactory.Services)))
             {
                 services.Add(new ServiceDescriptor(
-                    serviceType: typeof(global::PureES.AggregateFactories.TestAggregateFactory_Services),
-                    implementationType: typeof(global::PureES.AggregateFactories.TestAggregateFactory_Services),
+                    serviceType: typeof(global::PureES.AggregateFactories.TestAggregateFactory.Services),
+                    implementationType: typeof(global::PureES.AggregateFactories.TestAggregateFactory.Services),
                     lifetime: ServiceLifetime.Transient));
             }
             if (registeredServices.Contains(typeof(global::PureES.Core.ICommandHandler<global::PureES.Core.Tests.Models.Commands.Create>)))

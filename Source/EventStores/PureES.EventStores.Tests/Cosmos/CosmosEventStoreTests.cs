@@ -134,8 +134,8 @@ public class CosmosEventStoreTests : EventStoreTestsBase
 
     private static UncommittedEvent NewLargeEvent()
     {
-        var data = new byte[1024 * 512]; //.5 MB
-        return new UncommittedEvent() { Event = new LargeEvent(Guid.NewGuid(), data) };
+        var data = new byte[1024 * 512]; //512 KB
+        return new UncommittedEvent(new LargeEvent(Guid.NewGuid(), data));
     }
 
     [UsedImplicitly]

@@ -120,7 +120,7 @@ namespace PureES.CommandHandlers
                 var revision = currentRevision;
                 if (result?.Event != null)
                 {
-                    var e = new global::PureES.Core.UncommittedEvent() { Event = result.Event };
+                    var e = new global::PureES.Core.UncommittedEvent(result.Event);
                     if (this._enrichers != null)
                     {
                         foreach (var enricher in this._enrichers)
