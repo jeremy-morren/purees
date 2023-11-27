@@ -35,7 +35,7 @@ internal class CommandHandlerGenerator
         _w.PushBrace();
         
         _w.WriteClassAttributes();
-        _w.WriteLine($"internal class {ClassName} : {Interface}");
+        _w.WriteLine($"internal sealed class {ClassName} : {Interface}");
         _w.PushBrace();
 
         WriteConstructor();
@@ -43,8 +43,10 @@ internal class CommandHandlerGenerator
         _w.WriteLine();
 
         GeneratorHelpers.WriteGetElapsed(_w, false);
-
-        _w.WriteLine();
+        
+        
+        _w.WriteLine($"private static readonly global::{typeof(Type).FullName} AggregateType = typeof({_aggregate.Type.CSharpName});");
+        _w.WriteLine($"private static readonly global::{typeof(Type).FullName} CommandType = typeof({_handler.Command.CSharpName});");
 
         _w.WriteMethodAttributes();
 
@@ -130,13 +132,13 @@ internal class CommandHandlerGenerator
             _w.WriteStatement("if (command == null)", "throw new ArgumentNullException(nameof(command));");
         }
 
-        _w.WriteLine($"var commandType = typeof({_handler.Command.CSharpName});");
-        _w.WriteLine($"var aggregateType = typeof({_aggregate.Type.CSharpName});");
+        const string commandType = "CommandType";
+        const string aggregateType = "AggregateType";
         
         _w.WriteLogMessage("Debug",
             "null",
             "Handling command {@Command}. Aggregate: {@Aggregate}. Method: {Method}", 
-            "commandType", "aggregateType", method);
+            commandType, aggregateType, method);
 
         _w.WriteLine($"var start = {GeneratorHelpers.GetTimestamp};");
         
@@ -183,7 +185,7 @@ internal class CommandHandlerGenerator
             _w.WriteLogMessage("Information",
                 "null",
                 "Handled command {@Command}. Elapsed: {Elapsed:0.0000}ms. Stream {StreamId} is now at {Revision}. Aggregate: {@Aggregate}. Method: {Method}",
-                "commandType", "GetElapsed(start)", "streamId", "revision", "aggregateType", method);
+                commandType, "GetElapsed(start)", "streamId", "revision", aggregateType, method);
             
             
             _w.WriteLine(_handler.ResultType != null ? $"return result?.{nameof(CommandResult<int,int>.Result)};" : "return revision;");
@@ -194,7 +196,7 @@ internal class CommandHandlerGenerator
             _w.WriteLogMessage("Information",
                 "ex",
                 "Error handling command {@Command}. Aggregate: {@Aggregate}. Method: {Method}. Elapsed: {Elapsed:0.0000}ms",
-                "commandType", "aggregateType", method, "GetElapsed(start)");
+                commandType, aggregateType, method, "GetElapsed(start)");
             _w.WriteLine("throw;");
         });
     }

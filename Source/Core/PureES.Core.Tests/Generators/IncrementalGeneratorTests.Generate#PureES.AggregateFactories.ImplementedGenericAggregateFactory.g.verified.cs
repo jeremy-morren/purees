@@ -22,7 +22,7 @@ namespace PureES.AggregateFactories
     [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
     [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute]
     [global::System.CodeDom.Compiler.GeneratedCodeAttribute("PureES.SourceGenerator", "1.0.0.0")]
-    internal class ImplementedGenericAggregateFactory : global::PureES.Core.IAggregateFactory<global::PureES.Core.Tests.Models.ImplementedGenericAggregate>
+    internal sealed class ImplementedGenericAggregateFactory : global::PureES.Core.IAggregateFactory<global::PureES.Core.Tests.Models.ImplementedGenericAggregate>
     {
         private readonly global::PureES.Core.IEventStore _eventStore;
         private readonly global::System.IServiceProvider _services;

@@ -40,7 +40,7 @@ internal class AggregateFactoryGenerator
         _w.PushBrace();
 
         _w.WriteClassAttributes();
-        _w.WriteLine($"internal class {ClassName} : {Interface}");
+        _w.WriteLine($"internal sealed class {ClassName} : {Interface}");
         _w.PushBrace();
         
         WriteConstructor();
@@ -234,7 +234,7 @@ internal class AggregateFactoryGenerator
     {
         _w.WriteLine();
         _w.WriteClassAttributes();
-        _w.WriteLine($"internal class Services");
+        _w.WriteLine("internal sealed class Services");
         _w.PushBrace();
         for (var i = 0; i < _services.Length; i++)
             _w.WriteLine($"public readonly {_services[i].CSharpName} S{i};");

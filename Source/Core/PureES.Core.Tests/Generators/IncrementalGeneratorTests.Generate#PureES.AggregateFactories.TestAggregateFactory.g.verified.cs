@@ -22,7 +22,7 @@ namespace PureES.AggregateFactories
     [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
     [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute]
     [global::System.CodeDom.Compiler.GeneratedCodeAttribute("PureES.SourceGenerator", "1.0.0.0")]
-    internal class TestAggregateFactory : global::PureES.Core.IAggregateFactory<global::PureES.Core.Tests.Models.TestAggregate>
+    internal sealed class TestAggregateFactory : global::PureES.Core.IAggregateFactory<global::PureES.Core.Tests.Models.TestAggregate>
     {
         private readonly global::PureES.Core.IEventStore _eventStore;
         private readonly global::System.IServiceProvider _services;
@@ -193,7 +193,7 @@ namespace PureES.AggregateFactories
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
         [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute]
         [global::System.CodeDom.Compiler.GeneratedCodeAttribute("PureES.SourceGenerator", "1.0.0.0")]
-        internal class Services
+        internal sealed class Services
         {
             public readonly global::Microsoft.Extensions.Logging.ILoggerFactory S0;
             public readonly global::System.IServiceProvider S1;

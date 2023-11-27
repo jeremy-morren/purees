@@ -38,9 +38,9 @@ internal class DependencyInjectionGenerator
         _w.WriteStatement($"namespace {Namespace}", () =>
         {
             _w.WriteClassAttributes();
-            _w.WriteStatement($"internal class {ClassName}", WriteRegisterServices);
+            _w.WriteStatement($"internal static class {ClassName}", WriteRegisterServices);
         });
-
+        
         return _w.Value;
     }
 

@@ -19,7 +19,6 @@ internal class CosmosEventStoreSubscriptionToAll : ICosmosEventStoreSubscription
     public CosmosEventStoreSubscriptionToAll(CosmosEventStoreClient client,
         CosmosEventStoreSerializer serializer,
         IOptionsFactory<CosmosEventStoreSubscriptionOptions> optionsFactory,
-        
         IServiceProvider services,
         ILogger<CosmosEventStoreSubscriptionToAll>? logger = null,
         ILoggerFactory? loggerFactory = null)

@@ -22,7 +22,7 @@ namespace PureES.CommandHandlers
     [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
     [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute]
     [global::System.CodeDom.Compiler.GeneratedCodeAttribute("PureES.SourceGenerator", "1.0.0.0")]
-    internal class UpdateConstantStreamCommandHandler : global::PureES.Core.ICommandHandler<global::PureES.Core.Tests.Models.Commands.UpdateConstantStream, int[]>
+    internal sealed class UpdateConstantStreamCommandHandler : global::PureES.Core.ICommandHandler<global::PureES.Core.Tests.Models.Commands.UpdateConstantStream, int[]>
     {
         private readonly global::PureES.Core.ICommandStreamId<global::PureES.Core.Tests.Models.Commands.UpdateConstantStream> _getStreamId;
         private readonly global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.TestAggregate> _aggregateStore;
@@ -76,7 +76,8 @@ namespace PureES.CommandHandlers
             return (global::System.Diagnostics.Stopwatch.GetTimestamp() - start) * 1000 / (double)global::System.Diagnostics.Stopwatch.Frequency;
 #endif
         }
-
+        private static readonly global::System.Type AggregateType = typeof(global::PureES.Core.Tests.Models.TestAggregate);
+        private static readonly global::System.Type CommandType = typeof(global::PureES.Core.Tests.Models.Commands.UpdateConstantStream);
 
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
@@ -87,14 +88,12 @@ namespace PureES.CommandHandlers
             {
                 throw new ArgumentNullException(nameof(command));
             }
-            var commandType = typeof(global::PureES.Core.Tests.Models.Commands.UpdateConstantStream);
-            var aggregateType = typeof(global::PureES.Core.Tests.Models.TestAggregate);
             this._logger?.Log(
                 logLevel: global::Microsoft.Extensions.Logging.LogLevel.Debug,
                 exception: null,
                 message: "Handling command {@Command}. Aggregate: {@Aggregate}. Method: {Method}",
-                commandType,
-                aggregateType,
+                CommandType,
+                AggregateType,
                 "UpdateOnResult");
             var start = global::System.Diagnostics.Stopwatch.GetTimestamp();
             try
@@ -142,11 +141,11 @@ namespace PureES.CommandHandlers
                     logLevel: global::Microsoft.Extensions.Logging.LogLevel.Information,
                     exception: null,
                     message: "Handled command {@Command}. Elapsed: {Elapsed:0.0000}ms. Stream {StreamId} is now at {Revision}. Aggregate: {@Aggregate}. Method: {Method}",
-                    commandType,
+                    CommandType,
                     GetElapsed(start),
                     streamId,
                     revision,
-                    aggregateType,
+                    AggregateType,
                     "UpdateOnResult");
                 return result?.Result;
             }
@@ -156,8 +155,8 @@ namespace PureES.CommandHandlers
                     logLevel: global::Microsoft.Extensions.Logging.LogLevel.Information,
                     exception: ex,
                     message: "Error handling command {@Command}. Aggregate: {@Aggregate}. Method: {Method}. Elapsed: {Elapsed:0.0000}ms",
-                    commandType,
-                    aggregateType,
+                    CommandType,
+                    AggregateType,
                     "UpdateOnResult",
                     GetElapsed(start));
                 throw;
