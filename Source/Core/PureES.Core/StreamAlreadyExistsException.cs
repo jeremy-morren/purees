@@ -8,7 +8,7 @@
 public class StreamAlreadyExistsException : Exception
 {
     public StreamAlreadyExistsException(string streamId, Exception? innerException = null)
-        : base("Event stream '" + streamId + $"' already exists", innerException)
+        : base("Event stream '" + streamId + "' already exists", innerException)
     {
         StreamId = streamId;
     }

@@ -79,7 +79,7 @@ internal class AggregateFactoryGenerator
     private void WriteFactories()
     {
         var services = _services.Any() ? $"{ServicesClassName} services, " : null;
-        var servicesParam =  _services.Any() ? $"services, " : null;
+        var servicesParam =  _services.Any() ? "services, " : null;
         
         const string moveNext = "await enumerator.MoveNextAsync()";
         
@@ -242,7 +242,7 @@ internal class AggregateFactoryGenerator
         _w.WriteLine();
         
         _w.WriteMethodAttributes();
-        _w.Write($"public Services(");
+        _w.Write("public Services(");
         _w.WriteParameters(_services.Select((t,i) => $"{t.CSharpName} s{i}"));
         _w.WriteRawLine(")");
         _w.PushBrace();
