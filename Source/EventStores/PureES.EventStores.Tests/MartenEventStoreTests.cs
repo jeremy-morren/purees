@@ -21,8 +21,6 @@ public class MartenEventStoreTests : EventStoreTestsBase
     [Fact]
     public async Task Subscription_To_All_Should_Handle_All_Events()
     {
-        const string streamId = nameof(Subscription_To_All_Should_Handle_All_Events);
-
         var handler = new Mock<IEventHandler>();
 
         var list = new List<EventEnvelope>();
