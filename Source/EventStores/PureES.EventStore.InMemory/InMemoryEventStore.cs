@@ -21,17 +21,17 @@ internal class InMemoryEventStore : IInMemoryEventStore
     private readonly IEventTypeMap _eventTypeMap;
 
     private readonly InMemoryEventStoreSerializer _serializer;
-    private readonly ISystemClock _systemClock;
+    private readonly ISystemClock _clock;
 
     private readonly List<IInMemoryEventStoreSubscription> _subscriptions;
 
     public InMemoryEventStore(InMemoryEventStoreSerializer serializer,
-        ISystemClock systemClock,
+        ISystemClock clock,
         IEventTypeMap eventTypeMap,
         IEnumerable<IHostedService>? hostedServices = null)
     {
         _serializer = serializer;
-        _systemClock = systemClock;
+        _clock = clock;
         _eventTypeMap = eventTypeMap;
 
         _subscriptions = hostedServices?.OfType<IInMemoryEventStoreSubscription>().ToList() ??
@@ -86,11 +86,25 @@ internal class InMemoryEventStore : IInMemoryEventStore
         if (streamId == null) throw new ArgumentNullException(nameof(streamId));
         if (events == null) throw new ArgumentNullException(nameof(events));
 
-        var ts = _systemClock.UtcNow;
+        var ts = _clock.UtcNow;
         records = events.Select(e => _serializer.Serialize(e, streamId, startPos++, ts)).ToList();
         if (records.Count == 0)
             throw new ArgumentOutOfRangeException(nameof(events));
         result = Task.FromResult((ulong)startPos - 1);
+    }
+    
+    private void CreateRecords(string streamId, 
+        int startPos, 
+        IEnumerable<UncommittedEvent> events,
+        DateTimeOffset timestamp,
+        out List<EventRecord> records)
+    {
+        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
+        if (events == null) throw new ArgumentNullException(nameof(events));
+
+        records = events.Select(e => _serializer.Serialize(e, streamId, startPos++, timestamp)).ToList();
+        if (records.Count == 0)
+            throw new ArgumentOutOfRangeException(nameof(events));
     }
 
     public Task<ulong> Create(string streamId, IEnumerable<UncommittedEvent> events, CancellationToken _)
@@ -183,7 +197,8 @@ internal class InMemoryEventStore : IInMemoryEventStore
         
         if (transaction.Count == 0)
             return Task.CompletedTask; //No events to submit
-        
+
+        var allRecords = new List<EventRecord>();
         lock (_mutex)
         {
             var exceptions = new List<Exception>();
@@ -212,6 +227,8 @@ internal class InMemoryEventStore : IInMemoryEventStore
                     throw new EventsTransactionException(exceptions);
             }
 
+            var ts = _clock.UtcNow;
+            
             foreach (var (streamId, list) in transaction)
             {
                 if (list.Events.Count == 0) continue; //No events to append
@@ -220,11 +237,15 @@ internal class InMemoryEventStore : IInMemoryEventStore
                     ? c
                     : ImmutableList<int>.Empty;
                 
-                CreateRecords(streamId, current.Count, list.Events, out var records, out _);
+                CreateRecords(streamId, current.Count, list.Events, ts, out var records);
                 _streams[streamId] = current.AddRange(Enumerable.Range(_records.Count, records.Count));
                 _records = _records.AddRange(records);
+                
+                allRecords.AddRange(records);
             }
         }
+
+        AfterCommit(allRecords);
 
         return Task.CompletedTask;
     }

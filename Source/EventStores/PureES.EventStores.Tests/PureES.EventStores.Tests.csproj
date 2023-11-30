@@ -36,4 +36,11 @@
     <ItemGroup>
         <InternalsVisibleTo Include="PureES.EventStore.Tests" />
     </ItemGroup>
+    
+    <ItemGroup>
+        <Using Include="Xunit"/>
+        <Using Include="Xunit.Abstractions"/>
+        <Using Include="Shouldly"/>
+        <Using Include="FluentAssertions"/>
+    </ItemGroup>
 </Project>

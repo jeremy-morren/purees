@@ -1,8 +1,10 @@
-﻿namespace PureES.Core.SourceGenerators.Generators;
+﻿using PureAttribute = System.Diagnostics.Contracts.PureAttribute;
+
+namespace PureES.Core.SourceGenerators.Generators;
 
 internal static class SymbolTypes
 {
-    [System.Diagnostics.Contracts.Pure]
+    [Pure]
     public static bool IsNonGenericEventEnvelope(this IType type)
     {
         return typeof(EventEnvelope).FullName!.Equals(type.FullName, StringComparison.Ordinal);
@@ -11,7 +13,7 @@ internal static class SymbolTypes
     /// <summary>
     /// Determines if type is <see cref="EventEnvelope{TEvent,TMetadata}"/> or subclass
     /// </summary>
-    [System.Diagnostics.Contracts.Pure]
+    [Pure]
     public static bool IsGenericEventEnvelope(this IType type, out IType eventType, out IType metadataType)
     {
         if (type.IsGenericType && type.IsGenericType(typeof(EventEnvelope<,>)))
@@ -29,13 +31,13 @@ internal static class SymbolTypes
     /// <summary>
     /// Determines if type is <see cref="EventEnvelope{TEvent,TMetadata}"/> or subclass
     /// </summary>
-    [System.Diagnostics.Contracts.Pure]
+    [Pure]
     public static bool IsGenericEventEnvelope(this IType type) => type.IsGenericEventEnvelope(out _, out _);
 
     /// <summary>
     /// Checks that a type in the inheritance hierarchy is NonGenericEventEnvelope
     /// </summary>
-    [System.Diagnostics.Contracts.Pure]
+    [Pure]
     public static bool IsEventEnvelope(this IType type)
     {
         return type.IsNonGenericEventEnvelope()
@@ -46,7 +48,7 @@ internal static class SymbolTypes
     /// <summary>
     /// Checks that a type is <see cref="CommandResult{TEvent, TResult}"/> or subclass
     /// </summary>
-    [System.Diagnostics.Contracts.Pure]
+    [Pure]
     public static bool IsCommandResultType(this IType type, out IType eventType, out IType resultType)
     {
         if (type.IsGenericType && IsGenericType(type, typeof(CommandResult<,>)))
@@ -62,7 +64,7 @@ internal static class SymbolTypes
         return type.BaseType != null && IsCommandResultType(type.BaseType, out eventType, out resultType);
     }
 
-    [System.Diagnostics.Contracts.Pure]
+    [Pure]
     public static bool IsAsync(this IType type, out IType? underlyingType)
     {
         if (!type.IsGenericType)
@@ -77,7 +79,10 @@ internal static class SymbolTypes
                || type.FullName.StartsWith(typeof(Task).FullName!, StringComparison.Ordinal);
     }
 
-    [System.Diagnostics.Contracts.Pure]
+    [Pure]
+    public static bool IsEventsTransaction(this IType type) => type.FullName == typeof(EventsTransaction).FullName;
+
+    [Pure]
     public static bool IsEnumerable(this IType type)
     {
         return (type.IsInterface && type.IsGenericType(typeof(IEnumerable<>))) ||
@@ -85,7 +90,7 @@ internal static class SymbolTypes
                type.ImplementedInterfaces.Any(t => t.IsGenericType(typeof(IEnumerable<>)));
     }
     
-    [System.Diagnostics.Contracts.Pure]
+    [Pure]
     public static bool IsAsyncEnumerable(this IType type)
     {
         return (type.IsInterface && type.FullName.StartsWith(ExternalTypes.IAsyncEnumerableBase, StringComparison.Ordinal))
@@ -93,12 +98,12 @@ internal static class SymbolTypes
                || type.ImplementedInterfaces.Any(IsAsyncEnumerable);
     }
     
-    [System.Diagnostics.Contracts.Pure]
+    [Pure]
     public static bool IsCancellationToken(this IType type)
     {
         return type.FullName.Equals(typeof(CancellationToken).FullName, StringComparison.Ordinal);
     }
-
+    
     private static bool IsGenericType(this IType type, Type other)
     {
         if (!other.IsGenericType) throw new NotImplementedException();

@@ -1,7 +1,6 @@
 ﻿// ReSharper disable InconsistentNaming
 
 using System.Text.Json;
-using Azure.Core;
 using JetBrains.Annotations;
 
 namespace PureES.EventStores.CosmosDB;

@@ -3,9 +3,11 @@ using Marten;
 using Marten.Services;
 using PureES.Core;
 
+// ReSharper disable LoopCanBeConvertedToQuery
+
 namespace PureES.EventStores.Marten.Subscriptions;
 
-internal class MartenEventsListener : DocumentSessionListenerBase, ISourceBlock<EventEnvelope>
+internal sealed class MartenEventsListener : DocumentSessionListenerBase, ISourceBlock<EventEnvelope>
 {
     private readonly TransformManyBlock<CommittedEvent, EventEnvelope> _block;
     
@@ -35,28 +37,38 @@ internal class MartenEventsListener : DocumentSessionListenerBase, ISourceBlock<
                 MaxDegreeOfParallelism = 1 //Ensure output is ordered as well
             });
     }
-    
-    public override Task AfterCommitAsync(IDocumentSession session, IChangeSet commit, CancellationToken token)
+
+    public override void AfterCommit(IDocumentSession session, IChangeSet commit)
     {
         /*
          * We have to reload them to get the timestamp
-         * Going on the assumption that each commit includes only a single stream in order,
-         * we can get the stream id, the low and the high stream position, and query with that
+         * We assume that the events are ordered by stream position
+         * We get the stream id, the low and the high stream position, and query with that
          */
         
         var list = commit.Inserted.OfType<MartenEvent>().ToList();
         
         if (list.Count == 0)
-            return Task.CompletedTask;
+            return;
 
-        var e = new CommittedEvent(list[0].StreamId,
-            list[0].StreamPosition,
-            list[^1].StreamPosition,
-            session.DocumentStore);
-        
-        //There is no backpressure, so this should succeed immediately
-        if (!_block.Post(e))
-            throw new InvalidOperationException("Failed to post events to event bus");
+        var streams = list.GroupBy(e => e.StreamId);
+
+        foreach (var g in streams)
+        {
+            var e = new CommittedEvent(g.Key,
+                list.First().StreamPosition,
+                list.Last().StreamPosition,
+                session.DocumentStore);
+            
+            //There is no backpressure, so this should succeed immediately
+            if (!_block.Post(e))
+                throw new InvalidOperationException("Failed to post events to event bus");
+        }
+    }
+    
+    public override Task AfterCommitAsync(IDocumentSession session, IChangeSet commit, CancellationToken token)
+    {
+        AfterCommit(session, commit);
         return Task.CompletedTask;
     }
 

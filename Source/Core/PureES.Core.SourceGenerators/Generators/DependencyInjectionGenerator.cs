@@ -1,5 +1,4 @@
-﻿using System.ComponentModel;
-using PureES.Core.SourceGenerators.Framework;
+﻿using PureES.Core.SourceGenerators.Framework;
 using PureES.Core.SourceGenerators.Generators.Models;
 
 // ReSharper disable ForeachCanBePartlyConvertedToQueryUsingAnotherGetEnumerator

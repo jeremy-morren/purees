@@ -28,7 +28,7 @@ namespace PureES.CommandHandlers
         private readonly global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.TestAggregate> _aggregateStore;
         private readonly global::PureES.Core.IEventStore _eventStore;
         private readonly global::PureES.Core.IOptimisticConcurrency _concurrency;
-        private readonly global::System.Collections.Generic.IEnumerable<global::PureES.Core.IEventEnricher> _enrichers;
+        private readonly global::System.Collections.Generic.IEnumerable<global::PureES.Core.IEventEnricher> _syncEnrichers;
         private readonly global::System.Collections.Generic.IEnumerable<global::PureES.Core.IAsyncEventEnricher> _asyncEnrichers;
         private readonly global::System.Collections.Generic.IEnumerable<global::PureES.Core.ICommandValidator<global::PureES.Core.Tests.Models.Commands.Update>> _syncValidators;
         private readonly global::System.Collections.Generic.IEnumerable<global::PureES.Core.IAsyncCommandValidator<global::PureES.Core.Tests.Models.Commands.Update>> _asyncValidators;
@@ -43,26 +43,24 @@ namespace PureES.CommandHandlers
             global::PureES.Core.ICommandStreamId<global::PureES.Core.Tests.Models.Commands.Update> getStreamId,
             global::PureES.Core.IEventStore eventStore,
             global::PureES.Core.IAggregateStore<global::PureES.Core.Tests.Models.TestAggregate> aggregateStore,
+            global::System.Collections.Generic.IEnumerable<global::PureES.Core.IEventEnricher> syncEnrichers,
+            global::System.Collections.Generic.IEnumerable<global::PureES.Core.IAsyncEventEnricher> asyncEnrichers,
+            global::System.Collections.Generic.IEnumerable<global::PureES.Core.ICommandValidator<global::PureES.Core.Tests.Models.Commands.Update>> syncValidators,
+            global::System.Collections.Generic.IEnumerable<global::PureES.Core.IAsyncCommandValidator<global::PureES.Core.Tests.Models.Commands.Update>> asyncValidators,
             global::PureES.Core.IOptimisticConcurrency concurrency = null,
-            global::System.Collections.Generic.IEnumerable<global::PureES.Core.IEventEnricher> enrichers = null,
-            global::System.Collections.Generic.IEnumerable<global::PureES.Core.IAsyncEventEnricher> asyncEnrichers = null,
-            global::System.Collections.Generic.IEnumerable<global::PureES.Core.ICommandValidator<global::PureES.Core.Tests.Models.Commands.Update>> syncValidators = null,
-            global::System.Collections.Generic.IEnumerable<global::PureES.Core.IAsyncCommandValidator<global::PureES.Core.Tests.Models.Commands.Update>> asyncValidators = null,
             global::Microsoft.Extensions.Logging.ILogger<UpdateCommandHandler> logger = null)
         {
             this._getStreamId = getStreamId ?? throw new ArgumentNullException(nameof(getStreamId));
             this._eventStore = eventStore ?? throw new ArgumentNullException(nameof(eventStore));
             this._aggregateStore = aggregateStore ?? throw new ArgumentNullException(nameof(aggregateStore));
+            this._syncEnrichers = syncEnrichers ?? throw new ArgumentNullException(nameof(syncEnrichers));
+            this._asyncEnrichers = asyncEnrichers ?? throw new ArgumentNullException(nameof(asyncEnrichers));
+            this._syncValidators = syncValidators ?? throw new ArgumentNullException(nameof(syncValidators));
+            this._asyncValidators = asyncValidators ?? throw new ArgumentNullException(nameof(asyncValidators));
             this._concurrency = concurrency;
-            this._enrichers = enrichers;
-            this._asyncEnrichers = asyncEnrichers;
-            this._syncValidators = syncValidators;
-            this._asyncValidators = asyncValidators;
-            this._logger = logger;
+            this._logger = logger ?? global::Microsoft.Extensions.Logging.Abstractions.NullLogger<UpdateCommandHandler>.Instance;
             this._service0 = service0 ?? throw new ArgumentNullException(nameof(service0));
         }
-
-
 
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
@@ -76,6 +74,7 @@ namespace PureES.CommandHandlers
             return (global::System.Diagnostics.Stopwatch.GetTimestamp() - start) * 1000 / (double)global::System.Diagnostics.Stopwatch.Frequency;
 #endif
         }
+
         private static readonly global::System.Type AggregateType = typeof(global::PureES.Core.Tests.Models.TestAggregate);
         private static readonly global::System.Type CommandType = typeof(global::PureES.Core.Tests.Models.Commands.Update);
 
@@ -88,7 +87,7 @@ namespace PureES.CommandHandlers
             {
                 throw new ArgumentNullException(nameof(command));
             }
-            this._logger?.Log(
+            this._logger.Log(
                 logLevel: global::Microsoft.Extensions.Logging.LogLevel.Debug,
                 exception: null,
                 message: "Handling command {@Command}. Aggregate: {@Aggregate}. Method: {Method}",
@@ -98,19 +97,13 @@ namespace PureES.CommandHandlers
             var start = global::System.Diagnostics.Stopwatch.GetTimestamp();
             try
             {
-                if (this._syncValidators != null)
+                foreach (var v in this._syncValidators)
                 {
-                    foreach (var validator in this._syncValidators)
-                    {
-                        validator.Validate(command);
-                    }
+                    v.Validate(command);
                 }
-                if (this._asyncValidators != null)
+                foreach (var v in this._asyncValidators)
                 {
-                    foreach (var validator in this._asyncValidators)
-                    {
-                        await validator.Validate(command, cancellationToken);
-                    }
+                    await v.Validate(command, cancellationToken);
                 }
                 var streamId = this._getStreamId.GetStreamId(command);
                 var currentRevision = this._concurrency?.GetExpectedRevision(streamId, command) ?? await this._eventStore.GetRevision(streamId, cancellationToken);
@@ -126,31 +119,25 @@ namespace PureES.CommandHandlers
                     }
                     if (events.Count > 0)
                     {
-                        if (this._enrichers != null)
+                        foreach (var enricher in this._syncEnrichers)
                         {
-                            foreach (var enricher in this._enrichers)
+                            foreach (var e in events)
                             {
-                                foreach (var e in events)
-                                {
-                                    enricher.Enrich(e);
-                                }
+                                enricher.Enrich(e);
                             }
                         }
-                        if (this._asyncEnrichers != null)
+                        foreach (var enricher in this._asyncEnrichers)
                         {
-                            foreach (var enricher in this._asyncEnrichers)
+                            foreach (var e in events)
                             {
-                                foreach (var e in events)
-                                {
-                                    await enricher.Enrich(e, cancellationToken);
-                                }
+                                await enricher.Enrich(e, cancellationToken);
                             }
                         }
                         revision = await _eventStore.Append(streamId, currentRevision, events, cancellationToken);
                     }
                 }
                 this._concurrency?.OnUpdated(streamId, command, currentRevision, revision);
-                this._logger?.Log(
+                this._logger.Log(
                     logLevel: global::Microsoft.Extensions.Logging.LogLevel.Information,
                     exception: null,
                     message: "Handled command {@Command}. Elapsed: {Elapsed:0.0000}ms. Stream {StreamId} is now at {Revision}. Aggregate: {@Aggregate}. Method: {Method}",
@@ -164,7 +151,7 @@ namespace PureES.CommandHandlers
             }
             catch (global::System.Exception ex)
             {
-                this._logger?.Log(
+                this._logger.Log(
                     logLevel: global::Microsoft.Extensions.Logging.LogLevel.Information,
                     exception: ex,
                     message: "Error handling command {@Command}. Aggregate: {@Aggregate}. Method: {Method}. Elapsed: {Elapsed:0.0000}ms",

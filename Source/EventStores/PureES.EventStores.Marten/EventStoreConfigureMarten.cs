@@ -19,7 +19,7 @@ internal class EventStoreConfigureMarten : IConfigureMarten
         _subscriptions = hostedServices.OfType<IMartenEventStoreSubscription>().ToList();
     }
 
-    public void Configure(IServiceProvider services, StoreOptions options)
+    public void Configure(IServiceProvider _, StoreOptions options)
     {
         options.Schema.For<MartenEvent>()
             .Identity(x => x.Id)
@@ -34,7 +34,7 @@ internal class EventStoreConfigureMarten : IConfigureMarten
             })
             .IndexLastModified()
             .Index(i => i.EventType);
-
+        
         foreach (var s in _subscriptions)
             options.Listeners.Add(s.Listener);
     }

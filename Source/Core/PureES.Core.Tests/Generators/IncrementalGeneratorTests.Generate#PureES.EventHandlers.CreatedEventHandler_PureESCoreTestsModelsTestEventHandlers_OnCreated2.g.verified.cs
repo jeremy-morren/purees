@@ -113,7 +113,7 @@ namespace PureES.EventHandlers
                     var start = global::System.Diagnostics.Stopwatch.GetTimestamp();
                     try
                     {
-                        this._logger?.Log(
+                        this._logger.Log(
                             logLevel: global::Microsoft.Extensions.Logging.LogLevel.Debug,
                             exception: null,
                             message: "Handling event {StreamId}/{StreamPosition}. Event Type: {@EventType}. Event handler {EventHandler} on {@EventHandlerParent}",
@@ -126,7 +126,7 @@ namespace PureES.EventHandlers
                             new global::PureES.Core.EventEnvelope<global::PureES.Core.Tests.Models.Events.Created, object>(@event),
                             this._service0);
                         var elapsed = GetElapsedTimespan(start);
-                        this._logger?.Log(
+                        this._logger.Log(
                             logLevel: this._options.GetLogLevel(@event, elapsed),
                             exception: null,
                             message: "Handled event {StreamId}/{StreamPosition}. Elapsed: {Elapsed:0.0000}ms. Event Type: {@EventType}. Event handler {EventHandler} on {@EventHandlerParent}",
@@ -139,7 +139,7 @@ namespace PureES.EventHandlers
                     }
                     catch (global::System.OperationCanceledException ex)
                     {
-                        this._logger?.Log(
+                        this._logger.Log(
                             logLevel: _options.PropagateExceptions ? LogLevel.Information : LogLevel.Error,
                             exception: ex,
                             message: "Timed out while handling event {StreamId}/{StreamPosition}. Elapsed: {Elapsed:0.0000}ms. Event Type: {@EventType}. Event handler {EventHandler} on {@EventHandlerParent}",
@@ -156,7 +156,7 @@ namespace PureES.EventHandlers
                     }
                     catch (global::System.Exception ex)
                     {
-                        this._logger?.Log(
+                        this._logger.Log(
                             logLevel: _options.PropagateExceptions ? LogLevel.Information : LogLevel.Error,
                             exception: ex,
                             message: "Error handling event {StreamId}/{StreamPosition}. Elapsed: {Elapsed:0.0000}ms. Event Type: {@EventType}. Event handler {EventHandler} on {@EventHandlerParent}",

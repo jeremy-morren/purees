@@ -1,6 +1,4 @@
-﻿using System.Data;
-using System.Runtime.CompilerServices;
-using JetBrains.Annotations;
+﻿using System.Runtime.CompilerServices;
 using Marten;
 using Marten.Exceptions;
 using PureES.Core;

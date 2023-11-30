@@ -30,6 +30,14 @@ internal class CosmosEventStore : IEventStore
         ulong startRevision,
         Container container,
         IEnumerable<UncommittedEvent> events,
+        out ulong revision) =>
+        CreateTransactions(streamId, startRevision, container, events, _systemClock.UtcNow, out revision);
+    
+    private List<TransactionalBatch> CreateTransactions(string streamId,
+        ulong startRevision,
+        Container container,
+        IEnumerable<UncommittedEvent> events,
+        DateTimeOffset timestamp,
         out ulong revision)
     {
         if (events == null) throw new ArgumentNullException(nameof(events));
@@ -53,7 +61,6 @@ internal class CosmosEventStore : IEventStore
         var transaction = container.CreateTransactionalBatch(partitionKey);
         var transactionSize = 0;
         var transactionCount = 0;
-        var timestamp = _systemClock.UtcNow;
         foreach (var @event in events)
         {
             var cosmosEvent = _serializer.Serialize(@event, streamId, revision++, timestamp);
@@ -205,7 +212,8 @@ internal class CosmosEventStore : IEventStore
 
         var batches = new Dictionary<string, List<TransactionalBatch>>();
         var exceptions = new List<Exception>();
-        
+
+        var ts = _systemClock.UtcNow;
         foreach (var (streamId, list) in transaction)
         {
             if (current.TryGetValue(streamId, out var actual))
@@ -232,7 +240,7 @@ internal class CosmosEventStore : IEventStore
                 }
                 else if (list.Events.Count > 0)
                 {
-                    var transactions = CreateTransactions(streamId, 0, container, list.Events, out _);
+                    var transactions = CreateTransactions(streamId, 0, container, list.Events, ts, out _);
                     batches.Add(streamId, transactions);
                 }
             }
@@ -248,12 +256,11 @@ internal class CosmosEventStore : IEventStore
                 throw new EventsTransactionException(exceptions);
         }
         
-        
-        //CosmosDB requires a partition key for all operations
-        //Therefore we can't make this atomic
 
         if (batches.Count == 0) return;
 
+        //CosmosDB requires a partition key for all operations
+        //Therefore we can't make this atomic
         await Task.WhenAll(batches.Select(Execute));
         
         return;

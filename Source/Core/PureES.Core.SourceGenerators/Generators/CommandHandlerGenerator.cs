@@ -1,5 +1,4 @@
-﻿using System.ComponentModel;
-using PureES.Core.SourceGenerators.Framework;
+﻿using PureES.Core.SourceGenerators.Framework;
 using PureES.Core.SourceGenerators.Generators.Models;
 
 // ReSharper disable StringLiteralTypo
@@ -40,27 +39,22 @@ internal class CommandHandlerGenerator
 
         WriteConstructor();
 
-        _w.WriteLine();
-
         GeneratorHelpers.WriteGetElapsed(_w, false);
-        
-        
+
+        _w.WriteLine();
         _w.WriteLine($"private static readonly global::{typeof(Type).FullName} AggregateType = typeof({_aggregate.Type.CSharpName});");
         _w.WriteLine($"private static readonly global::{typeof(Type).FullName} CommandType = typeof({_handler.Command.CSharpName});");
-
+        
         _w.WriteMethodAttributes();
-
+        
         var returnType = _handler.ResultType != null ? _handler.ResultType.CSharpName : "ulong";
         returnType = TypeNameHelpers.GetGenericTypeName(typeof(Task<>), returnType);
-        _w.WriteLine(
-            $"public async {returnType} Handle({_handler.Command.CSharpName} command, CancellationToken cancellationToken)");
-        
-        _w.PushBrace();
-
-        WriteHandler();
+        _w.WriteStatement(
+            $"public async {returnType} Handle({_handler.Command.CSharpName} command, CancellationToken cancellationToken)",
+            WriteHandler);
         
         _w.PopAllBraces();
-
+        
         return _w.Value;
     }
 
@@ -72,7 +66,7 @@ internal class CommandHandlerGenerator
         _w.WriteLine($"private readonly {AggregateStoreType} _aggregateStore;");
         _w.WriteLine($"private readonly {EventStoreType} _eventStore;");
         _w.WriteLine($"private readonly {OptimisticConcurrencyType} _concurrency;");
-        _w.WriteLine($"private readonly {EnumerableEventEnricherType} _enrichers;");
+        _w.WriteLine($"private readonly {EnumerableEventEnricherType} _syncEnrichers;");
         _w.WriteLine($"private readonly {EnumerableAsyncEventEnricherType} _asyncEnrichers;");
         _w.WriteLine($"private readonly {EnumerableValidatorType} _syncValidators;");
         _w.WriteLine($"private readonly {EnumerableAsyncValidatorType} _asyncValidators;");
@@ -93,33 +87,37 @@ internal class CommandHandlerGenerator
                 $"{StreamIdSvc} getStreamId",
                 $"{EventStoreType} eventStore",
                 $"{AggregateStoreType} aggregateStore",
+                $"{EnumerableEventEnricherType} syncEnrichers",
+                $"{EnumerableAsyncEventEnricherType} asyncEnrichers",
+                $"{EnumerableValidatorType} syncValidators",
+                $"{EnumerableAsyncValidatorType} asyncValidators",
                 $"{OptimisticConcurrencyType} concurrency = null",
-                $"{EnumerableEventEnricherType} enrichers = null",
-                $"{EnumerableAsyncEventEnricherType} asyncEnrichers = null",
-                $"{EnumerableValidatorType} syncValidators = null",
-                $"{EnumerableAsyncValidatorType} asyncValidators = null",
                 $"{LoggerType} logger = null"
             });
 
         _w.WriteRawLine(')');
         _w.PushBrace();
-        _w.WriteLine("this._getStreamId = getStreamId ?? throw new ArgumentNullException(nameof(getStreamId));");
-        _w.WriteLine("this._eventStore = eventStore ?? throw new ArgumentNullException(nameof(eventStore));");
-        _w.WriteLine("this._aggregateStore = aggregateStore ?? throw new ArgumentNullException(nameof(aggregateStore));");
-
+        
+        var args = new[]
+        {
+            "getStreamId",
+            "eventStore",
+            "aggregateStore",
+            "syncEnrichers",
+            "asyncEnrichers",
+            "syncValidators",
+            "asyncValidators"
+        };
+        foreach (var a in args)
+            _w.WriteLine($"this._{a} = {a} ?? throw new ArgumentNullException(nameof({a}));");
+        
         _w.WriteLine("this._concurrency = concurrency;");
-        _w.WriteLine("this._enrichers = enrichers;");
-        _w.WriteLine("this._asyncEnrichers = asyncEnrichers;");
-        _w.WriteLine("this._syncValidators = syncValidators;");
-        _w.WriteLine("this._asyncValidators = asyncValidators;");
-        _w.WriteLine("this._logger = logger;");
+        _w.WriteLine($"this._logger = logger ?? {NullLoggerInstance};");
         
         for (var i = 0; i < _handler.Services.Length; i++)
             _w.WriteLine($"this._service{i} = service{i} ?? throw new ArgumentNullException(nameof(service{i}));");
         
         _w.PopBrace();
-        
-        _w.WriteLine();
     }
 
     private void WriteHandler()
@@ -159,25 +157,41 @@ internal class CommandHandlerGenerator
             WriteInvoke();
 
             _w.WriteLine(_handler.IsUpdate ? "var revision = currentRevision;" : "var revision = ulong.MaxValue;");
-            
-            _w.WriteStatement(_handler.ResultType != null ? $"if (result?.{nameof(CommandResult<int,int>.Event)} != null)" : "if (result != null)", () =>
-            {
-                var isEnumerable = WriteCreateEventsList();
 
-                if (isEnumerable)
+            var result = _handler.ResultType != null ? $"result?.{nameof(CommandResult<int, int>.Event)}" : "result";
+            
+            _w.WriteStatement($"if ({result} != null)", () =>
+            {
+                if (_handler.EventType.IsEventsTransaction())
                 {
-                    _w.WriteLine("if (events.Count > 0)");
-                    _w.PushBrace();
+                    WriteCreateTransaction();
+                    
+                    _w.WriteStatement("if (transaction.Count > 0)", () =>
+                    {
+                        WriteEnrich(true, $"transaction.Values.SelectMany(p => p.{nameof(UncommittedEventsList.Events)})");
+                        _w.WriteLine($"await _eventStore.{nameof(IEventStore.SubmitTransaction)}(transaction, cancellationToken);");
+                    });
                 }
-                WriteEnrich(isEnumerable);
+                else
+                {
+                    var isEnumerable = WriteCreateEventsList();
+                    
+                    if (isEnumerable)
+                    {
+                        _w.WriteLine("if (events.Count > 0)");
+                        _w.PushBrace();
+                    }
+                    var source = isEnumerable ? "events" : "e";
+                    
+                    WriteEnrich(isEnumerable, source);
                 
-                var eventParam = isEnumerable ? "events" : "e";
-                _w.WriteLine(_handler.IsUpdate 
-                    ? $"revision = await _eventStore.{nameof(IEventStore.Append)}(streamId, currentRevision, {eventParam}, cancellationToken);" 
-                    : $"revision = await _eventStore.{nameof(IEventStore.Create)}(streamId, {eventParam}, cancellationToken);");
+                    _w.WriteLine(_handler.IsUpdate 
+                        ? $"revision = await _eventStore.{nameof(IEventStore.Append)}(streamId, currentRevision, {source}, cancellationToken);" 
+                        : $"revision = await _eventStore.{nameof(IEventStore.Create)}(streamId, {source}, cancellationToken);");
                 
-                if (isEnumerable)
-                    _w.PopBrace(); //if statement above
+                    if (isEnumerable)
+                        _w.PopBrace(); //if statement above
+                }
             });
 
             _w.WriteLine($"this._concurrency?.{nameof(IOptimisticConcurrency.OnUpdated)}(streamId, command, {(_handler.IsUpdate ? "currentRevision" : "null")}, revision);");
@@ -186,7 +200,6 @@ internal class CommandHandlerGenerator
                 "null",
                 "Handled command {@Command}. Elapsed: {Elapsed:0.0000}ms. Stream {StreamId} is now at {Revision}. Aggregate: {@Aggregate}. Method: {Method}",
                 commandType, "GetElapsed(start)", "streamId", "revision", aggregateType, method);
-            
             
             _w.WriteLine(_handler.ResultType != null ? $"return result?.{nameof(CommandResult<int,int>.Result)};" : "return revision;");
         });
@@ -203,18 +216,10 @@ internal class CommandHandlerGenerator
 
     private void WriteValidate()
     {
-        _w.WriteStatement("if (this._syncValidators != null)",
-            () =>
-            {
-                _w.WriteStatement("foreach (var validator in this._syncValidators)",
-                    "validator.Validate(command);");
-            });
-        _w.WriteStatement("if (this._asyncValidators != null)",
-            () =>
-            {
-                _w.WriteStatement("foreach (var validator in this._asyncValidators)",
-                    "await validator.Validate(command, cancellationToken);");
-            });
+        _w.WriteStatement("foreach (var v in this._syncValidators)",
+            $"v.{nameof(ICommandValidator<object>.Validate)}(command);");
+        _w.WriteStatement("foreach (var v in this._asyncValidators)",
+            $"await v.{nameof(IAsyncCommandValidator<object>.Validate)}(command, cancellationToken);");
     }
 
     private void WriteInvoke()
@@ -269,32 +274,54 @@ internal class CommandHandlerGenerator
         return false;
     }
 
-    private void WriteEnrich(bool isEnumerable)
+    private void WriteEnrich(bool isEnumerable, string source)
     {
-        //If enumerable, local variable 'events'
-        //Otherwise, local variable 'e'
-        
-        _w.WriteStatement("if (this._enrichers != null)",
-            () => _w.WriteStatement("foreach (var enricher in this._enrichers)", () =>
-            {
-                const string enrich = "enricher.Enrich(e);";
-                if (isEnumerable)
-                    _w.WriteStatement("foreach (var e in events)", enrich);
-                else
-                    _w.WriteLine(enrich);
-            }));
-        
-        _w.WriteStatement("if (this._asyncEnrichers != null)",
-            () => _w.WriteStatement("foreach (var enricher in this._asyncEnrichers)", () =>
-            {
-                const string enrich = "await enricher.Enrich(e, cancellationToken);";
-                if (isEnumerable)
-                    _w.WriteStatement("foreach (var e in events)", enrich);
-                else
-                    _w.WriteLine(enrich);
-            }));
+        _w.WriteStatement("foreach (var enricher in this._syncEnrichers)", () =>
+        {
+            const string enrich = nameof(IEventEnricher.Enrich);
+            if (isEnumerable)
+                _w.WriteStatement($"foreach (var e in {source})", $"enricher.{enrich}(e);");
+            else
+                _w.WriteLine($"enricher.{enrich}({source});");
+        });
+
+        _w.WriteStatement("foreach (var enricher in this._asyncEnrichers)", () =>
+        {
+            const string enrich = nameof(IAsyncEventEnricher.Enrich);
+            if (isEnumerable)
+                _w.WriteStatement($"foreach (var e in {source})",
+                    $"await enricher.{enrich}(e, cancellationToken);");
+            else
+                _w.WriteLine($"await enricher.{enrich}({source}, cancellationToken);");
+        });
     }
 
+    private void WriteCreateTransaction()
+    {
+        var list = $"global::{typeof(UncommittedEventsList).FullName}";
+        
+        var source = _handler.ResultType != null ? $"result.{nameof(CommandResult<int,int>.Event)}" : "result";
+        
+        var dictionary = TypeNameHelpers.GetGenericTypeName(typeof(Dictionary<,>), "string", list);
+        
+        _w.WriteLine($"var transaction = new {dictionary}();");
+        
+        _w.WriteStatement($"foreach (var pair in {source})", () =>
+        {
+            //If stream is current stream, use currentRevision as expected
+            //And manually calculate return revision
+            _w.WriteStatement("if (pair.Key == streamId)", () =>
+            {
+                _w.WriteLine($"transaction.Add(pair.Key, new {list}(currentRevision, pair.Value));");
+                _w.WriteLine(_handler.IsUpdate
+                    ? "revision = currentRevision + (ulong)(pair.Value.Count - 1);"
+                    : "revision = (ulong)pair.Value.Count - 1;");
+            });
+            _w.WriteStatement("else", 
+                $"transaction.Add(pair.Key, new {list}(pair.Value.{nameof(UncommittedEventsList.ExpectedRevision)}, pair.Value));");
+        });
+    }
+    
     private void WriteGetStreamId()
     {
         //If stream id was provided, then a constant
@@ -332,6 +359,7 @@ internal class CommandHandlerGenerator
     private static string OptimisticConcurrencyType => $"global::{typeof(IOptimisticConcurrency).FullName}";
 
     private string LoggerType => ExternalTypes.ILogger(ClassName);
+    private string NullLoggerInstance => ExternalTypes.NullLoggerInstance(ClassName);
     
     private string StreamIdSvc =>
         TypeNameHelpers.GetGenericTypeName(typeof(ICommandStreamId<>), _handler.Command.CSharpName);

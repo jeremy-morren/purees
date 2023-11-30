@@ -1,5 +1,4 @@
-﻿using System.ComponentModel;
-using PureES.Core.SourceGenerators.Framework;
+﻿using PureES.Core.SourceGenerators.Framework;
 using PureES.Core.SourceGenerators.Generators.Models;
 
 namespace PureES.Core.SourceGenerators.Generators;
@@ -171,7 +170,7 @@ internal class AggregateFactoryGenerator
         });
         
         //catch-all handlers
-        foreach (var w in _aggregate.When.Where(w => w.Event == null && !w.Method.IsStatic))
+        foreach (var w in _aggregate.When.Where(w => w.Event == null))
             InvokeWhen(w);
     }
 

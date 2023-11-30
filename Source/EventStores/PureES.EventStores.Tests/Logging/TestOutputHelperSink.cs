@@ -1,7 +1,6 @@
 ﻿using Serilog.Core;
 using Serilog.Events;
 using Serilog.Formatting.Display;
-using Xunit.Abstractions;
 
 namespace PureES.EventStores.Tests.Logging;
 

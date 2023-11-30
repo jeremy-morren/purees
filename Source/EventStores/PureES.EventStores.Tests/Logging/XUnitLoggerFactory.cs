@@ -2,7 +2,6 @@
 using Serilog;
 using Serilog.Events;
 using Serilog.Extensions.Logging;
-using Xunit.Abstractions;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace PureES.EventStores.Tests.Logging;

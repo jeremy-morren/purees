@@ -14,7 +14,7 @@ public class EventsList : IList<object>
     /// The expected revision of the event stream,
     /// or <see langword="null" /> if the stream is to be created.
     /// </summary>
-    public ulong? ExpectedRevision { get; }
+    public ulong? ExpectedRevision { get; set; }
 
     /// <summary>
     /// Creates a new <see cref="EventsList" />.

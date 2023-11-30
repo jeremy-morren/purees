@@ -111,7 +111,7 @@ internal static class WriterHelpers
         [StructuredMessageTemplate] string message, 
         params string[] args)
     {
-        writer.Write("this._logger?.Log(");
+        writer.Write("this._logger.Log(");
         if (!level.Contains("LogLevel"))
             level = $"{ExternalTypes.LogLevel}.{level}";
         //ILogger.Log(LogLevel logLevel, Exception? exception, string? message, params object?[] args)

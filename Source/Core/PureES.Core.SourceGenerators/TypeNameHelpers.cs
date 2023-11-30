@@ -18,18 +18,11 @@ internal static class TypeNameHelpers
     [System.Diagnostics.Contracts.Pure]
     public static string SanitizeName(IType type)
     {
-        var sb = new StringBuilder();
+        var name = type.Name.Replace("[]", "Array");
 
-        sb.Append(type.Name.Replace("[]", "Array"));
+        name = new[] { '<', '>', '.', '+', ',' }.Aggregate(name, (str, c) => str.Replace(c, '_'));
         
-        if (!type.IsGenericType) return sb.ToString();
-        foreach (var t in type.GenericArguments)
-        {
-            sb.Append('_');
-            sb.Append(SanitizeName(t));
-        }
-
-        return sb.ToString();
+        return name.Replace(" ", string.Empty);
     }
     
     /// <summary>

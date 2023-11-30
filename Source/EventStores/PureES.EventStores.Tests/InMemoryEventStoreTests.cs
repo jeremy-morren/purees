@@ -1,13 +1,10 @@
-﻿using System.IO.Compression;
-using FluentAssertions;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Moq;
 using PureES.Core;
 using PureES.EventStore.InMemory;
 using PureES.EventStore.InMemory.Subscription;
-using Shouldly;
 
 namespace PureES.EventStores.Tests;
 
@@ -21,8 +18,8 @@ public class InMemoryEventStoreTests : EventStoreTestsBase
         var handler = new Mock<IEventHandler>();
 
         var list = new List<EventEnvelope>();
-
-        handler.Setup(s => s.Handle(It.Is<EventEnvelope>(e => e.StreamId == streamId)))
+        
+        handler.Setup(s => s.Handle(It.IsAny<EventEnvelope>()))
             .Callback((EventEnvelope e) =>
             {
                 lock (list)
@@ -40,18 +37,28 @@ public class InMemoryEventStoreTests : EventStoreTestsBase
         await subscription.StartAsync(default); //noop
         
         (await store.Create(streamId, Enumerable.Range(0, 10).Select(_ => NewEvent()), default)).ShouldBe(9ul);
+
+        var transaction = new EventsTransaction();
+        foreach (var i in Enumerable.Range(0, 10))
+            transaction.Add(i.ToString(), null, Enumerable.Range(0, 10).Select(_ => NewEvent()));
+
+        await store.SubmitTransaction(transaction.ToUncommittedTransaction(), default);
         
         await subscription.StopAsync(default);
 
         handler.Verify(s => s.Handle(It.Is<EventEnvelope>(e => e.StreamId == streamId)),
             Times.Exactly(10));
         
-        list.Should().HaveCount(10);
-        list.Should().BeInAscendingOrder(l => l.StreamPosition);
-        Assert.All(list, e =>
+        handler.Verify(s => s.Handle(It.IsAny<EventEnvelope>()), Times.Exactly(110));
+        
+        list.Should().HaveCount(110);
+        list.GroupBy(e => e.StreamId).Should().HaveCount(11);
+        
+        Assert.All(list.GroupBy(e => e.StreamId), g =>
         {
-            e.StreamId.ShouldBe(streamId);
-            e.Timestamp.ShouldBe(list[0].Timestamp);
+            g.Should().HaveCount(10);
+            g.Should().BeInAscendingOrder(l => l.StreamPosition);
+            g.ShouldAllBe(e => e.Timestamp == g.First().Timestamp);
         });
     }
 

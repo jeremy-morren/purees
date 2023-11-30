@@ -1,5 +1,4 @@
-﻿using FluentAssertions;
-using Marten;
+﻿using Marten;
 using Marten.Services.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -9,10 +8,7 @@ using PureES.Core;
 using PureES.EventStores.Marten;
 using PureES.EventStores.Marten.Subscriptions;
 using PureES.EventStores.Tests.Logging;
-using Serilog.Events;
-using Shouldly;
 using Weasel.Core;
-using Xunit.Abstractions;
 
 namespace PureES.EventStores.Tests;
 
@@ -31,7 +27,7 @@ public class MartenEventStoreTests : EventStoreTestsBase
 
         var list = new List<EventEnvelope>();
 
-        handler.Setup(s => s.Handle(It.Is<EventEnvelope>(e => e.StreamId == streamId)))
+        handler.Setup(s => s.Handle(It.IsAny<EventEnvelope>()))
             .Callback((EventEnvelope e) =>
             {
                 lock (list)
@@ -46,20 +42,27 @@ public class MartenEventStoreTests : EventStoreTestsBase
             .OfType<MartenSubscriptionToAll>().Single();
 
         await subscription.StartAsync(default); //noop
+
+        var transaction = new EventsTransaction();
+        foreach (var i in Enumerable.Range(0, 10))
+            transaction.Add(i.ToString(), null, Enumerable.Range(0, 10).Select(_ => NewEvent()));
         
-        (await harness.EventStore.Create(streamId, Enumerable.Range(0, 10).Select(_ => NewEvent()), default)).ShouldBe(9ul);
+        await harness.EventStore.SubmitTransaction(transaction.ToUncommittedTransaction(), default);
         
         await subscription.StopAsync(default);
 
-        handler.Verify(s => s.Handle(It.Is<EventEnvelope>(e => e.StreamId == streamId)),
-            Times.Exactly(10));
+        handler.Verify(s => 
+                s.Handle(It.Is<EventEnvelope>(e => e.Timestamp != default)),
+            Times.Exactly(100));
 
-        list.Should().HaveCount(10);
-        list.Should().BeInAscendingOrder(l => l.StreamPosition);
-        Assert.All(list, e =>
+        list.Should().HaveCount(100);
+
+        list.GroupBy(e => e.StreamId).Should().HaveCount(10);
+        Assert.All(list.GroupBy(e => e.StreamId), g =>
         {
-            e.StreamId.ShouldBe(streamId);
-            e.Timestamp.ShouldBe(list[0].Timestamp);
+            g.Should().HaveCount(10);
+            g.Should().BeInAscendingOrder(e => e.StreamPosition);
+            Assert.All(g, e => e.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromMinutes(1)));
         });
     }
     

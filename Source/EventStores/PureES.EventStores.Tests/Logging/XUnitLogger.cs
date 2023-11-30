@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
 using Serilog.Events;
-using Xunit.Abstractions;
 
 namespace PureES.EventStores.Tests.Logging;
 

@@ -1,5 +1,4 @@
-﻿using System.ComponentModel;
-using PureES.Core.SourceGenerators.Framework;
+﻿using PureES.Core.SourceGenerators.Framework;
 
 namespace PureES.Core.SourceGenerators.Generators;
 

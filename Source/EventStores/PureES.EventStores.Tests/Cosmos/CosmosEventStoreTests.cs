@@ -4,7 +4,6 @@ using Microsoft.Extensions.Hosting;
 using PureES.Core;
 using PureES.EventStores.CosmosDB;
 using PureES.EventStores.CosmosDB.Subscriptions;
-using Shouldly;
 
 namespace PureES.EventStores.Tests.Cosmos;
 

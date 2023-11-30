@@ -23,7 +23,7 @@ internal class TypeSymbol : IType
 
     public string? Namespace => _source.ContainingNamespace?.ToString();
 
-    public string Name => _source.Name;
+    public string Name => _source.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
 
     public string FullName => _source.ToDisplayString();
 

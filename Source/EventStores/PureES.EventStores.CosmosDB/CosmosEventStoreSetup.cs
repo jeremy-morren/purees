@@ -1,5 +1,4 @@
-﻿using System.Collections;
-using JetBrains.Annotations;
+﻿using JetBrains.Annotations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using PureES.EventStores.CosmosDB.Subscriptions;

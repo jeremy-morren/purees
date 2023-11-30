@@ -28,6 +28,20 @@ public class EventsTransaction : IDictionary<string, EventsList>
     /// Adds a new stream to the transaction.
     /// </summary>
     /// <param name="streamId">The event stream id</param>
+    /// <param name="revision">
+    /// The expected revision of the event stream,
+    /// or <see langword="null" /> if the stream is to be created.
+    /// </param>
+    /// <param name="events">Stream events.</param>
+    public void Add(string streamId, ulong? revision, params object[] @events)
+    {
+        Add(streamId, new EventsList(revision, events));
+    }
+    
+    /// <summary>
+    /// Adds a new stream to the transaction.
+    /// </summary>
+    /// <param name="streamId">The event stream id</param>
     /// <param name="value">Stream events list.</param>
     public void Add(string streamId, EventsList value)
     {
@@ -78,6 +92,9 @@ public class EventsTransaction : IDictionary<string, EventsList>
 
     IEnumerator IEnumerable.GetEnumerator() => ((IEnumerable)_dictionary).GetEnumerator();
 
+    public override string ToString() => $"Count = {Count}";
+    
     public IReadOnlyDictionary<string, UncommittedEventsList> ToUncommittedTransaction() =>
-        _dictionary.ToDictionary(p => p.Key, p => new UncommittedEventsList(p.Value));
+        _dictionary.ToDictionary(p => p.Key, 
+            p => new UncommittedEventsList(p.Value.ExpectedRevision, p.Value));
 }

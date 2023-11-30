@@ -6,9 +6,9 @@ public class UncommittedEventsList
     public ulong? ExpectedRevision { get; }
     public List<UncommittedEvent> Events { get; }
 
-    public UncommittedEventsList(EventsList source)
+    public UncommittedEventsList(ulong? expectedRevision, IEnumerable<object> @events)
     {
-        ExpectedRevision = source.ExpectedRevision;
-        Events = source.Select(e => new UncommittedEvent(e)).ToList();
+        ExpectedRevision = expectedRevision;
+        Events = @events.Select(e => new UncommittedEvent(e)).ToList();
     }
 }

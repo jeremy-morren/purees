@@ -1,10 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using FluentAssertions;
-using JasperFx.Core;
 using Microsoft.Extensions.DependencyInjection;
 using PureES.Core;
-using Shouldly;
 
 namespace PureES.EventStores.Tests;
 

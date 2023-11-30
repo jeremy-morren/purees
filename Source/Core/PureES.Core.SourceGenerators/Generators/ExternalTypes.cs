@@ -23,7 +23,6 @@ public static class ExternalTypes
 
     public const string LogLevel = $"global::{LoggingNamespace}.LogLevel";
     
-    
     public const string DINamespace = "Microsoft.Extensions.DependencyInjection";
 
     public const string OptionsNamespace = "Microsoft.Extensions.Options";
