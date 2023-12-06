@@ -4,6 +4,8 @@
 /// Indicates that a Command/Event always belongs to the same stream
 /// </summary>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct | AttributeTargets.All)]
+[PublicAPI]
+[MeansImplicitUse(ImplicitUseTargetFlags.WithMembers)]
 public sealed class StreamIdAttribute : Attribute
 {
     /// <summary>
