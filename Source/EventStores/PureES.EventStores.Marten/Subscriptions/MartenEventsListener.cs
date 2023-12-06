@@ -1,7 +1,6 @@
 ﻿using System.Threading.Tasks.Dataflow;
 using Marten;
 using Marten.Services;
-using PureES.Core;
 
 // ReSharper disable LoopCanBeConvertedToQuery
 

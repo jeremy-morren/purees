@@ -1,7 +1,6 @@
 ﻿using System.Threading.Tasks.Dataflow;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using PureES.Core;
 using PureES.EventBus;
 
 namespace PureES.EventStore.InMemory.Subscription;

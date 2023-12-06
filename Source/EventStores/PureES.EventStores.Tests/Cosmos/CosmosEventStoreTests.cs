@@ -1,7 +1,6 @@
 ﻿using JetBrains.Annotations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using PureES.Core;
 using PureES.EventStores.CosmosDB;
 using PureES.EventStores.CosmosDB.Subscriptions;
 

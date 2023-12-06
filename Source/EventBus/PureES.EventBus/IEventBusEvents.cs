@@ -1,6 +1,4 @@
-﻿using PureES.Core;
-
-namespace PureES.EventBus;
+﻿namespace PureES.EventBus;
 
 public interface IEventBusEvents
 {

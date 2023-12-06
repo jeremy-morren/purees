@@ -1,5 +1,4 @@
 ﻿using System.Threading.Tasks.Dataflow;
-using PureES.Core;
 
 namespace PureES.EventBus;
 

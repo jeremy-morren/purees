@@ -1,8 +1,8 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PureES.Core", "Core\PureES.Core\PureES.Core.csproj", "{438EDB72-978F-4BBE-9814-E2A54DE26ADE}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PureES", "Core\PureES\PureES.csproj", "{438EDB72-978F-4BBE-9814-E2A54DE26ADE}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PureES.Core.Tests", "Core\PureES.Core.Tests\PureES.Core.Tests.csproj", "{46B06EAB-3610-4EE1-99A7-DA1C3EE3E4C8}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PureES.Tests", "Core\PureES.Tests\PureES.Tests.csproj", "{46B06EAB-3610-4EE1-99A7-DA1C3EE3E4C8}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Core", "Core", "{4F003FAA-0133-4856-905A-58FE2F125C34}"
 EndProject
@@ -20,7 +20,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "EventStores", "EventStores"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PureES.EventStores.Marten", "EventStores\PureES.EventStores.Marten\PureES.EventStores.Marten.csproj", "{F31702F6-B7B0-4FE9-A057-05171C16922A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PureES.Core.SourceGenerators", "Core\PureES.Core.SourceGenerators\PureES.Core.SourceGenerators.csproj", "{7C40A945-9E91-42B1-94B9-8CFE1C638DE8}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PureES.SourceGenerators", "Core\PureES.SourceGenerators\PureES.SourceGenerators.csproj", "{7C40A945-9E91-42B1-94B9-8CFE1C638DE8}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PureES.EventStores.CosmosDB", "EventStores\PureES.EventStores.CosmosDB\PureES.EventStores.CosmosDB.csproj", "{19F955F2-B698-4BB7-A101-1617C665F701}"
 EndProject

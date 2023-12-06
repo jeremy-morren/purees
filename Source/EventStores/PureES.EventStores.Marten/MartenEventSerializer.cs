@@ -1,6 +1,5 @@
 ﻿using System.Text.Json;
 using Microsoft.Extensions.Options;
-using PureES.Core;
 
 namespace PureES.EventStores.Marten;
 

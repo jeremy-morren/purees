@@ -1,5 +1,4 @@
 ﻿using System.Threading.Tasks.Dataflow;
-using PureES.Core;
 using Xunit;
 
 namespace PureES.EventBus.Tests;

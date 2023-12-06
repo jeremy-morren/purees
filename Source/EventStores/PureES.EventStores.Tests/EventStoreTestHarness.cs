@@ -1,6 +1,4 @@
-﻿using PureES.Core;
-
-namespace PureES.EventStores.Tests;
+﻿namespace PureES.EventStores.Tests;
 
 public sealed class EventStoreTestHarness : IServiceProvider, IAsyncDisposable
 {

@@ -1,7 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 using Marten;
 using Marten.Exceptions;
-using PureES.Core;
 
 namespace PureES.EventStores.Marten;
 
