@@ -1,13 +1,17 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using JetBrains.Annotations;
+using Microsoft.ApplicationInsights.Extensibility;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Internal;
 using Microsoft.Extensions.Options;
 using PureES.Core;
 using PureES.EventStores.CosmosDB.Serialization;
 using PureES.EventStores.CosmosDB.Subscriptions;
+using PureES.EventStores.CosmosDB.Telemetry;
 
 namespace PureES.EventStores.CosmosDB;
 
+[PublicAPI]
 public static class CosmosServiceCollectionExtensions
 {
     public static IServiceCollection AddCosmosEventStore(this IServiceCollection services,
@@ -40,6 +44,9 @@ public static class CosmosServiceCollectionExtensions
                 
                 return handler;
             });
+
+        services.AddTransient<ITelemetryInitializer, CosmosEventStoreSubscriptionTelemetryInitializer>();
+        services.AddApplicationInsightsTelemetryProcessor<CosmosEventStoreSubscriptionTelemetryProcessor>();
 
         return services;
     }
