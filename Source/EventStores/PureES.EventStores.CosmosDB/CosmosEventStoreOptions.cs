@@ -49,7 +49,11 @@ public class CosmosEventStoreOptions
     /// </summary>
     public CosmosClientOptions ClientOptions { get; } = new()
     {
-        EnableContentResponseOnWrite = false
+        EnableContentResponseOnWrite = false,
+        CosmosClientTelemetryOptions =
+        {
+            DisableDistributedTracing = false
+        }
     };
 
     /// <summary>
