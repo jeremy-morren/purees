@@ -108,46 +108,56 @@ namespace PureES.CommandHandlers
                 var streamId = this._getStreamId.GetStreamId(command);
                 var currentRevision = this._concurrency?.GetExpectedRevision(streamId, command) ?? await this._eventStore.GetRevision(streamId, cancellationToken);
                 var current = await _aggregateStore.Load(streamId, currentRevision, cancellationToken);
-                var result = await current.UpdateOn(command, this._service0, cancellationToken);
-                var revision = currentRevision;
-                if (result != null)
+                using (_logger.BeginScope(new global::System.Collections.Generic.Dictionary<string, object>()
+                    {
+                        { "Command", CommandType },
+                        { "Aggregate", AggregateType },
+                        { "Method", "UpdateOn" },
+                        { "StreamId", streamId },
+                        { "CurrentStreamRevision", currentRevision },
+                    }))
                 {
-                    var events = new List<global::PureES.UncommittedEvent>();
-                    foreach (var e in result)
+                    var result = await current.UpdateOn(command, this._service0, cancellationToken);
+                    var revision = currentRevision;
+                    if (result != null)
                     {
-                        events.Add(new global::PureES.UncommittedEvent(e));
-                    }
-                    if (events.Count > 0)
-                    {
-                        foreach (var enricher in this._syncEnrichers)
+                        var events = new List<global::PureES.UncommittedEvent>();
+                        foreach (var e in result)
                         {
-                            foreach (var e in events)
-                            {
-                                enricher.Enrich(e);
-                            }
+                            events.Add(new global::PureES.UncommittedEvent(e));
                         }
-                        foreach (var enricher in this._asyncEnrichers)
+                        if (events.Count > 0)
                         {
-                            foreach (var e in events)
+                            foreach (var enricher in this._syncEnrichers)
                             {
-                                await enricher.Enrich(e, cancellationToken);
+                                foreach (var e in events)
+                                {
+                                    enricher.Enrich(e);
+                                }
                             }
+                            foreach (var enricher in this._asyncEnrichers)
+                            {
+                                foreach (var e in events)
+                                {
+                                    await enricher.Enrich(e, cancellationToken);
+                                }
+                            }
+                            revision = await _eventStore.Append(streamId, currentRevision, events, cancellationToken);
                         }
-                        revision = await _eventStore.Append(streamId, currentRevision, events, cancellationToken);
                     }
+                    this._concurrency?.OnUpdated(streamId, command, currentRevision, revision);
+                    this._logger.Log(
+                        logLevel: global::Microsoft.Extensions.Logging.LogLevel.Information,
+                        exception: null,
+                        message: "Handled command {@Command}. Elapsed: {Elapsed:0.0000}ms. Stream {StreamId} is now at {Revision}. Aggregate: {@Aggregate}. Method: {Method}",
+                        CommandType,
+                        GetElapsed(start),
+                        streamId,
+                        revision,
+                        AggregateType,
+                        "UpdateOn");
+                    return revision;
                 }
-                this._concurrency?.OnUpdated(streamId, command, currentRevision, revision);
-                this._logger.Log(
-                    logLevel: global::Microsoft.Extensions.Logging.LogLevel.Information,
-                    exception: null,
-                    message: "Handled command {@Command}. Elapsed: {Elapsed:0.0000}ms. Stream {StreamId} is now at {Revision}. Aggregate: {@Aggregate}. Method: {Method}",
-                    CommandType,
-                    GetElapsed(start),
-                    streamId,
-                    revision,
-                    AggregateType,
-                    "UpdateOn");
-                return revision;
             }
             catch (global::System.Exception ex)
             {

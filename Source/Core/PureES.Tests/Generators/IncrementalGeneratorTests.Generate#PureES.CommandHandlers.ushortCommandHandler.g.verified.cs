@@ -101,54 +101,64 @@ namespace PureES.CommandHandlers
                 var streamId = this._getStreamId.GetStreamId(command);
                 var currentRevision = this._concurrency?.GetExpectedRevision(streamId, command) ?? await this._eventStore.GetRevision(streamId, cancellationToken);
                 var current = await _aggregateStore.Load(streamId, currentRevision, cancellationToken);
-                var result = current.Transaction(command);
-                var revision = currentRevision;
-                if (result != null)
+                using (_logger.BeginScope(new global::System.Collections.Generic.Dictionary<string, object>()
+                    {
+                        { "Command", CommandType },
+                        { "Aggregate", AggregateType },
+                        { "Method", "Transaction" },
+                        { "StreamId", streamId },
+                        { "CurrentStreamRevision", currentRevision },
+                    }))
                 {
-                    var transaction = new global::System.Collections.Generic.Dictionary<string, global::PureES.UncommittedEventsList>();
-                    foreach (var pair in result)
+                    var result = current.Transaction(command);
+                    var revision = currentRevision;
+                    if (result != null)
                     {
-                        if (pair.Key == streamId)
+                        var transaction = new global::System.Collections.Generic.Dictionary<string, global::PureES.UncommittedEventsList>();
+                        foreach (var pair in result)
                         {
-                            transaction.Add(pair.Key, new global::PureES.UncommittedEventsList(currentRevision, pair.Value));
-                            revision = currentRevision + (ulong)(pair.Value.Count - 1);
-                        }
-                        else
-                        {
-                            transaction.Add(pair.Key, new global::PureES.UncommittedEventsList(pair.Value.ExpectedRevision, pair.Value));
-                        }
-                    }
-                    if (transaction.Count > 0)
-                    {
-                        foreach (var enricher in this._syncEnrichers)
-                        {
-                            foreach (var e in transaction.Values.SelectMany(p => p.Events))
+                            if (pair.Key == streamId)
                             {
-                                enricher.Enrich(e);
+                                transaction.Add(pair.Key, new global::PureES.UncommittedEventsList(currentRevision, pair.Value));
+                                revision = currentRevision + (ulong)(pair.Value.Count - 1);
+                            }
+                            else
+                            {
+                                transaction.Add(pair.Key, new global::PureES.UncommittedEventsList(pair.Value.ExpectedRevision, pair.Value));
                             }
                         }
-                        foreach (var enricher in this._asyncEnrichers)
+                        if (transaction.Count > 0)
                         {
-                            foreach (var e in transaction.Values.SelectMany(p => p.Events))
+                            foreach (var enricher in this._syncEnrichers)
                             {
-                                await enricher.Enrich(e, cancellationToken);
+                                foreach (var e in transaction.Values.SelectMany(p => p.Events))
+                                {
+                                    enricher.Enrich(e);
+                                }
                             }
+                            foreach (var enricher in this._asyncEnrichers)
+                            {
+                                foreach (var e in transaction.Values.SelectMany(p => p.Events))
+                                {
+                                    await enricher.Enrich(e, cancellationToken);
+                                }
+                            }
+                            await _eventStore.SubmitTransaction(transaction, cancellationToken);
                         }
-                        await _eventStore.SubmitTransaction(transaction, cancellationToken);
                     }
+                    this._concurrency?.OnUpdated(streamId, command, currentRevision, revision);
+                    this._logger.Log(
+                        logLevel: global::Microsoft.Extensions.Logging.LogLevel.Information,
+                        exception: null,
+                        message: "Handled command {@Command}. Elapsed: {Elapsed:0.0000}ms. Stream {StreamId} is now at {Revision}. Aggregate: {@Aggregate}. Method: {Method}",
+                        CommandType,
+                        GetElapsed(start),
+                        streamId,
+                        revision,
+                        AggregateType,
+                        "Transaction");
+                    return revision;
                 }
-                this._concurrency?.OnUpdated(streamId, command, currentRevision, revision);
-                this._logger.Log(
-                    logLevel: global::Microsoft.Extensions.Logging.LogLevel.Information,
-                    exception: null,
-                    message: "Handled command {@Command}. Elapsed: {Elapsed:0.0000}ms. Stream {StreamId} is now at {Revision}. Aggregate: {@Aggregate}. Method: {Method}",
-                    CommandType,
-                    GetElapsed(start),
-                    streamId,
-                    revision,
-                    AggregateType,
-                    "Transaction");
-                return revision;
             }
             catch (global::System.Exception ex)
             {

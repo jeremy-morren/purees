@@ -106,46 +106,55 @@ namespace PureES.CommandHandlers
                     await v.Validate(command, cancellationToken);
                 }
                 var streamId = this._getStreamId.GetStreamId(command);
-                var result = global::PureES.Tests.Models.TestAggregate.CreateOnAsyncEnumerable(command, this._service0);
-                var revision = ulong.MaxValue;
-                if (result != null)
+                using (_logger.BeginScope(new global::System.Collections.Generic.Dictionary<string, object>()
+                    {
+                        { "Command", CommandType },
+                        { "Aggregate", AggregateType },
+                        { "Method", "CreateOnAsyncEnumerable" },
+                        { "StreamId", streamId },
+                    }))
                 {
-                    var events = new List<global::PureES.UncommittedEvent>();
-                    await foreach (var e in result.WithCancellation(cancellationToken))
+                    var result = global::PureES.Tests.Models.TestAggregate.CreateOnAsyncEnumerable(command, this._service0);
+                    var revision = ulong.MaxValue;
+                    if (result != null)
                     {
-                        events.Add(new global::PureES.UncommittedEvent(e));
-                    }
-                    if (events.Count > 0)
-                    {
-                        foreach (var enricher in this._syncEnrichers)
+                        var events = new List<global::PureES.UncommittedEvent>();
+                        await foreach (var e in result.WithCancellation(cancellationToken))
                         {
-                            foreach (var e in events)
-                            {
-                                enricher.Enrich(e);
-                            }
+                            events.Add(new global::PureES.UncommittedEvent(e));
                         }
-                        foreach (var enricher in this._asyncEnrichers)
+                        if (events.Count > 0)
                         {
-                            foreach (var e in events)
+                            foreach (var enricher in this._syncEnrichers)
                             {
-                                await enricher.Enrich(e, cancellationToken);
+                                foreach (var e in events)
+                                {
+                                    enricher.Enrich(e);
+                                }
                             }
+                            foreach (var enricher in this._asyncEnrichers)
+                            {
+                                foreach (var e in events)
+                                {
+                                    await enricher.Enrich(e, cancellationToken);
+                                }
+                            }
+                            revision = await _eventStore.Create(streamId, events, cancellationToken);
                         }
-                        revision = await _eventStore.Create(streamId, events, cancellationToken);
                     }
+                    this._concurrency?.OnUpdated(streamId, command, null, revision);
+                    this._logger.Log(
+                        logLevel: global::Microsoft.Extensions.Logging.LogLevel.Information,
+                        exception: null,
+                        message: "Handled command {@Command}. Elapsed: {Elapsed:0.0000}ms. Stream {StreamId} is now at {Revision}. Aggregate: {@Aggregate}. Method: {Method}",
+                        CommandType,
+                        GetElapsed(start),
+                        streamId,
+                        revision,
+                        AggregateType,
+                        "CreateOnAsyncEnumerable");
+                    return revision;
                 }
-                this._concurrency?.OnUpdated(streamId, command, null, revision);
-                this._logger.Log(
-                    logLevel: global::Microsoft.Extensions.Logging.LogLevel.Information,
-                    exception: null,
-                    message: "Handled command {@Command}. Elapsed: {Elapsed:0.0000}ms. Stream {StreamId} is now at {Revision}. Aggregate: {@Aggregate}. Method: {Method}",
-                    CommandType,
-                    GetElapsed(start),
-                    streamId,
-                    revision,
-                    AggregateType,
-                    "CreateOnAsyncEnumerable");
-                return revision;
             }
             catch (global::System.Exception ex)
             {

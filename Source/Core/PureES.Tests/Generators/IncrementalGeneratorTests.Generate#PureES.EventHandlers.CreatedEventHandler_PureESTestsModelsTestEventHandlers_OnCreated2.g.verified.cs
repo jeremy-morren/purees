@@ -140,7 +140,7 @@ namespace PureES.EventHandlers
                     catch (global::System.OperationCanceledException ex)
                     {
                         this._logger.Log(
-                            logLevel: _options.PropagateException ? LogLevel.Information : LogLevel.Error,
+                            logLevel: _options.PropagateExceptions ? LogLevel.Information : LogLevel.Error,
                             exception: ex,
                             message: "Timed out while handling event {StreamId}/{StreamPosition}. Elapsed: {Elapsed:0.0000}ms. Event Type: {@EventType}. Event handler {EventHandler} on {@EventHandlerParent}",
                             @event.StreamId,
@@ -149,7 +149,7 @@ namespace PureES.EventHandlers
                             EventType,
                             "OnCreated2",
                             ParentType);
-                        if (_options.PropagateException)
+                        if (_options.PropagateExceptions)
                         {
                             throw;
                         }
@@ -157,7 +157,7 @@ namespace PureES.EventHandlers
                     catch (global::System.Exception ex)
                     {
                         this._logger.Log(
-                            logLevel: _options.PropagateException ? LogLevel.Information : LogLevel.Error,
+                            logLevel: _options.PropagateExceptions ? LogLevel.Information : LogLevel.Error,
                             exception: ex,
                             message: "Error handling event {StreamId}/{StreamPosition}. Elapsed: {Elapsed:0.0000}ms. Event Type: {@EventType}. Event handler {EventHandler} on {@EventHandlerParent}",
                             @event.StreamId,
@@ -166,7 +166,7 @@ namespace PureES.EventHandlers
                             EventType,
                             "OnCreated2",
                             ParentType);
-                        if (_options.PropagateException)
+                        if (_options.PropagateExceptions)
                         {
                             throw;
                         }
