@@ -6,7 +6,6 @@ using System.Threading.Tasks.Dataflow;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using PureES.Core;
 
 // ReSharper disable ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
 

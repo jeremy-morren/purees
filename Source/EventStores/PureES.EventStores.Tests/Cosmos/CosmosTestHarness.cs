@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using PureES.Core;
 using PureES.EventStores.CosmosDB;
 
 // ReSharper disable StringLiteralTypo

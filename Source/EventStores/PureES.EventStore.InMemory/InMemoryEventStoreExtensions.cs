@@ -1,6 +1,4 @@
-﻿using PureES.Core;
-
-namespace PureES.EventStore.InMemory;
+﻿namespace PureES.EventStore.InMemory;
 
 public static class InMemoryEventStoreExtensions
 {

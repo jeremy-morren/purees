@@ -3,7 +3,6 @@ using Marten;
 using Microsoft.Extensions.DependencyInjection;
 using PureES.EventBus;
 using PureES.EventStores.Marten.Subscriptions;
-using IEventStore = PureES.Core.IEventStore;
 
 namespace PureES.EventStores.Marten;
 

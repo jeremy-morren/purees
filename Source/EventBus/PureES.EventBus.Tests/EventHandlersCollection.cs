@@ -1,6 +1,5 @@
 ﻿using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
-using PureES.Core;
 
 namespace PureES.EventBus.Tests;
 

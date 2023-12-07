@@ -1,7 +1,6 @@
 ﻿using System.Threading.Tasks.Dataflow;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
-using PureES.Core;
 using Shouldly;
 using Xunit;
 

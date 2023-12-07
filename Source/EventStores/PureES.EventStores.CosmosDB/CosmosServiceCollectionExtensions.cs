@@ -4,7 +4,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Internal;
 using Microsoft.Extensions.Options;
-using PureES.Core;
 using PureES.EventStores.CosmosDB.Serialization;
 using PureES.EventStores.CosmosDB.Subscriptions;
 using PureES.EventStores.CosmosDB.Telemetry;

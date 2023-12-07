@@ -1,6 +1,5 @@
 ﻿using System.Text.Json;
 using JetBrains.Annotations;
-using PureES.Core;
 
 namespace PureES.EventStore.InMemory;
 

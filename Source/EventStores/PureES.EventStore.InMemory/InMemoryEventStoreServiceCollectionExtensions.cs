@@ -2,7 +2,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Internal;
-using PureES.Core;
 using PureES.EventBus;
 using PureES.EventStore.InMemory.Subscription;
 

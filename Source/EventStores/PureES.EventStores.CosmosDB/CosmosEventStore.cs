@@ -1,7 +1,6 @@
 ﻿using System.Net;
 using System.Runtime.CompilerServices;
 using Microsoft.Extensions.Internal;
-using PureES.Core;
 using PureES.EventStores.CosmosDB.Serialization;
 
 namespace PureES.EventStores.CosmosDB;
