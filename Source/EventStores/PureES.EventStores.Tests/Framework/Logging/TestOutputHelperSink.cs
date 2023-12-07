@@ -2,7 +2,7 @@
 using Serilog.Events;
 using Serilog.Formatting.Display;
 
-namespace PureES.EventStores.Tests.Logging;
+namespace PureES.EventStores.Tests.Framework.Logging;
 
 public class TestOutputHelperSink : ILogEventSink
 {

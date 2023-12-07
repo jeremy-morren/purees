@@ -4,7 +4,7 @@ using Serilog.Events;
 using Serilog.Extensions.Logging;
 using ILogger = Microsoft.Extensions.Logging.ILogger;
 
-namespace PureES.EventStores.Tests.Logging;
+namespace PureES.EventStores.Tests.Framework.Logging;
 
 
 public sealed class XUnitLoggerFactory : ILoggerFactory

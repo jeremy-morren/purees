@@ -32,7 +32,6 @@ public class PureESIncrementalGenerator : IIncrementalGenerator
         {
             void AddSource(string filename, string cs)
             {
-                cs = cs.Replace("\n", Environment.NewLine); //Fix line endings
                 filename = TypeNameHelpers.SanitizeFilename(filename);
                 context.AddSource($"{filename}.g.cs", cs);
             }
@@ -88,7 +87,7 @@ public class PureESIncrementalGenerator : IIncrementalGenerator
             }
             catch (Exception e)
             {
-                var str = e.ToString().Replace(Environment.NewLine, "\\n");
+                var str = e.ToString();
                 log.WriteError(Location.None,
                     "1000",
                     "Fatal error",

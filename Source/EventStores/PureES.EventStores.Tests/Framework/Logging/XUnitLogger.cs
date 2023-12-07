@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Serilog.Events;
 
-namespace PureES.EventStores.Tests.Logging;
+namespace PureES.EventStores.Tests.Framework.Logging;
 
 public class XUnitLogger<TCategory> : ILogger<TCategory>
 {

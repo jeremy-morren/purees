@@ -26,7 +26,7 @@ public class InMemoryEventStoreTests : EventStoreTestsBase
                     list.Add(e);
                 }
             });
-
+        
         await using var harness = await CreateHarness(s => s.AddSingleton(handler.Object));
         var store = harness.EventStore;
 
@@ -85,12 +85,12 @@ public class InMemoryEventStoreTests : EventStoreTestsBase
         await store.Load(harness.EventStore.ReadAll(Direction.Forwards), default);
 
         store.ReadAll().Should().HaveCount(100);
-        Assert.All(Enumerable.Range(0, 10), i =>
+        await AssertAsync.All(Enumerable.Range(0, 10), async i =>
         {
             var sId = $"{streamId}-{i}";
-            store.Exists(sId, default).Result.ShouldBeTrue();
+            (await store.Exists(sId, default)).ShouldBeTrue();
             
-            var events = store.Read(sId).ToListAsync().AsTask().Result;
+            var events = await store.Read(sId).ToListAsync();
             events.Should().HaveCount(10);
             events.ShouldAllBe(e => e.StreamId == sId);
             events.Should().BeInAscendingOrder(e => e.StreamPosition);
@@ -125,12 +125,12 @@ public class InMemoryEventStoreTests : EventStoreTestsBase
         store.Deserialize(serialized);
 
         store.ReadAll().Should().HaveCount(100);
-        Assert.All(Enumerable.Range(0, 10), i =>
+        await AssertAsync.All(Enumerable.Range(0, 10), async i =>
         {
             var sId = $"{streamId}-{i}";
-            store.Exists(sId, default).Result.ShouldBeTrue();
+            (await store.Exists(sId, default)).ShouldBeTrue();
             
-            var events = store.Read(sId).ToListAsync().AsTask().Result;
+            var events = await store.Read(sId).ToListAsync();
             events.Should().HaveCount(10);
             events.ShouldAllBe(e => e.StreamId == sId);
             events.Should().BeInAscendingOrder(e => e.StreamPosition);

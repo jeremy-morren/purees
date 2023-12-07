@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Serilog.Events;
 
-namespace PureES.EventStores.Tests.Logging;
+namespace PureES.EventStores.Tests.Framework.Logging;
 
 public static class XUnitLoggerServiceCollectionExtensions
 {

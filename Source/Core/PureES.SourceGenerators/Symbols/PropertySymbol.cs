@@ -42,7 +42,7 @@ internal class PropertySymbol : IProperty
             {
                 var doc = XDocument.Parse(xml);
                 var elements = ((XElement)doc.FirstNode).Elements();
-                return string.Join(Environment.NewLine, elements.Select(e => e.ToString(SaveOptions.None)));
+                return string.Join("\n", elements.Select(e => e.ToString(SaveOptions.None)));
             }
             catch (XmlException)
             {

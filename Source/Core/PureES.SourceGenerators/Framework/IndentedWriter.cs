@@ -170,7 +170,8 @@ internal class IndentedWriter
 
     public override string ToString() => new
     {
-        Lines = _builder.ToString().Split(Environment.NewLine.ToCharArray()).Length,
+        
+        Lines = _builder.ToString().Split('\n').Length,
         CurrentIndentLevel
     }.ToString();
 }
