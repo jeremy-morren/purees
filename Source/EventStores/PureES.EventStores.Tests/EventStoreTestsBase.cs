@@ -287,6 +287,8 @@ public abstract class EventStoreTestsBase
         
         await AssertEqual(events.Take(5), store.ReadPartial(Direction.Forwards, stream, 5, CancellationToken));
         
+        await AssertEqual(events, store.ReadPartial(Direction.Forwards, stream, 10, CancellationToken));
+        
         await AssertEqual(events.TakeLast(3).Reverse(), store.ReadPartial(Direction.Backwards, stream, 3, CancellationToken));
         
         await AssertEqual(events, store.ReadSlice(stream, 0, CancellationToken));

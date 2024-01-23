@@ -342,7 +342,7 @@ internal class InMemoryEventStore : IInMemoryEventStore
         if (!_streams.TryGetValue(streamId, out var stream))
             throw new StreamNotFoundException(streamId);
 
-        if (stream.Count <= (int)count)
+        if (stream.Count < (int)count)
             throw new WrongStreamRevisionException(streamId, count, (ulong)stream.Count - 1);
         
         return ToAsyncEnumerable(GetIndexes(direction, stream).Take((int)count));
