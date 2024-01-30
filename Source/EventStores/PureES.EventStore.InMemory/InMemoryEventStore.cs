@@ -384,7 +384,7 @@ internal class InMemoryEventStore : IInMemoryEventStore
         IEnumerable<string> streams, 
         CancellationToken cancellationToken)
     {
-        if (streams == null) throw new ArgumentNullException(nameof(streams));
+        ArgumentNullException.ThrowIfNull(streams);
 
         streams = direction switch
         {

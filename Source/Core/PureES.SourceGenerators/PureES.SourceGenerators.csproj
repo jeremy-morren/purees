@@ -5,8 +5,8 @@
         
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        
-        <LangVersion>11</LangVersion>
+
+        <LangVersion>latest</LangVersion>
         <OutputType>library</OutputType>
         <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
 
