@@ -136,18 +136,12 @@ public class EventEnvelope<TEvent, TMetadata> : IEquatable<EventEnvelope<TEvent,
 
     public EventEnvelope(EventEnvelope<TEvent, TMetadata> source)
     {
-        EventId = source.EventId;
         StreamId = source.StreamId;
         StreamPosition = source.StreamPosition;
         Timestamp = source.Timestamp;
         Event = source.Event;
         Metadata = source.Metadata;
     }
-
-    /// <summary>
-    ///     The unique <see cref="Guid" /> of this event
-    /// </summary>
-    public Guid EventId { get; }
 
     /// <summary>
     ///     The id of the stream that the event belongs to
@@ -176,7 +170,6 @@ public class EventEnvelope<TEvent, TMetadata> : IEquatable<EventEnvelope<TEvent,
 
     public override string? ToString() => new 
     {
-        EventId,
         StreamId,
         StreamPosition,
         Timestamp,
@@ -192,7 +185,6 @@ public class EventEnvelope<TEvent, TMetadata> : IEquatable<EventEnvelope<TEvent,
         if (ReferenceEquals(this, other)) return true;
         return Event.Equals(other.Event) &&
                MetadataEquals(other.Metadata) &&
-               EventId.Equals(other.EventId) &&
                StreamId == other.StreamId &&
                StreamPosition == other.StreamPosition &&
                Timestamp.Equals(other.Timestamp);
@@ -207,7 +199,7 @@ public class EventEnvelope<TEvent, TMetadata> : IEquatable<EventEnvelope<TEvent,
     }
 
     public override int GetHashCode() => 
-        HashCode.Combine(Event, Metadata, EventId, StreamId, StreamPosition, Timestamp);
+        HashCode.Combine(Event, Metadata, StreamId, StreamPosition, Timestamp);
     
     public bool Equals(EventEnvelope? other)
     {
