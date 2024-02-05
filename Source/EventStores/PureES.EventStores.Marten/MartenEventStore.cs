@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Collections.Immutable;
+using System.Runtime.CompilerServices;
 using Marten;
 using Marten.Exceptions;
 
@@ -55,24 +56,23 @@ internal class MartenEventStore : IEventStore
 
     private static async Task VerifyMonotonic(IQuerySession session, CancellationToken ct)
     {
-        //Ensure that stream position is monotonically increasing
-        var streams = await session.Query<MartenEvent>()
-            .OrderBy(e => e.StreamId)
-            .ThenBy(e => e.StreamPosition)
-            .ToAsyncEnumerable(ct)
-            .GroupBy(e => e.StreamId)
-            .SelectAwait(async g => new
-            {
-                Stream = g.Key,
-                Count = await g.CountAsync(ct),
-                StreamPositions = await g.Select(e => e.StreamPosition).ToListAsync(ct)
-            })
+        var table = session.DocumentStore.GetTableName(typeof(MartenEvent)).QualifiedName;
+        var sql = $"select (data->>'StreamId'),json_agg(cast(data->>'StreamPosition' as int)),count(1) as count from {table} group by (data->>'StreamId')";
+
+        var failed = await session.QueryRaw(sql, 
+                ImmutableDictionary<string, object?>.Empty, 
+                r => new
+                {
+                    StreamId = r.GetString(0),
+                    StreamPositions = session.DocumentStore.Options.Serializer().FromJson<int[]>(r, 1),
+                    Count = r.GetInt32(2)
+                },
+                ct)
+            //Ensure that stream position is monotonically increasing
+            .Where(x => !Enumerable.Range(0, x.Count).SequenceEqual(x.StreamPositions))
+            .Select(x => x.StreamId)
             .ToListAsync(ct);
         
-        var failed = streams
-            .Where(x => !Enumerable.Range(0, x.Count).SequenceEqual(x.StreamPositions))
-            .Select(x => x.Stream)
-            .ToList();
         if (failed.Count > 0)
             throw new Exception("Stream position is not monotonically increasing for streams: " + string.Join(", ", failed));
     }
