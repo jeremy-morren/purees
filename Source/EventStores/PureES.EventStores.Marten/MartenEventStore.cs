@@ -21,12 +21,13 @@ internal class MartenEventStore : IEventStore
 
     private IQuerySession ReadSession() => _documentStore.QuerySession();
 
-    private IDocumentSession WriteSession() => _documentStore.LightweightSession();
+    private Task<IDocumentSession> WriteSession(CancellationToken ct) => 
+        _documentStore.LightweightSerializableSessionAsync(ct);
 
     public async Task<bool> Exists(string streamId, CancellationToken cancellationToken)
     {
-        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
-        
+        ArgumentNullException.ThrowIfNull(streamId);
+
         await using var session = ReadSession();
         return await session.Query<MartenEvent>()
             .Where(e => e.StreamId == streamId && e.StreamPosition == 0)
@@ -36,16 +37,16 @@ internal class MartenEventStore : IEventStore
 
     public async Task<ulong> GetRevision(string streamId, CancellationToken cancellationToken)
     {
-        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
-        
+        ArgumentNullException.ThrowIfNull(streamId);
+
         await using var session = ReadSession();
         return await CheckRevision(streamId, session, cancellationToken);
     }
 
     public async Task<ulong> GetRevision(string streamId, ulong expectedRevision, CancellationToken cancellationToken)
     {
-        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
-        
+        ArgumentNullException.ThrowIfNull(streamId);
+
         var revision = await GetRevision(streamId, cancellationToken);
         if (revision != expectedRevision)
             throw new WrongStreamRevisionException(streamId, expectedRevision, revision);
@@ -54,27 +55,26 @@ internal class MartenEventStore : IEventStore
 
     private static async Task<ulong> CheckRevision(string streamId, IQuerySession session, CancellationToken ct)
     {
-        var pos = await session.Query<MartenEvent>()
+        var count = await session.Query<MartenEvent>()
             .Where(e => e.StreamId == streamId)
-            .OrderByDescending(e => e.StreamPosition)
-            .Select(e => (int?)e.StreamPosition)
-            .Take(1)
-            .FirstOrDefaultAsync(ct);
-        
-        return (ulong?)pos ?? throw new StreamNotFoundException(streamId);
+            .CountAsync(ct);
+
+        if (count == 0)
+            throw new StreamNotFoundException(streamId);
+        return (ulong)count - 1;
     }
 
     public async Task<ulong> Create(string streamId, IEnumerable<UncommittedEvent> events, CancellationToken cancellationToken)
     {
-        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
-        if (events == null) throw new ArgumentNullException(nameof(events));
+        ArgumentNullException.ThrowIfNull(streamId);
+        ArgumentNullException.ThrowIfNull(events);
 
         try
         {
             var r = 0ul;
             var list = events.Select(e => _serializer.Serialize(e, streamId, r++)).ToList();
             
-            await using var session = WriteSession();
+            await using var session = await WriteSession(cancellationToken);
             session.Insert<MartenEvent>(entities: list);
             await session.SaveChangesAsync(cancellationToken);
             return r - 1;
@@ -87,16 +87,16 @@ internal class MartenEventStore : IEventStore
 
     public async Task<ulong> Create(string streamId, UncommittedEvent @event, CancellationToken cancellationToken)
     {
-        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
-        if (@event == null) throw new ArgumentNullException(nameof(@event));
-        
+        ArgumentNullException.ThrowIfNull(streamId);
+        ArgumentNullException.ThrowIfNull(@event);
+
         try
         {
             const int zero = 0;
 
             var e = _serializer.Serialize(@event, streamId, zero);
             
-            await using var session = WriteSession();
+            await using var session = await WriteSession(cancellationToken);
             session.Insert(e);
             await session.SaveChangesAsync(cancellationToken);
             return zero;
@@ -112,10 +112,10 @@ internal class MartenEventStore : IEventStore
         IEnumerable<UncommittedEvent> events, 
         CancellationToken cancellationToken)
     {
-        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
-        if (events == null) throw new ArgumentNullException(nameof(events));
-        
-        await using var session = WriteSession();
+        ArgumentNullException.ThrowIfNull(streamId);
+        ArgumentNullException.ThrowIfNull(events);
+
+        await using var session = await WriteSession(cancellationToken);
         var actual = await CheckRevision(streamId, session, cancellationToken);
         if (actual != expectedRevision)
             throw new WrongStreamRevisionException(streamId, expectedRevision, actual);
@@ -127,10 +127,10 @@ internal class MartenEventStore : IEventStore
 
     public async Task<ulong> Append(string streamId, IEnumerable<UncommittedEvent> events, CancellationToken cancellationToken)
     {
-        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
-        if (events == null) throw new ArgumentNullException(nameof(events));
-        
-        await using var session = WriteSession();
+        ArgumentNullException.ThrowIfNull(streamId);
+        ArgumentNullException.ThrowIfNull(events);
+
+        await using var session = await WriteSession(cancellationToken);
         var r = await CheckRevision(streamId, session, cancellationToken);
         session.Insert(events.Select(e => _serializer.Serialize(e, streamId, ++r)));
         await session.SaveChangesAsync(cancellationToken);
@@ -139,10 +139,10 @@ internal class MartenEventStore : IEventStore
 
     public async Task<ulong> Append(string streamId, ulong expectedRevision, UncommittedEvent @event, CancellationToken cancellationToken)
     {
-        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
-        if (@event == null) throw new ArgumentNullException(nameof(@event));
-        
-        await using var session = WriteSession();
+        ArgumentNullException.ThrowIfNull(streamId);
+        ArgumentNullException.ThrowIfNull(@event);
+
+        await using var session = await WriteSession(cancellationToken);
         var actual = await CheckRevision(streamId, session, cancellationToken);
         if (actual != expectedRevision)
             throw new WrongStreamRevisionException(streamId, expectedRevision, actual);
@@ -153,10 +153,10 @@ internal class MartenEventStore : IEventStore
 
     public async Task<ulong> Append(string streamId, UncommittedEvent @event, CancellationToken cancellationToken)
     {
-        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
-        if (@event == null) throw new ArgumentNullException(nameof(@event));
-        
-        await using var session = WriteSession();
+        ArgumentNullException.ThrowIfNull(streamId);
+        ArgumentNullException.ThrowIfNull(@event);
+
+        await using var session = await WriteSession(cancellationToken);
         var actual = await CheckRevision(streamId, session, cancellationToken);
         session.Insert(_serializer.Serialize(@event, streamId, ++actual));
         await session.SaveChangesAsync(cancellationToken);
@@ -166,12 +166,12 @@ internal class MartenEventStore : IEventStore
     public async Task SubmitTransaction(IReadOnlyDictionary<string, UncommittedEventsList> transaction, 
         CancellationToken cancellationToken)
     {
-        if (transaction == null) throw new ArgumentNullException(nameof(transaction));
+        ArgumentNullException.ThrowIfNull(transaction);
 
         if (transaction.Count == 0)
             return;
 
-        await using var session = WriteSession();
+        await using var session = await WriteSession(cancellationToken);
         var table = _documentStore.GetTableName(typeof(MartenEvent)).QualifiedName;
         var sql =
             $"select data->>'StreamId', max((data->>'StreamPosition')::int) from {table} where data->>'StreamId' = ANY(:ids) group by data->>'StreamId'";
@@ -294,7 +294,8 @@ internal class MartenEventStore : IEventStore
         ulong expectedRevision,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
+        ArgumentNullException.ThrowIfNull(streamId);
+        
         await using var session = ReadSession();
         var query = session
             .Query<MartenEvent>()
@@ -325,7 +326,7 @@ internal class MartenEventStore : IEventStore
         ulong expectedRevision,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
+        ArgumentNullException.ThrowIfNull(streamId);
 
         if (startRevision > expectedRevision)
             throw new ArgumentOutOfRangeException(nameof(startRevision));

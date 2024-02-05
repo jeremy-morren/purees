@@ -14,7 +14,7 @@ public class WrongStreamRevisionException : Exception
         ulong actualRevision,
         Exception? innerException = null)
         : base(
-            $"Read failed due to WrongStreamRevision. Stream: '{streamId}', Expected revision: {expectedRevision}, Actual revision: {actualRevision}",
+            $"Operation failed due to WrongStreamRevision. Stream: '{streamId}', Expected revision: {expectedRevision}, Actual revision: {actualRevision}",
             innerException)
     {
         StreamId = streamId;
