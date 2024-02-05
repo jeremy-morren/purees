@@ -6,6 +6,7 @@ using PureES.EventStores.CosmosDB.Subscriptions;
 
 namespace PureES.EventStores.Tests.Cosmos;
 
+[Trait("Requires", "CosmosDB")]
 public class CosmosEventStoreTests : EventStoreTestsBase
 {
     protected override async Task<EventStoreTestHarness> CreateStore(string testName,
