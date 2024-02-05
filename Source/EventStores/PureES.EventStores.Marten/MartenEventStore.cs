@@ -52,41 +52,9 @@ internal class MartenEventStore : IEventStore
             throw new WrongStreamRevisionException(streamId, expectedRevision, revision);
         return revision;
     }
-
-    private static async Task VerifyMonotonic(IQuerySession session, CancellationToken ct)
-    {
-        var table = session.DocumentStore.GetTableName(typeof(MartenEvent)).QualifiedName;
-        var sql = $"select (data->>'StreamId'), count(1), json_agg(cast(data->>'StreamPosition' as int) order by data->>'Timestamp',cast(data->>'StreamPosition' as int)) from {table} group by (data->>'StreamId')";
-
-        var failed = await session.QueryRaw(sql, 
-                ImmutableDictionary<string, object?>.Empty, 
-                r => new
-                {
-                    StreamId = r.GetString(0),
-                    Count = r.GetInt32(1),
-                    StreamPositions = session.DocumentStore.Options.Serializer().FromJson<List<int>>(r, 2)
-                },
-                ct)
-            //Ensure that stream position is monotonically increasing
-            .Where(x => !Enumerable.Range(0, x.Count).SequenceEqual(x.StreamPositions))
-            .ToListAsync(ct);
-
-        if (failed.Count > 0)
-        {
-            var errors = failed.Select(x => new
-            {
-                x.StreamId,
-                StreamPositions = $"[{string.Join(",", x.StreamPositions)}",
-                x.Count
-            });
-            throw new Exception("Stream position is not monotonically increasing for streams: " + string.Join(", ", errors));
-        }
-    }
     
     private static async Task<ulong> CheckRevision(string streamId, IQuerySession session, CancellationToken ct)
     {
-        await VerifyMonotonic(session, ct);
-        
         var pos = await session.Query<MartenEvent>()
             .Where(e => e.StreamId == streamId)
             .Select(e => (int?)e.StreamPosition)
@@ -206,8 +174,6 @@ internal class MartenEventStore : IEventStore
             return;
 
         await using var session = await WriteSession(cancellationToken);
-        
-        await VerifyMonotonic(session, cancellationToken);
         
         var table = _documentStore.GetTableName(typeof(MartenEvent)).QualifiedName;
         var sql =
