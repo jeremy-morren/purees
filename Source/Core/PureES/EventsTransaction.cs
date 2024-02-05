@@ -45,8 +45,9 @@ public class EventsTransaction : IDictionary<string, EventsList>
     /// <param name="value">Stream events list.</param>
     public void Add(string streamId, EventsList value)
     {
-        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
-        if (value == null) throw new ArgumentNullException(nameof(value));
+        ArgumentNullException.ThrowIfNull(streamId);
+        ArgumentNullException.ThrowIfNull(value);
+        
         _dictionary.Add(streamId, value);
     }
     

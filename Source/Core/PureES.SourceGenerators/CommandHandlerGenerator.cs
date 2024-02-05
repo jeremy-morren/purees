@@ -316,13 +316,15 @@ internal class CommandHandlerGenerator
         
         _w.WriteStatement($"foreach (var pair in {source})", () =>
         {
+            _w.WriteStatement("if (pair.Value.Count == 0)", "continue;");
+            
             //If stream is current stream, use currentRevision as expected
             //And manually calculate return revision
             _w.WriteStatement("if (pair.Key == streamId)", () =>
             {
                 _w.WriteLine($"transaction.Add(pair.Key, new {list}(currentRevision, pair.Value));");
                 _w.WriteLine(_handler.IsUpdate
-                    ? "revision = currentRevision + (ulong)(pair.Value.Count - 1);"
+                    ? "revision = currentRevision + (ulong)pair.Value.Count;"
                     : "revision = (ulong)pair.Value.Count - 1;");
             });
             _w.WriteStatement("else", 

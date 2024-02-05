@@ -8,7 +8,7 @@ namespace PureES;
 [PublicAPI]
 public class EventsList : IList<object>
 {
-    private readonly List<object> _events = new();
+    private readonly List<object> _events = [];
     
     /// <summary>
     /// The expected revision of the event stream,
@@ -44,13 +44,13 @@ public class EventsList : IList<object>
 
     public void Add(object @event)
     {
-        if (@event == null) throw new ArgumentNullException(nameof(@event));
+        ArgumentNullException.ThrowIfNull(@event);
         _events.Add(@event);
     }
 
     public void AddRange(IEnumerable<object> events)
     {
-        if (events == null) throw new ArgumentNullException(nameof(events));
+        ArgumentNullException.ThrowIfNull(events);
         foreach (var e in events)
             Add(e);
     }

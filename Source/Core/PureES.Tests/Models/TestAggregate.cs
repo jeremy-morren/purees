@@ -50,12 +50,14 @@ public partial class TestAggregate
         return new Events.Updated(current.Created.Event.Id, (int)d);
     }
     
-    public EventsTransaction Transaction([Command] ushort u) => throw new NotImplementedException();
+    public static EventsTransaction CreateTransaction([Command] ulong u) => throw new NotImplementedException();
     
-    //public ValueTask<EventsTransaction> TransactionValueTask([Command] short u) => throw new NotImplementedException();
+    public EventsTransaction UpdateTransaction([Command] ushort u) => throw new NotImplementedException();
     
-    // public Task<CommandResult<EventsTransaction, object>> TransactionCommandResult([Command] long[] u) => 
-    //     throw new NotImplementedException();
+    public ValueTask<EventsTransaction> TransactionValueTask([Command] short u) => throw new NotImplementedException();
+    
+     public Task<CommandResult<EventsTransaction, object>> TransactionCommandResult([Command] long[] u) => 
+         throw new NotImplementedException();
 
     public void GlobalWhen(EventEnvelope envelope, CancellationToken ct)
     {
