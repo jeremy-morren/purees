@@ -53,8 +53,33 @@ internal class MartenEventStore : IEventStore
         return revision;
     }
 
+    private static async Task VerifyMonotonic(IQuerySession session, CancellationToken ct)
+    {
+        //Ensure that stream position is monotonically increasing
+        var streams = await session.Query<MartenEvent>()
+            .OrderBy(e => e.StreamId)
+            .ThenBy(e => e.StreamPosition)
+            .ToAsyncEnumerable(ct)
+            .GroupBy(e => e.StreamId)
+            .SelectAwait(async g => new
+            {
+                Stream = g.Key,
+                Count = await g.CountAsync(ct),
+                StreamPositions = await g.Select(e => e.StreamPosition).ToListAsync(ct)
+            })
+            .ToListAsync(ct);
+        
+        var failed = streams
+            .Where(x => !Enumerable.Range(0, x.Count).SequenceEqual(x.StreamPositions))
+            .Select(x => x.Stream)
+            .ToList();
+        if (failed.Count > 0)
+            throw new Exception("Stream position is not monotonically increasing for streams: " + string.Join(", ", failed));
+    }
+    
     private static async Task<ulong> CheckRevision(string streamId, IQuerySession session, CancellationToken ct)
     {
+        await VerifyMonotonic(session, ct);
         var count = await session.Query<MartenEvent>()
             .Where(e => e.StreamId == streamId)
             .CountAsync(ct);
@@ -172,6 +197,9 @@ internal class MartenEventStore : IEventStore
             return;
 
         await using var session = await WriteSession(cancellationToken);
+        
+        await VerifyMonotonic(session, cancellationToken);
+        
         var table = _documentStore.GetTableName(typeof(MartenEvent)).QualifiedName;
         var sql =
             $"select data->>'StreamId', max((data->>'StreamPosition')::int) from {table} where data->>'StreamId' = ANY(:ids) group by data->>'StreamId'";
@@ -194,7 +222,7 @@ internal class MartenEventStore : IEventStore
             {
                 if (list.ExpectedRevision == null)
                     exceptions.Add(new StreamAlreadyExistsException(streamId));
-                else if (list.ExpectedRevision != actual)
+                else if (list.ExpectedRevision.Value != actual)
                     exceptions.Add(new WrongStreamRevisionException(streamId, list.ExpectedRevision.Value, actual));
                 else
                     session.Insert(

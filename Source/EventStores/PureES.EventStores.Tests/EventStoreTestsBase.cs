@@ -361,9 +361,14 @@ public abstract class EventStoreTestsBase
             .ToList();
         await store.Create(stream, events, CancellationToken);
         var revision = (ulong) events.Count - 1;
-        Assert.Equal(revision, await store.GetRevision(stream, CancellationToken));
-        Assert.Equal(revision, await store.GetRevision(stream, revision, CancellationToken));
-        await Assert.ThrowsAsync<WrongStreamRevisionException>(() => store.GetRevision(stream, revision + 1, CancellationToken));
+
+        (await store.GetRevision(stream, CancellationToken)).ShouldBe(revision);
+        (await store.GetRevision(stream, revision, CancellationToken)).ShouldBe(revision);
+        var ex = await Assert.ThrowsAsync<WrongStreamRevisionException>(
+            () => store.GetRevision(stream, revision + 1, CancellationToken));
+        ex.ExpectedRevision.ShouldBe(revision + 1);
+        ex.ActualRevision.ShouldBe(revision);
+        ex.StreamId.ShouldBe(stream);
     }
 
     [Fact]
