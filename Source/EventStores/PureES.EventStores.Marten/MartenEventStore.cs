@@ -57,7 +57,7 @@ internal class MartenEventStore : IEventStore
     private static async Task VerifyMonotonic(IQuerySession session, CancellationToken ct)
     {
         var table = session.DocumentStore.GetTableName(typeof(MartenEvent)).QualifiedName;
-        var sql = $"select (data->>'StreamId'), count(1), json_agg(cast(data->>'StreamPosition' as int) order by data->>'Timestamp',data->>'StreamPosition') from {table} group by (data->>'StreamId')";
+        var sql = $"select (data->>'StreamId'), count(1), json_agg(cast(data->>'StreamPosition' as int) order by data->>'Timestamp',cast(data->>'StreamPosition' as int)) from {table} group by (data->>'StreamId')";
 
         var failed = await session.QueryRaw(sql, 
                 ImmutableDictionary<string, object?>.Empty, 
