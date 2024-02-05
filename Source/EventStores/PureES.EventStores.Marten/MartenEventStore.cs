@@ -31,8 +31,7 @@ internal class MartenEventStore : IEventStore
 
         await using var session = ReadSession();
         return await session.Query<MartenEvent>()
-            .Where(e => e.StreamId == streamId && e.StreamPosition == 0)
-            .Take(1)
+            .Where(e => e.Id == $"{streamId}/0")
             .AnyAsync(token: cancellationToken);
     }
 
@@ -87,13 +86,16 @@ internal class MartenEventStore : IEventStore
     private static async Task<ulong> CheckRevision(string streamId, IQuerySession session, CancellationToken ct)
     {
         await VerifyMonotonic(session, ct);
-        var count = await session.Query<MartenEvent>()
+        
+        var pos = await session.Query<MartenEvent>()
             .Where(e => e.StreamId == streamId)
-            .CountAsync(ct);
-
-        if (count == 0)
+            .Select(e => (int?)e.StreamPosition)
+            .OrderByDescending(e => e)
+            .FirstOrDefaultAsync(ct);
+        
+        if (pos == null)
             throw new StreamNotFoundException(streamId);
-        return (ulong)count - 1;
+        return (ulong)pos.Value;
     }
 
     public async Task<ulong> Create(string streamId, IEnumerable<UncommittedEvent> events, CancellationToken cancellationToken)
@@ -396,7 +398,7 @@ internal class MartenEventStore : IEventStore
         ulong count,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
+        ArgumentNullException.ThrowIfNull(streamId);
         if (count == 0)
             throw new ArgumentOutOfRangeException(nameof(count));
         
@@ -432,7 +434,7 @@ internal class MartenEventStore : IEventStore
         ulong endRevision,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
+        ArgumentNullException.ThrowIfNull(streamId);
 
         if (startRevision > endRevision)
             throw new ArgumentOutOfRangeException(nameof(startRevision));
@@ -469,8 +471,8 @@ internal class MartenEventStore : IEventStore
         ulong startRevision, 
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
-        
+        ArgumentNullException.ThrowIfNull(streamId);
+
         await using var session = ReadSession();
         var query = session
             .Query<MartenEvent>()
