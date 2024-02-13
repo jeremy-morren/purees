@@ -16,7 +16,7 @@ public interface IInMemoryEventStore : IEventStore
     /// Reads all events as a synchronous operation
     /// </summary>
     /// <returns></returns>
-    IReadOnlyList<EventEnvelope> ReadAll();
+    IEnumerable<EventEnvelope> ReadAll();
 
     /// <summary>
     /// Initializes the event store from the given envelopes.

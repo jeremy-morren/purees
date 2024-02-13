@@ -6,7 +6,7 @@ public class InMemoryEventStoreOptions
 {
     /// <summary>
     /// Gets or sets the JSON serializer options to use
-    /// when deserializing events & metadata
+    /// when deserializing events &amp; metadata
     /// </summary>
     public JsonSerializerOptions JsonSerializerOptions { get; } = new()
     {

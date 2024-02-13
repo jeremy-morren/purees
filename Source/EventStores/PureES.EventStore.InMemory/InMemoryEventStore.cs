@@ -253,10 +253,7 @@ internal class InMemoryEventStore : IInMemoryEventStore
     
     #region Read
 
-    public IReadOnlyList<EventEnvelope> ReadAll()
-    {
-        return _records.Select(_serializer.Deserialize).ToList();
-    }
+    public IEnumerable<EventEnvelope> ReadAll() => _records.Select(_serializer.Deserialize);
 
     private static IEnumerable<int> GetIndexes(Direction direction, IEnumerable<int> indexes)
     {
