@@ -2,6 +2,7 @@
 using System.Runtime.CompilerServices;
 using Marten;
 using Marten.Exceptions;
+using Npgsql;
 
 namespace PureES.EventStores.Marten;
 
@@ -22,8 +23,7 @@ internal class MartenEventStore : IEventStore
 
     private IQuerySession ReadSession() => _documentStore.QuerySession();
 
-    private Task<IDocumentSession> WriteSession(CancellationToken ct) => 
-        _documentStore.LightweightSerializableSessionAsync(ct);
+    private IDocumentSession WriteSession() => _documentStore.LightweightSession();
 
     public async Task<bool> Exists(string streamId, CancellationToken cancellationToken)
     {
@@ -76,7 +76,7 @@ internal class MartenEventStore : IEventStore
             var r = 0ul;
             var list = events.Select(e => _serializer.Serialize(e, streamId, r++)).ToList();
             
-            await using var session = await WriteSession(cancellationToken);
+            await using var session = WriteSession();
             session.Insert<MartenEvent>(entities: list);
             await session.SaveChangesAsync(cancellationToken);
             return r - 1;
@@ -98,7 +98,7 @@ internal class MartenEventStore : IEventStore
 
             var e = _serializer.Serialize(@event, streamId, zero);
             
-            await using var session = await WriteSession(cancellationToken);
+            await using var session = WriteSession();
             session.Insert(e);
             await session.SaveChangesAsync(cancellationToken);
             return zero;
@@ -117,7 +117,7 @@ internal class MartenEventStore : IEventStore
         ArgumentNullException.ThrowIfNull(streamId);
         ArgumentNullException.ThrowIfNull(events);
 
-        await using var session = await WriteSession(cancellationToken);
+        await using var session = WriteSession();
         var actual = await CheckRevision(streamId, session, cancellationToken);
         if (actual != expectedRevision)
             throw new WrongStreamRevisionException(streamId, expectedRevision, actual);
@@ -132,7 +132,7 @@ internal class MartenEventStore : IEventStore
         ArgumentNullException.ThrowIfNull(streamId);
         ArgumentNullException.ThrowIfNull(events);
 
-        await using var session = await WriteSession(cancellationToken);
+        await using var session = WriteSession();
         var r = await CheckRevision(streamId, session, cancellationToken);
         session.Insert(events.Select(e => _serializer.Serialize(e, streamId, ++r)));
         await session.SaveChangesAsync(cancellationToken);
@@ -144,7 +144,7 @@ internal class MartenEventStore : IEventStore
         ArgumentNullException.ThrowIfNull(streamId);
         ArgumentNullException.ThrowIfNull(@event);
 
-        await using var session = await WriteSession(cancellationToken);
+        await using var session = WriteSession();
         var actual = await CheckRevision(streamId, session, cancellationToken);
         if (actual != expectedRevision)
             throw new WrongStreamRevisionException(streamId, expectedRevision, actual);
@@ -158,7 +158,7 @@ internal class MartenEventStore : IEventStore
         ArgumentNullException.ThrowIfNull(streamId);
         ArgumentNullException.ThrowIfNull(@event);
 
-        await using var session = await WriteSession(cancellationToken);
+        await using var session = WriteSession();
         var actual = await CheckRevision(streamId, session, cancellationToken);
         session.Insert(_serializer.Serialize(@event, streamId, ++actual));
         await session.SaveChangesAsync(cancellationToken);
@@ -173,7 +173,7 @@ internal class MartenEventStore : IEventStore
         if (transaction.Count == 0)
             return;
 
-        await using var session = await WriteSession(cancellationToken);
+        await using var session = WriteSession();
         
         var table = _documentStore.GetTableName(typeof(MartenEvent)).QualifiedName;
         var sql =
