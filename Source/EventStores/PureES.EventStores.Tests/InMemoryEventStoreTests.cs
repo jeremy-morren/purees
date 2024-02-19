@@ -85,7 +85,7 @@ public class InMemoryEventStoreTests : EventStoreTestsBase
         await store.Load(harness.EventStore.ReadAll(Direction.Forwards), default);
 
         store.ReadAll().Should().HaveCount(100);
-        await AssertAsync.All(Enumerable.Range(0, 10), async i =>
+        await Assert.AllAsync(Enumerable.Range(0, 10), async i =>
         {
             var sId = $"{streamId}-{i}";
             (await store.Exists(sId, default)).ShouldBeTrue();
@@ -125,7 +125,7 @@ public class InMemoryEventStoreTests : EventStoreTestsBase
         store.Deserialize(serialized);
 
         store.ReadAll().Should().HaveCount(100);
-        await AssertAsync.All(Enumerable.Range(0, 10), async i =>
+        await Assert.AllAsync(Enumerable.Range(0, 10), async i =>
         {
             var sId = $"{streamId}-{i}";
             (await store.Exists(sId, default)).ShouldBeTrue();

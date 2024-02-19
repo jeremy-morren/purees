@@ -126,7 +126,7 @@ public abstract class EventStoreTestsBase
         ex.InnerExceptions.OfType<StreamNotFoundException>().Should().HaveCount(5);
         
         //Ensure the valid ones weren't committed
-        await AssertAsync.All(Enumerable.Range(15, 5), async i =>
+        await Assert.AllAsync(Enumerable.Range(15, 5), async i =>
             (await store.Exists(i.ToString(), CancellationToken)).ShouldBeFalse());
     }
 
