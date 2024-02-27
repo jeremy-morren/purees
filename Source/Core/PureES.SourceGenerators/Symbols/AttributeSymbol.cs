@@ -49,5 +49,12 @@ internal class AttributeSymbol : IAttribute
         return arg.Values.Select(v => (string)v.Value!).ToArray();
     });
 
+    public int IntParameter => GetFirstParam(arg =>
+    {
+        if (arg.Value is not int i)
+            throw new ArgumentException("Invalid attribute parameter");
+        return i;
+    });
+
     public override string ToString() => _source.AttributeClass?.ToDisplayString() ?? _source.ToString();
 }

@@ -19,6 +19,7 @@ public class TestEventHandlers
         return Task.CompletedTask;
     }
 
+    [EventHandlerPriority(10)]
     public void OnUpdated(EventEnvelope<Events.Updated> envelope)
     {
         envelope.ShouldNotBeNull();

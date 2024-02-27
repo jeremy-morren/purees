@@ -13,6 +13,12 @@ internal record EventHandler
 
     public required IType[] Services { get; init; }
     
+    private const int DefaultPriority = 0;
+    
+    public int Priority => Method.Attributes.GetEventHandlerPriority(out var p) ? p
+        : Method.DeclaringType != null && Method.DeclaringType.Attributes.GetEventHandlerPriority(out p) ? p 
+        : DefaultPriority;
+    
     /// <summary>
     /// Whether the return type is async
     /// </summary>

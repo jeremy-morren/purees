@@ -77,8 +77,10 @@ public class EventBus : IEventBus
             _logger.LogDebug("Processing {EventHandlerCount} event handler(s) for event {@Event}", 
                 handlers.Count, logEvent);
             var start = Stopwatch.GetTimestamp();
-            foreach (var handler in handlers)
+            
+            foreach (var handler in handlers.OrderBy(h => h.Priority))
                 await handler.Handle(envelope);
+            
             var elapsed = GetElapsed(start);
             _logger.LogDebug(
                 "Processed {EventHandlerCount} event handler(s) for event {@Event}. Elapsed: {Elapsed:0.0000} ms",

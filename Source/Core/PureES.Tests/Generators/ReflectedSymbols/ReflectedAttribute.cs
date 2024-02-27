@@ -24,6 +24,7 @@ internal class ReflectedAttribute : ReflectedTokenBase, IAttribute
     public string StringParameter => GetProperty(o => (string)o);
 
     public string[] StringParams => GetProperty(o => (string[])o);
+    public int IntParameter => GetProperty(o => (int)o);
 
     private T GetProperty<T>(Func<object, T> construct)
     {

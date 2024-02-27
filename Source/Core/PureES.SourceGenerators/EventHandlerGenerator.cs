@@ -107,6 +107,15 @@ internal class EventHandlerGenerator
             _w.WriteMethodAttributes();
             _w.WriteLine($"get => _method ?? throw new InvalidOperationException($\"Could not locate method '{_handler.Method.Name}' on {{ParentType}}\");");
         });
+
+        _w.WriteLine();
+        
+        _w.WriteBrowsableState();
+        _w.WriteStatement("public int Priority", () =>
+        {
+            _w.WriteMethodAttributes();
+            _w.WriteLine($"get => {_handler.Priority};");
+        });
     }
     
     private void WriteInvoke()
