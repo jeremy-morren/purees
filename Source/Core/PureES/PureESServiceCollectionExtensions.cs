@@ -76,7 +76,7 @@ public static class PureESServiceCollectionExtensions
     /// </summary>
     public static PureESBuilder AddBasicAggregateStore(this PureESBuilder builder)
     {
-        if (builder == null) throw new ArgumentNullException(nameof(builder));
+        ArgumentNullException.ThrowIfNull(builder);
 
         builder.Services.RemoveAll(typeof(IAggregateStore<>));
         builder.Services.AddTransient(typeof(IAggregateStore<>), typeof(BasicAggregateStore<>));

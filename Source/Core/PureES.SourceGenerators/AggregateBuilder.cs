@@ -29,9 +29,11 @@ internal class AggregateBuilder : BuilderBase
             return false;
         }
         
-        
         foreach (var method in aggregateType.GetMethodsRecursive())
         {
+            if (method.Name is "ToString" or "GetHashCode" or "Equals" or "Deconstruct")
+                continue;
+            
             var services = method.Parameters
                 .Where(p => p.HasFromServicesAttribute())
                 .Select(p => p.Type)

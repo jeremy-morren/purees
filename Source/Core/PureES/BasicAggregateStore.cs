@@ -35,7 +35,7 @@ internal class BasicAggregateStore<TAggregate> : IAggregateStore<TAggregate> whe
         return result.Aggregate;
     }
 
-    public async Task<TAggregate> LoadSlice(string streamId, ulong endRevision, CancellationToken cancellationToken)
+    public async Task<TAggregate> LoadAt(string streamId, ulong endRevision, CancellationToken cancellationToken)
     {
         var result = await _factory.Create(streamId, 
             _eventStore.ReadSlice(streamId, 0, endRevision, cancellationToken),
