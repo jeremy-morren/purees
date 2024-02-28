@@ -16,7 +16,7 @@ public static class PureESServiceCollectionExtensions
     /// <exception cref="ArgumentNullException"></exception>
     public static PureESBuilder AddPureES(this IServiceCollection services, Action<PureESOptions>? configureOptions = null)
     {
-        if (services == null) throw new ArgumentNullException(nameof(services));
+        ArgumentNullException.ThrowIfNull(services);
 
         services.AddOptions<PureESOptions>()
             .Validate(o =>
@@ -40,10 +40,10 @@ public static class PureESServiceCollectionExtensions
     /// <exception cref="NotImplementedException"></exception>
     public static PureESBuilder AddFromAssembly(this PureESBuilder builder, Assembly assembly)
     {
-        if (assembly == null) throw new ArgumentNullException(nameof(assembly));
-        
+        ArgumentNullException.ThrowIfNull(assembly);
+
         //See SourceGenerator DependencyInjectionGenerator.cs
-        
+
         const string fullClassName = "PureES.DependencyInjection.PureESServiceCollectionExtensions";
         const string methodName = "Register";
         
@@ -63,8 +63,8 @@ public static class PureESServiceCollectionExtensions
     /// </summary>
     public static PureESBuilder AddBasicEventTypeMap(this PureESBuilder builder)
     {
-        if (builder == null) throw new ArgumentNullException(nameof(builder));
-        
+        ArgumentNullException.ThrowIfNull(builder);
+
         builder.Services.RemoveAll(typeof(IEventTypeMap));
         builder.Services.AddSingleton<IEventTypeMap, BasicEventTypeMap>();
         
@@ -95,8 +95,8 @@ public static class PureESServiceCollectionExtensions
     public static PureESBuilder AddCommandPropertyStreamId(this PureESBuilder builder,
         GetCommandStreamIdProperty? getStreamIdProperty = null)
     {
-        if (builder == null) throw new ArgumentNullException(nameof(builder));
-        
+        ArgumentNullException.ThrowIfNull(builder);
+
         builder.Services.RemoveAll(typeof(GetCommandStreamIdProperty));
         builder.Services.RemoveAll(typeof(ICommandStreamId<>));
         

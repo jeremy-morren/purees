@@ -14,5 +14,4 @@ public class StreamAlreadyExistsException : Exception
     }
 
     public string StreamId { get; }
-    public ulong ActualRevision { get; }
 }
