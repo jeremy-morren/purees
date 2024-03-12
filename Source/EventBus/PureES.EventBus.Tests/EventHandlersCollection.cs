@@ -42,6 +42,6 @@ public class EventHandlerServices : IServiceProvider
         }
 
         public MethodInfo Method => throw new NotImplementedException();
-        public int Priority => throw new NotImplementedException();
+        public int Priority => 0;
     }
 }
