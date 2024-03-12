@@ -1,8 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using Moq;
-using PureES.Core;
-using PureES.Core.EventStore;
-using PureES.CosmosDB;
+using PureES.EventStores.CosmosDB;
 
 // ReSharper disable StringLiteralTypo
 // ReSharper disable MemberCanBePrivate.Global
@@ -19,8 +16,7 @@ internal sealed class CosmosTestHarness : IAsyncDisposable, IServiceProvider
     {
         _name = name;
         var services = new ServiceCollection()
-            .AddSingleton<IEventTypeMap>(TestSerializer.EventTypeMap)
-            .AddSingleton(new Mock<IEventHandlersCollection>().Object)
+            .AddSingleton<IEventTypeMap, BasicEventTypeMap>()
             .AddCosmosEventStore(options =>
             {
                 options.Database = name;
@@ -29,7 +25,7 @@ internal sealed class CosmosTestHarness : IAsyncDisposable, IServiceProvider
                 options.Container = name;
                 options.ContainerThroughput = 400;
 
-                options.VerifyTLSCert = false;
+                options.Insecure = true;
                 options.AccountEndpoint = "https://localhost:8081/";
                 options.AccountKey = "C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw==";
             });
@@ -42,17 +38,12 @@ internal sealed class CosmosTestHarness : IAsyncDisposable, IServiceProvider
     public object? GetService(Type serviceType) => _services.GetService(serviceType);
 
     public override string ToString() => _name;
-
-    public static Task<CosmosTestHarness> Create(string name, CancellationToken ct) => Create(name, _ => { }, ct);
     
-    public static async Task<CosmosTestHarness> Create(string name,
-        Action<IServiceCollection> configureServices,
-        CancellationToken ct)
+    public static async Task<CosmosTestHarness> Create(string name, Action<IServiceCollection> configureServices)
     {
         var fixture = new CosmosTestHarness(name, configureServices);
         //Delete database
         await fixture.DeleteDatabase(); 
-        //await fixture.Client.GetEventStoreContainerAsync(ct);
         return fixture;
     }
     

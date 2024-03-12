@@ -1,7 +1,7 @@
 ﻿using System.Threading.Tasks.Dataflow;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
-using PureES.Core;
+using Shouldly;
 using Xunit;
 
 namespace PureES.EventBus.Tests;
@@ -14,7 +14,7 @@ public class EventBusTests
         var executed1 = false;
         var executed2 = false;
 
-        var eventHandlers = new EventHandlersCollection(new Dictionary<Type, Action<EventEnvelope>[]>()
+        var services = new EventHandlerServices(new Dictionary<Type, Action<EventEnvelope>[]>()
         {
             {
                 typeof(object), new Action<EventEnvelope>[]
@@ -24,28 +24,24 @@ public class EventBusTests
                 }
             }
         });
-        
-        var services = new ServiceCollection().BuildServiceProvider();
 
-        var bus = new EventBus(new EventBusOptions(), services, eventHandlers);
+        var bus = new EventBus(new EventBusOptions(), services);
 
         await bus.SendAsync(NewEnvelope());
         
         bus.Complete();
         await bus.Completion;
         
-        Assert.True(executed1);
-        Assert.True(executed2);
+        executed1.ShouldBeTrue();
+        executed2.ShouldBeTrue();
     }
 
     [Fact]
     public async Task Handle_With_No_Event_Handlers()
     {
-        var eventHandlers = new EventHandlersCollection(new Dictionary<Type, Action<EventEnvelope>[]>());
-        
-        var services = new ServiceCollection().BuildServiceProvider();
+        var services = new EventHandlerServices(new Dictionary<Type, Action<EventEnvelope>[]>());
 
-        var bus = new EventBus(new EventBusOptions(), services, eventHandlers);
+        var bus = new EventBus(new EventBusOptions(), services);
 
         await bus.SendAsync(NewEnvelope());
         
@@ -54,17 +50,14 @@ public class EventBusTests
     }
 
     [Fact]
-    public async Task EventBusEvents()
+    public async Task Events_Should_Propagate_To_EventBusEvents()
     {
-        var eventHandlers = new EventHandlersCollection(new Dictionary<Type, Action<EventEnvelope>[]>());
-
         var events = new Mock<IEventBusEvents>();
-
-        var services = new ServiceCollection()
-            .AddSingleton(events.Object)
-            .BuildServiceProvider();
         
-        var bus = new EventBus(new EventBusOptions(), services, eventHandlers);
+        var services = new EventHandlerServices(new Dictionary<Type, Action<EventEnvelope>[]>(),
+            s => s.AddSingleton(events.Object));
+        
+        var bus = new EventBus(new EventBusOptions(), services);
 
         var eventEnvelope = NewEnvelope();
         await bus.SendAsync(eventEnvelope);
@@ -75,12 +68,11 @@ public class EventBusTests
     }
 
     private static EventEnvelope NewEnvelope() => new(
-        Guid.NewGuid(),
         Guid.NewGuid().ToString(),
         0,
         DateTime.UtcNow,
-        new Lazy<object>(() => Object),
-        new Lazy<object?>(() => Object));
+        Object,
+        Object);
 
     private static readonly object Object = new();
 }

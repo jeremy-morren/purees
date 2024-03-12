@@ -1,10 +1,10 @@
-﻿using System.Collections.Immutable;
+﻿using System.Collections.Concurrent;
+using System.Collections.Immutable;
+using System.IO.Compression;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Internal;
-using ProtoBuf;
-using PureES.Core;
-using PureES.Core.EventStore;
-using PureES.EventStore.InMemory.Serialization;
 using PureES.EventStore.InMemory.Subscription;
 
 // ReSharper disable MemberCanBeProtected.Global
@@ -13,355 +13,434 @@ namespace PureES.EventStore.InMemory;
 
 internal class InMemoryEventStore : IInMemoryEventStore
 {
-    private readonly List<(string StreamId, int StreamPosition)> _all = new();
-    private readonly Dictionary<string, List<EventRecord>> _events = new();
+    private readonly object _mutex = new();
+    private ImmutableList<EventRecord> _records = ImmutableList<EventRecord>.Empty;
+    private readonly ConcurrentDictionary<string, ImmutableList<int>> _streams = new();
+    
     private readonly IEventTypeMap _eventTypeMap;
-    private readonly InMemoryEventStoreSubscriptionToAll? _subscription;
 
     private readonly InMemoryEventStoreSerializer _serializer;
-    private readonly ISystemClock _systemClock;
+    private readonly ISystemClock _clock;
+
+    private readonly List<IInMemoryEventStoreSubscription> _subscriptions;
 
     public InMemoryEventStore(InMemoryEventStoreSerializer serializer,
-        ISystemClock systemClock,
+        ISystemClock clock,
         IEventTypeMap eventTypeMap,
-        InMemoryEventStoreSubscriptionToAll? subscription = null)
+        IEnumerable<IHostedService>? hostedServices = null)
     {
         _serializer = serializer;
-        _systemClock = systemClock;
+        _clock = clock;
         _eventTypeMap = eventTypeMap;
-        _subscription = subscription;
+
+        _subscriptions = hostedServices?.OfType<IInMemoryEventStoreSubscription>().ToList() ??
+                         new List<IInMemoryEventStoreSubscription>();
     }
 
-    //Implementation of IEventStore
-    //Note that all methods have to be synchronized to maintain integrity
+    /// <summary>
+    /// Posts events to <see cref="_subscriptions"/>
+    /// </summary>
+    private void AfterCommit(List<EventRecord> records)
+    {
+        foreach (var s in _subscriptions)
+            s.AfterCommit(records);
+    }
     
-    #region Append
+    #region Revision
 
     public Task<ulong> GetRevision(string streamId, CancellationToken _)
     {
-        lock (_events)
-        {
-            if (!_events.TryGetValue(streamId, out var events))
-                throw new StreamNotFoundException(streamId);
-            return Task.FromResult((ulong) events.Count - 1);
-        }
+        return _streams.TryGetValue(streamId, out var s)
+            ? Task.FromResult((ulong)s.Count - 1)
+            : Task.FromException<ulong>(new StreamNotFoundException(streamId));
     }
     
     public Task<ulong> GetRevision(string streamId, ulong expectedRevision, CancellationToken _)
     {
-        lock (_events)
-        {
-            if (!_events.TryGetValue(streamId, out var current))
-                throw new StreamNotFoundException(streamId);
-            if (current.Count - 1 != (long) expectedRevision)
-                throw new WrongStreamRevisionException(streamId,
-                    expectedRevision,
-                    (ulong) current.Count - 1);
-            return Task.FromResult((ulong) current.Count - 1);
-        }
+        if (!_streams.TryGetValue(streamId, out var current))
+            return Task.FromException<ulong>(new StreamNotFoundException(streamId));
+
+        var actual = current.Count - 1;
+        
+        return (ulong)actual == expectedRevision
+            ? Task.FromResult(expectedRevision)
+            : Task.FromException<ulong>(new WrongStreamRevisionException(streamId, expectedRevision, (ulong)actual));
     }
 
     public Task<bool> Exists(string streamId, CancellationToken _)
     {
-        lock (_events)
-        {
-            return Task.FromResult(_events.ContainsKey(streamId));
-        }
-    }
-
-    public Task<ulong> Create(string streamId, IEnumerable<UncommittedEvent> events, CancellationToken _)
-    {
-        lock (_events)
-        {
-            if (_events.TryGetValue(streamId, out var current))
-                throw new StreamAlreadyExistsException(streamId, (ulong) current.Count - 1);
-            _events.Add(streamId, new List<EventRecord>());
-            return Task.FromResult(AppendStream(streamId, events));
-        }
-    }
-
-    public Task<ulong> Create(string streamId, UncommittedEvent @event, CancellationToken _)
-        => Create(streamId, ImmutableArray.Create(@event), _);
-
-    public Task<ulong> Append(string streamId, ulong expectedRevision, IEnumerable<UncommittedEvent> events,
-        CancellationToken _)
-    {
-        lock (_events)
-        {
-            if (!_events.TryGetValue(streamId, out var current))
-                throw new StreamNotFoundException(streamId);
-            if (current.Count - 1 != (long) expectedRevision)
-                throw new WrongStreamRevisionException(streamId,
-                    expectedRevision,
-                    (ulong) current.Count - 1);
-            return Task.FromResult(AppendStream(streamId, events));
-        }
-    }
-    
-    public Task<ulong> Append(string streamId, IEnumerable<UncommittedEvent> events, CancellationToken _)
-    {
-        lock (_events)
-        {
-            if (!_events.ContainsKey(streamId))
-                throw new StreamNotFoundException(streamId);
-            return Task.FromResult(AppendStream(streamId, events));
-        }
-    }
-
-    public Task<ulong> Append(string streamId, ulong expectedRevision, UncommittedEvent @event, CancellationToken _)
-        => Append(streamId, expectedRevision, ImmutableArray.Create(@event), _);
-    
-    public Task<ulong> Append(string streamId, UncommittedEvent @event, CancellationToken _)
-        => Append(streamId, ImmutableArray.Create(@event), _);
-
-    private ulong AppendStream(string streamId, IEnumerable<UncommittedEvent> events)
-    {
-        var timestamp = _systemClock.UtcNow;
-        var current = _events[streamId];
-        var toPublish = new List<EventRecord>();
-        foreach (var e in events)
-        {
-            var record = _serializer.Serialize(e, streamId, timestamp);
-            var streamPos = current.Count;
-
-            record.StreamPosition = (uint) streamPos;
-
-            current.Add(record);
-            _all.Add((streamId, streamPos));
-            toPublish.Add(record);
-        }
-
-        _subscription?.Publish(toPublish);
-        return (ulong) (current.Count - 1);
+        return Task.FromResult(_streams.ContainsKey(streamId));
     }
     
     #endregion
     
+    #region Write
+
+    private void CreateRecords(string streamId, 
+        int startPos, 
+        IEnumerable<UncommittedEvent> events,
+        out List<EventRecord> records,
+        out Task<ulong> result)
+    {
+        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
+        if (events == null) throw new ArgumentNullException(nameof(events));
+
+        var ts = _clock.UtcNow;
+        records = events.Select(e => _serializer.Serialize(e, streamId, startPos++, ts)).ToList();
+        if (records.Count == 0)
+            throw new ArgumentOutOfRangeException(nameof(events));
+        result = Task.FromResult((ulong)startPos - 1);
+    }
+    
+    private void CreateRecords(string streamId, 
+        int startPos, 
+        IEnumerable<UncommittedEvent> events,
+        DateTimeOffset timestamp,
+        out List<EventRecord> records)
+    {
+        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
+        if (events == null) throw new ArgumentNullException(nameof(events));
+
+        records = events.Select(e => _serializer.Serialize(e, streamId, startPos++, timestamp)).ToList();
+        if (records.Count == 0)
+            throw new ArgumentOutOfRangeException(nameof(events));
+    }
+
+    public Task<ulong> Create(string streamId, IEnumerable<UncommittedEvent> events, CancellationToken _)
+    {
+        CreateRecords(streamId, 0, events, out var records, out var result);
+        
+        lock (_mutex)
+        {
+            if (_streams.ContainsKey(streamId))
+                return Task.FromException<ulong>(new StreamAlreadyExistsException(streamId));
+            _streams[streamId] = ImmutableList.CreateRange(Enumerable.Range(_records.Count, records.Count));
+            _records = _records.AddRange(records);
+        }
+
+        AfterCommit(records);
+        return result;
+    }
+
+    public Task<ulong> Create(string streamId, UncommittedEvent @event, CancellationToken _)
+    {
+        if (@event == null) throw new ArgumentNullException(nameof(@event));
+        
+        return Create(streamId, new []{ @event }, _);
+    }
+
+    public Task<ulong> Append(string streamId, 
+        ulong expectedRevision, 
+        IEnumerable<UncommittedEvent> events,
+        CancellationToken _)
+    {
+        CreateRecords(streamId, (int)expectedRevision + 1, events, out var records, out var result);
+        
+        lock (_mutex)
+        {
+            if (!_streams.TryGetValue(streamId, out var current))
+                return Task.FromException<ulong>(new StreamNotFoundException(streamId));
+            if (current.Count - 1 != (int)expectedRevision)
+                return Task.FromException<ulong>(new WrongStreamRevisionException(streamId, 
+                    expectedRevision, (ulong)current.Count - 1));
+            
+            _streams[streamId] = current.AddRange(Enumerable.Range(_records.Count, records.Count));
+            
+            _records = _records.AddRange(records);
+        }
+
+        AfterCommit(records);
+        return result;
+    }
+    
+    public Task<ulong> Append(string streamId, IEnumerable<UncommittedEvent> events, CancellationToken _)
+    {
+        CreateRecords(streamId, 0, events, out var records, out var result);
+        lock (_mutex)
+        {
+            if (!_streams.TryGetValue(streamId, out var current))
+                return Task.FromException<ulong>(new StreamNotFoundException(streamId));
+            
+            foreach (var r in records)
+                r.StreamPos += current.Count; //Update to actual position
+            
+            current = current.AddRange(Enumerable.Range(_records.Count, records.Count));
+            _streams[streamId] = current;
+            
+            _records = _records.AddRange(records);
+            
+            result = Task.FromResult((ulong)current.Count - 1);
+        }
+        
+        AfterCommit(records);
+        return result;
+    }
+
+    public Task<ulong> Append(string streamId, ulong expectedRevision, UncommittedEvent @event, CancellationToken _)
+    {
+        if (@event == null) throw new ArgumentNullException(nameof(@event));
+        
+        return Append(streamId, expectedRevision, new [] { @event }, _);
+    }
+
+    public Task<ulong> Append(string streamId, UncommittedEvent @event, CancellationToken _)
+    {
+        if (@event == null) throw new ArgumentNullException(nameof(@event));
+        
+        return Append(streamId, new [] { @event }, _);
+    }
+
+    public Task SubmitTransaction(IReadOnlyDictionary<string, UncommittedEventsList> transaction, CancellationToken cancellationToken)
+    {
+        if (transaction == null) throw new ArgumentNullException(nameof(transaction));
+        
+        if (transaction.Count == 0)
+            return Task.CompletedTask; //No events to submit
+
+        var allRecords = new List<EventRecord>();
+        lock (_mutex)
+        {
+            var exceptions = new List<Exception>();
+            foreach (var (streamId, list) in transaction)
+            {
+                if (_streams.TryGetValue(streamId, out var current))
+                {
+                    var actual = (ulong)current.Count - 1;
+                    if (list.ExpectedRevision == null)
+                        exceptions.Add(new StreamAlreadyExistsException(streamId));
+                    else if (actual != list.ExpectedRevision.Value)
+                        exceptions.Add(new WrongStreamRevisionException(streamId, list.ExpectedRevision.Value, actual));
+                }
+                else if (list.ExpectedRevision != null)
+                {
+                    exceptions.Add(new StreamNotFoundException(streamId));
+                }
+            }
+            switch (exceptions.Count)
+            {
+                case 0:
+                    break;
+                case 1:
+                    throw exceptions[0];
+                default:
+                    throw new EventsTransactionException(exceptions);
+            }
+
+            var ts = _clock.UtcNow;
+            
+            foreach (var (streamId, list) in transaction)
+            {
+                if (list.Events.Count == 0) continue; //No events to append
+                
+                var current = _streams.TryGetValue(streamId, out var c)
+                    ? c
+                    : ImmutableList<int>.Empty;
+                
+                CreateRecords(streamId, current.Count, list.Events, ts, out var records);
+                _streams[streamId] = current.AddRange(Enumerable.Range(_records.Count, records.Count));
+                _records = _records.AddRange(records);
+                
+                allRecords.AddRange(records);
+            }
+        }
+
+        AfterCommit(allRecords);
+
+        return Task.CompletedTask;
+    }
+
+    #endregion
+    
     #region Read
 
-    public IReadOnlyList<EventEnvelope> ReadAll()
+    public IEnumerable<EventEnvelope> ReadAll() => _records.Select(_serializer.Deserialize);
+
+    private static IEnumerable<int> GetIndexes(Direction direction, IEnumerable<int> indexes)
     {
-        lock (_events)
+        return direction switch
         {
-            var list = new List<EventEnvelope>();
-            foreach (var (streamId, streamIndex) in _all)
-            {
-                var stream = _events[streamId];
-                list.Add(_serializer.Deserialize(stream[streamIndex]));
-            }
-            return list;
-        }
-    }
-
-    private static IAsyncEnumerable<EventEnvelope> ReadDirection(Direction direction, List<EventEnvelope> source)
-    {
-        if (direction == Direction.Backwards)
-            source.Reverse();
-        return source.ToAsyncEnumerable();
+            Direction.Forwards => indexes,
+            Direction.Backwards => indexes.Reverse(),
+            _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
+        };
     }
     
-    private static IAsyncEnumerable<EventEnvelope> ReadDirection(Direction direction, ulong maxCount, List<EventEnvelope> source)
+    private IAsyncEnumerable<EventEnvelope> ToAsyncEnumerable(IEnumerable<int> indexes, int? maxCount = null)
     {
-        if (direction == Direction.Backwards)
-            source.Reverse();
-        var max = (int) maxCount;
-        return (source.Count > max ? source.Take(max) : source).ToAsyncEnumerable();
+        var e = indexes.Select(i => _serializer.Deserialize(_records[i]));
+        if (maxCount.HasValue)
+            e = e.TakeWhile((_, i) => i < maxCount.Value);
+        return e.ToAsyncEnumerable();
     }
 
-    public IAsyncEnumerable<EventEnvelope> ReadAll(Direction direction, CancellationToken cancellationToken) => 
-        ReadDirection(direction, (List<EventEnvelope>)ReadAll());
-    
-    public IAsyncEnumerable<EventEnvelope> ReadAll(Direction direction, ulong maxCount, CancellationToken cancellationToken) => 
-        ReadDirection(direction, maxCount, (List<EventEnvelope>)ReadAll());
+    public IAsyncEnumerable<EventEnvelope> ReadAll(Direction direction, CancellationToken cancellationToken)
+    {
+        return ToAsyncEnumerable(GetIndexes(direction, Enumerable.Range(0, _records.Count)));
+    }
+
+    public IAsyncEnumerable<EventEnvelope> ReadAll(Direction direction, 
+        ulong maxCount, 
+        CancellationToken cancellationToken)
+    {
+        return ToAsyncEnumerable(GetIndexes(direction, Enumerable.Range(0, _records.Count)), (int)maxCount);
+    }
 
     public IAsyncEnumerable<EventEnvelope> Read(Direction direction, string streamId, CancellationToken _)
     {
-        lock (_events)
-        {
-            if (!_events.TryGetValue(streamId, out var events))
-                throw new StreamNotFoundException(streamId);
-            var list = Enumerable.Range(0, events.Count)
-                .Select(i => events[i])
-                .Select(_serializer.Deserialize)
-                .ToList();
-
-            return ReadDirection(direction, list);
-        }
+        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
+        
+        if (!_streams.TryGetValue(streamId, out var stream))
+            throw new StreamNotFoundException(streamId);
+        return ToAsyncEnumerable(GetIndexes(direction, stream));
     }
 
     public IAsyncEnumerable<EventEnvelope> Read(Direction direction, string streamId, ulong expectedRevision, CancellationToken _)
     {
-        lock (_events)
-        {
-            if (!_events.TryGetValue(streamId, out var events))
-                throw new StreamNotFoundException(streamId);
-            var length = (ulong) events.Count - 1;
-            if (length != expectedRevision)
-                throw new WrongStreamRevisionException(streamId,
-                    expectedRevision,
-                    length);
-            
-            var list = Enumerable.Range(0, events.Count)
-                .Select(i => events[i])
-                .Select(_serializer.Deserialize)
-                .ToList();
+        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
+        
+        if (!_streams.TryGetValue(streamId, out var stream))
+            throw new StreamNotFoundException(streamId);
 
-            return ReadDirection(direction, list);
-        }
+        if (stream.Count - 1 != (int)expectedRevision)
+            throw new WrongStreamRevisionException(streamId, expectedRevision, (ulong)stream.Count - 1);
+        return ToAsyncEnumerable(GetIndexes(direction, stream));
+    }
+
+    public IAsyncEnumerable<EventEnvelope> Read(Direction direction, 
+        string streamId, 
+        ulong startRevision, 
+        ulong expectedRevision,
+        CancellationToken cancellationToken = default)
+    {
+        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
+        
+        if (startRevision > expectedRevision)
+            throw new ArgumentOutOfRangeException(nameof(startRevision));
+        
+        if (!_streams.TryGetValue(streamId, out var stream))
+            throw new StreamNotFoundException(streamId);
+
+        if (stream.Count - 1 != (int)expectedRevision)
+            throw new WrongStreamRevisionException(streamId, expectedRevision, (ulong)stream.Count - 1);
+
+        return ToAsyncEnumerable(stream.Skip((int)startRevision));
     }
 
     public IAsyncEnumerable<EventEnvelope> ReadPartial(Direction direction, 
         string streamId,
-        ulong requiredRevision, 
+        ulong count, 
         CancellationToken _)
     {
-        lock (_events)
-        {
-            if (!_events.TryGetValue(streamId, out var events))
-                throw new StreamNotFoundException(streamId);
-            var length = (ulong) events.Count - 1;
-            if (length < requiredRevision)
-                throw new WrongStreamRevisionException(streamId,
-                    requiredRevision,
-                    length);
+        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
 
-            var list = Enumerable.Range(0, (int) requiredRevision + 1)
-                .Select(i =>
-                {
-                    return direction switch
-                    {
-                        Direction.Forwards => events[i],
-                        Direction.Backwards => events[events.Count - i - 1],
-                        _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
-                    };
-                })
-                .Select(_serializer.Deserialize)
-                .ToList();
-
-            return list.ToAsyncEnumerable();
-        }
-    }
-    
-    private List<EventEnvelope> ReadStreamInternal(string streamId)
-    {
-        if (!_events.TryGetValue(streamId, out var events))
+        if (count == 0)
+            throw new ArgumentOutOfRangeException(nameof(count));
+        
+        if (!_streams.TryGetValue(streamId, out var stream))
             throw new StreamNotFoundException(streamId);
-        return Enumerable.Range(0, events.Count)
-            .Select(i => events[i])
-            .Select(_serializer.Deserialize)
-            .ToList();
+
+        if (stream.Count < (int)count)
+            throw new WrongStreamRevisionException(streamId, count, (ulong)stream.Count - 1);
+        
+        return ToAsyncEnumerable(GetIndexes(direction, stream).Take((int)count));
     }
 
-    public IAsyncEnumerable<EventEnvelope> ReadMany(Direction direction, 
+    public IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId, 
+        ulong startRevision, 
+        ulong endRevision,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(streamId);
+
+        if (startRevision > endRevision)
+            throw new ArgumentOutOfRangeException(nameof(startRevision));
+        
+        if (!_streams.TryGetValue(streamId, out var stream))
+            throw new StreamNotFoundException(streamId);
+
+        if ((ulong)stream.Count <= endRevision)
+            throw new WrongStreamRevisionException(streamId, endRevision, (ulong)stream.Count - 1);
+        
+        return ToAsyncEnumerable(stream.Take((int)endRevision + 1).Skip((int)startRevision));
+    }
+
+    public IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId, ulong startRevision, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(streamId);
+
+        if (!_streams.TryGetValue(streamId, out var stream))
+            throw new StreamNotFoundException(streamId);
+
+        if ((ulong)stream.Count <= startRevision)
+            throw new WrongStreamRevisionException(streamId, startRevision, (ulong)stream.Count - 1);
+        
+        return ToAsyncEnumerable(stream.Skip((int)startRevision));
+    }
+
+    public IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(Direction direction, 
         IEnumerable<string> streams, 
         CancellationToken cancellationToken)
     {
-        lock (_events)
+        ArgumentNullException.ThrowIfNull(streams);
+
+        streams = direction switch
         {
-            var events = streams.SelectMany(ReadStreamInternal)
-                .OrderBy(e => e.Timestamp)
-                .ToList();
-            cancellationToken.ThrowIfCancellationRequested();
-
-            return ReadDirection(direction, events);
+            Direction.Forwards => streams.OrderBy(s => s),
+            Direction.Backwards => streams.OrderByDescending(s => s),
+            _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
+        };
+        
+        var result = new List<IAsyncEnumerable<EventEnvelope>>();
+        foreach (var s in streams)
+        {
+            if (!_streams.TryGetValue(s, out var stream))
+                continue;
+            result.Add(ToAsyncEnumerable(GetIndexes(direction, stream)));
         }
+        
+        return result.ToAsyncEnumerable();
     }
-
-    public async IAsyncEnumerable<EventEnvelope> ReadMany(Direction direction,
+    
+    public async IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(Direction direction,
         IAsyncEnumerable<string> streams,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var list = await streams.ToListAsync(cancellationToken);
-
-        List<EventEnvelope> events;
-        lock (_events)
+        streams = direction switch
         {
-            events = list.SelectMany(ReadStreamInternal)
-                .OrderBy(e => e.Timestamp)
-                .ToList();
-        }
-        if (direction == Direction.Backwards)
-            events.Reverse();
-
-        foreach (var e in events)
+            Direction.Forwards => streams.OrderBy(s => s),
+            Direction.Backwards => streams.OrderByDescending(s => s),
+            _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
+        };
+        await foreach (var s in streams.WithCancellation(cancellationToken))
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            yield return e;
+            if (!_streams.TryGetValue(s, out var stream))
+                continue;
+            yield return ToAsyncEnumerable(GetIndexes(direction, stream));
         }
     }
-    
-    public IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMultiple(Direction direction, 
-        IEnumerable<string> streams, 
+
+    public IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction, 
+        Type eventType,
         CancellationToken cancellationToken)
     {
-        var result = new List<List<EventEnvelope>>();
-        lock (_events)
-        {
-            result.AddRange(streams
-                .Select(ReadStreamInternal)
-                .Select(list =>
-                {
-                    if (direction == Direction.Backwards)
-                        list.Reverse();
-                    return list;
-                }));
-        }
-        return result.Select(r => r.ToAsyncEnumerable()).ToAsyncEnumerable();
-    }
-    
-    public async IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMultiple(Direction direction,
-        IAsyncEnumerable<string> streams,
-        [EnumeratorCancellation] CancellationToken cancellationToken)
-    {
-        var items = await streams.ToListAsync(cancellationToken);
-        var result = new List<List<EventEnvelope>>();
-        lock (_events)
-        {
-            result.AddRange(items
-                .Select(ReadStreamInternal)
-                .Select(list =>
-                {
-                    if (direction == Direction.Backwards)
-                        list.Reverse();
-                    return list;
-                }));
-        }
+        var type = _eventTypeMap.GetTypeName(eventType);
+        var indexes = GetIndexes(direction, Enumerable.Range(0, _records.Count))
+            .Where(i => _records[i].EventType == type);
 
-        foreach (var item in result)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            yield return item.ToAsyncEnumerable();
-        }
+        return ToAsyncEnumerable(indexes);
     }
 
-    public IReadOnlyList<EventEnvelope> ReadByEventType(Type eventType)
-    {
-        lock (_events)
-        {
-            var name = _eventTypeMap.GetTypeName(eventType);
-            var list = new List<EventEnvelope>();
-            foreach (var (streamId, streamIndex) in _all)
-            {
-                var record = _events[streamId][streamIndex];
-                if (record.EventType != name)
-                    continue;
-                var env = _serializer.Deserialize(record);
-                list.Add(env);
-            }
-
-            return list;
-        }
-    }
-
-    public IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction, Type eventType,
-        CancellationToken cancellationToken) =>
-        ReadDirection(direction, (List<EventEnvelope>) ReadByEventType(eventType));
-    
     public IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction, 
         Type eventType,
         ulong maxCount,
-        CancellationToken cancellationToken) =>
-        ReadDirection(direction, maxCount, (List<EventEnvelope>) ReadByEventType(eventType));
+        CancellationToken cancellationToken)
+    {
+        var type = _eventTypeMap.GetTypeName(eventType);
+        var indexes = GetIndexes(direction, Enumerable.Range(0, _records.Count))
+            .Where(i => _records[i].EventType == type);
+
+        return ToAsyncEnumerable(indexes, (int)maxCount);
+    }
 
     #endregion
     
@@ -369,66 +448,97 @@ internal class InMemoryEventStore : IInMemoryEventStore
 
     public Task<ulong> CountByEventType(Type eventType, CancellationToken cancellationToken)
     {
-        lock (_events)
-        {
-            var name = _eventTypeMap.GetTypeName(eventType);
-            var count = _events.Values
-                .SelectMany(v => v)
-                .Count(r => r.EventType == name);
-            return Task.FromResult((ulong)count);
-        }
+        var type = _eventTypeMap.GetTypeName(eventType);
+        var count = _records.Count(r => r.EventType == type);
+        return Task.FromResult((ulong)count);
     }
     
     public Task<ulong> Count(CancellationToken cancellationToken)
     {
-        lock (_events)
-        {
-            return Task.FromResult((ulong) _all.Count);
-        }
+        var count = _records.Count;
+        return Task.FromResult((ulong)count);
     }
+    
+    public int GetCount() => _records.Count;
 
     #endregion
+    
+    #region Load
 
-    #region Persistence
-
-    //These methods are intended to facilitate unit tests
-
-    private const PrefixStyle PrefixStyle = ProtoBuf.PrefixStyle.Base128;
-
-    public void Save(Stream stream, CancellationToken cancellationToken = default)
+    private void LoadRecords(List<EventRecord> records)
     {
-        lock (_events)
+        lock (_mutex)
         {
-            foreach (var (streamId, streamIndex) in _all)
+            if (_records.Count > 0)
+                throw new InvalidOperationException("Event store already contains records");
+            
+            foreach (var e in records)
             {
-                cancellationToken.ThrowIfCancellationRequested();
-                var record = _events[streamId][streamIndex];
-                Serializer.SerializeWithLengthPrefix(stream, record, PrefixStyle, 1);
+                if (_streams.TryGetValue(e.StreamId, out var stream))
+                {
+                    var end = _records[stream[^1]];
+                    if (e.StreamPos != end.StreamPos + 1)
+                        throw new InvalidOperationException($"Stream {e.StreamId} is not sequential");
+                    _streams[e.StreamId] = stream.Add(_records.Count);
+                }
+                else
+                {
+                    if (e.StreamPos != 0)
+                        throw new InvalidOperationException($"Stream {e.StreamId} does not start at 0");
+                    _streams[e.StreamId] = ImmutableList.Create(_records.Count);
+                }
+                _records = _records.Add(e);
             }
-
-            stream.Flush();
         }
     }
-
-    public void Load(Stream stream, CancellationToken cancellationToken = default)
+    
+    public async Task Load(IAsyncEnumerable<EventEnvelope> envelopes, CancellationToken ct)
     {
-        lock (_events)
+        var records = await envelopes.Select(_serializer.Serialize).ToListAsync(ct);
+        
+        records = records
+            .OrderBy(r => r.Timestamp)
+            .ThenBy(r => r.StreamPos)
+            .ToList();
+        
+        LoadRecords(records);
+    }
+
+    public IReadOnlyList<JsonElement> Serialize()
+    {
+        return _records.Select(e => JsonSerializer.SerializeToElement(e)).ToList();
+    }
+
+    public void Deserialize(IEnumerable<JsonElement> events)
+    {
+        if (events == null) throw new ArgumentNullException(nameof(events));
+        var records = events.Select(e => e.Deserialize<EventRecord>()!).ToList();
+        if (records == null)
+            throw new ArgumentOutOfRangeException(nameof(events));
+        LoadRecords(records);
+    }
+
+    //For serializing, we just save a JSON array of EventRecords
+
+    public async Task Save(Stream stream, CompressionLevel compressionLevel, CancellationToken ct = default)
+    {
+        await using var brotli = new BrotliStream(stream, compressionLevel, leaveOpen: true);
+        await JsonSerializer.SerializeAsync(brotli, _records, cancellationToken: ct);
+    }
+
+    public async Task Load(Stream stream, CancellationToken ct = default)
+    {
+        try
         {
-            var events = Serializer.DeserializeItems<EventRecord>(stream, PrefixStyle, 1);
-            foreach (var e in events)
-            {
-                //For some reason, protobuf does not preserve Kind on serialization
-                e.Created = DateTime.SpecifyKind(e.Created, DateTimeKind.Utc);
-                var streamId = e.StreamId;
-                if (!_events.TryGetValue(streamId, out var eventStream))
-                {
-                    eventStream = new List<EventRecord>();
-                    _events.Add(streamId, eventStream);
-                }
-                e.StreamPosition = (uint) eventStream.Count;
-                _all.Add((streamId, eventStream.Count));
-                eventStream.Add(e);
-            }
+            await using var brotli = new BrotliStream(stream, CompressionMode.Decompress, leaveOpen: true);
+            var records = await JsonSerializer.DeserializeAsync<List<EventRecord>>(brotli, cancellationToken: ct);
+            if (records == null)
+                throw new ArgumentException("Stream does not contain a valid JSON array of EventRecords", nameof(stream));
+            LoadRecords(records);
+        }
+        catch (Exception e)
+        {
+            throw new ArgumentException("Stream does not contain a valid JSON array of EventRecords", nameof(stream), e);
         }
     }
 

@@ -1,72 +1,160 @@
-﻿using System.Diagnostics.CodeAnalysis;
-using Microsoft.Extensions.Internal;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Moq;
-using PureES.Core.EventStore;
 using PureES.EventStore.InMemory;
+using PureES.EventStore.InMemory.Subscription;
 
 namespace PureES.EventStores.Tests;
 
 public class InMemoryEventStoreTests : EventStoreTestsBase
 {
-    protected override Task<EventStoreTestHarness> CreateStore(string testName, CancellationToken ct) =>
-        Task.FromResult(new EventStoreTestHarness(new Mock<IAsyncDisposable>().Object, new TestInMemoryEventStore()));
+    [Fact]
+    public async Task Subscription_To_All_Should_Handle_All_Events()
+    {
+        const string streamId = nameof(Subscription_To_All_Should_Handle_All_Events);
+
+        var handler = new Mock<IEventHandler>();
+
+        var list = new List<EventEnvelope>();
+        
+        handler.Setup(s => s.Handle(It.IsAny<EventEnvelope>()))
+            .Callback((EventEnvelope e) =>
+            {
+                lock (list)
+                {
+                    list.Add(e);
+                }
+            });
+        
+        await using var harness = await CreateHarness(s => s.AddSingleton(handler.Object));
+        var store = harness.EventStore;
+
+        var subscription = harness.GetRequiredService<IEnumerable<IHostedService>>()
+            .OfType<InMemoryEventStoreSubscriptionToAll>().Single();
+        
+        await subscription.StartAsync(default); //noop
+        
+        (await store.Create(streamId, Enumerable.Range(0, 10).Select(_ => NewEvent()), default)).ShouldBe(9ul);
+
+        var transaction = new EventsTransaction();
+        foreach (var i in Enumerable.Range(0, 10))
+            transaction.Add(i.ToString(), null, Enumerable.Range(0, 10).Select(_ => NewEvent()));
+
+        await store.SubmitTransaction(transaction.ToUncommittedTransaction(), default);
+        
+        await subscription.StopAsync(default);
+
+        handler.Verify(s => s.Handle(It.Is<EventEnvelope>(e => e.StreamId == streamId)),
+            Times.Exactly(10));
+        
+        handler.Verify(s => s.Handle(It.IsAny<EventEnvelope>()), Times.Exactly(110));
+        
+        list.Should().HaveCount(110);
+        list.GroupBy(e => e.StreamId).Should().HaveCount(11);
+        
+        Assert.All(list.GroupBy(e => e.StreamId), g =>
+        {
+            g.Should().HaveCount(10);
+            g.Should().BeInAscendingOrder(l => l.StreamPosition);
+            g.ShouldAllBe(e => e.Timestamp == g.First().Timestamp);
+        });
+    }
 
     [Fact]
-    public void SaveAndLoad()
+    public async Task HandleLoad()
     {
-        var source = new TestInMemoryEventStore();
-        Setup(source).GetAwaiter().GetResult();
+        const string streamId = nameof(HandleLoad);
 
-        AssertEqual(source, source);
+        await using var harness = await CreateHarness();
 
-        using var ms = new MemoryStream();
-        source.Save(ms);
-        ms.Seek(0, SeekOrigin.Begin);
-
-        var destination = new TestInMemoryEventStore();
-        destination.Load(ms);
-
-        AssertEqual(source, destination);
-        AssertEqual(destination, destination);
-    }
-
-    private static void AssertEqual(IInMemoryEventStore left, IInMemoryEventStore right)
-    {
-        Assert.Equal(left.ReadAll().Count, right.ReadAll().Count);
-        Assert.Equal(left.ReadAll().Select(e => new {e.StreamId, e.StreamPosition, e.EventId, e.Timestamp}),
-            right.ReadAll().Select(e => new {e.StreamId, e.StreamPosition, e.EventId, e.Timestamp}));
-
-        Assert.All(left.ReadAll().Concat(right.ReadAll()), 
-            e => Assert.Equal(DateTimeKind.Utc, e.Timestamp.Kind));
-    }
-
-    private static async Task Setup(IEventStore eventStore)
-    {
-        var data = Enumerable.Range(0, 10)
-            .Select(i => $"stream-{i}")
-            .SelectMany(stream => Enumerable.Range(0, 10)
-                .Select(e => (stream, NewEvent())))
-            .OrderBy(p => p.Item2.EventId);
-        foreach (var (stream, e) in data)
-            if (await eventStore.Exists(stream, default))
-            {
-                var revision = await eventStore.GetRevision(stream, default);
-                await eventStore.Append(stream, revision, e, default);
-            }
-            else
-            {
-                await eventStore.Create(stream, e, default);
-            }
-    }
-
-    [SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
-    private sealed class TestInMemoryEventStore : InMemoryEventStore
-    {
-        public TestInMemoryEventStore()
-            : base(TestSerializer.InMemoryEventStoreSerializer,
-                new SystemClock(),
-                TestSerializer.EventTypeMap)
+        for (var i = 0; i < 10; i++)
         {
+            (await harness.EventStore.Create($"{streamId}-{i}", 
+                Enumerable.Range(0, 10).Select(_ => NewEvent()), 
+                default)).ShouldBe(9ul);
         }
+
+        var store = new ServiceCollection()
+            .AddInMemoryEventStore()
+            .AddInMemorySubscriptionToAll()
+            .AddSingleton<IEventTypeMap, BasicEventTypeMap>()
+            .BuildServiceProvider()
+            .GetRequiredService<IInMemoryEventStore>();
+        
+        await store.Load(harness.EventStore.ReadAll(Direction.Forwards), default);
+
+        store.ReadAll().Should().HaveCount(100);
+        await Assert.AllAsync(Enumerable.Range(0, 10), async i =>
+        {
+            var sId = $"{streamId}-{i}";
+            (await store.Exists(sId, default)).ShouldBeTrue();
+            
+            var events = await store.Read(sId).ToListAsync();
+            events.Should().HaveCount(10);
+            events.ShouldAllBe(e => e.StreamId == sId);
+            events.Should().BeInAscendingOrder(e => e.StreamPosition);
+        });
     }
+
+    [Fact]
+    public async Task Serialize()
+    {
+        const string streamId = nameof(Serialize);
+
+        await using var harness = await CreateHarness();
+        
+        var store = ((IInMemoryEventStore)harness.EventStore);
+
+        for (var i = 0; i < 10; i++)
+        {
+            (await store.Create($"{streamId}-{i}", 
+                Enumerable.Range(0, 10).Select(_ => NewEvent()), 
+                default)).ShouldBe(9ul);
+        }
+
+        var serialized = store.Serialize();
+        
+        store = new ServiceCollection()
+            .AddInMemoryEventStore()
+            .AddInMemorySubscriptionToAll()
+            .AddSingleton<IEventTypeMap, BasicEventTypeMap>()
+            .BuildServiceProvider()
+            .GetRequiredService<IInMemoryEventStore>();
+
+        store.Deserialize(serialized);
+
+        store.ReadAll().Should().HaveCount(100);
+        await Assert.AllAsync(Enumerable.Range(0, 10), async i =>
+        {
+            var sId = $"{streamId}-{i}";
+            (await store.Exists(sId, default)).ShouldBeTrue();
+            
+            var events = await store.Read(sId).ToListAsync();
+            events.Should().HaveCount(10);
+            events.ShouldAllBe(e => e.StreamId == sId);
+            events.Should().BeInAscendingOrder(e => e.StreamPosition);
+        });
+    }
+    
+    protected override Task<EventStoreTestHarness> CreateStore(string testName, 
+        Action<IServiceCollection> configureServices, 
+        CancellationToken ct)
+    {
+        var services = new ServiceCollection()
+            .AddInMemoryEventStore()
+            .AddInMemorySubscriptionToAll()
+            .AddSingleton<IEventTypeMap, BasicEventTypeMap>();
+
+        configureServices(services);
+
+        var sp = services.BuildServiceProvider();
+        
+        return Task.FromResult(new EventStoreTestHarness(sp, sp.GetRequiredService<IEventStore>()));
+    }
+
+    //TODO: test subscriptions
+    
+    private static InMemoryEventStoreSerializer Serializer =>
+        new (new BasicEventTypeMap(), new OptionsWrapper<InMemoryEventStoreOptions>(new InMemoryEventStoreOptions()));
 }

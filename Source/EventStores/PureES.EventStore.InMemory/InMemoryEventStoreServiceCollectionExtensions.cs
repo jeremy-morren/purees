@@ -1,12 +1,13 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using JetBrains.Annotations;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Internal;
-using PureES.Core.EventStore;
-using PureES.EventStore.InMemory.Serialization;
+using PureES.EventBus;
 using PureES.EventStore.InMemory.Subscription;
 
 namespace PureES.EventStore.InMemory;
 
+[PublicAPI]
 public static class InMemoryEventStoreServiceCollectionExtensions
 {
     /// <summary>
@@ -35,20 +36,21 @@ public static class InMemoryEventStoreServiceCollectionExtensions
         
         services.TryAddSingleton<InMemoryEventStoreSerializer>();
         
-        services.TryAddSingleton<IInMemoryEventStore, InMemoryEventStore>();
+        services.TryAddSingleton<IEventStore, InMemoryEventStore>();
 
-        services.TryAddTransient<IEventStore>(sp => sp.GetRequiredService<IInMemoryEventStore>());
+        services.TryAddSingleton<IInMemoryEventStore>(sp => (IInMemoryEventStore)sp.GetRequiredService<IEventStore>());
 
         return services;
     }
 
     public static IServiceCollection AddInMemorySubscriptionToAll(this IServiceCollection services,
-        Action<InMemoryEventStoreSubscriptionOptions>? configureOptions = null)
+        Action<EventBusOptions>? configureOptions = null)
     {
-        services.AddOptions<InMemoryEventStoreSubscriptionOptions>(nameof(InMemoryEventStoreSubscriptionToAll))
-            .Configure(o => configureOptions?.Invoke(o));
+        services.AddOptions<EventBusOptions>(nameof(InMemoryEventStoreSubscriptionToAll))
+            .Configure(o => configureOptions?.Invoke(o))
+            .Validate(o => o.Validate());
         
-        services.AddSingleton<InMemoryEventStoreSubscriptionToAll>();
+        services.AddHostedService<InMemoryEventStoreSubscriptionToAll>();
 
         return services;
     }

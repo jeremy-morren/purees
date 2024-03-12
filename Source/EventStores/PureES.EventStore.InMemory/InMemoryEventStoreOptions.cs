@@ -6,11 +6,11 @@ public class InMemoryEventStoreOptions
 {
     /// <summary>
     /// Gets or sets the JSON serializer options to use
-    /// when deserializing events & metadata
+    /// when deserializing events &amp; metadata
     /// </summary>
     public JsonSerializerOptions JsonSerializerOptions { get; } = new()
     {
-        PropertyNameCaseInsensitive = true
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
     /// <summary>
@@ -21,6 +21,6 @@ public class InMemoryEventStoreOptions
     public void Validate()
     {
         if (MetadataType == null)
-            throw new Exception("Metadata type is required");
+            throw new Exception($"{nameof(MetadataType)} is required");
     }
 }

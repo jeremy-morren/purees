@@ -1,5 +1,5 @@
 <Project>
-<!--    <Target Name="SetSourceRevisionId" BeforeTargets="InitializeSourceControlInformation;BeforeBuild">-->
+<!--    <Target Name="SetSourceRevisionId" BeforeTargets="InitializeSourceControlInformation">-->
 <!--        <Exec Command="git -C &quot;$(MSBuildProjectDirectory)&quot; describe &#45;&#45;long &#45;&#45;always &#45;&#45;exclude=* &#45;&#45;abbrev=10" -->
 <!--              ConsoleToMSBuild="True" -->
 <!--              IgnoreExitCode="false"-->

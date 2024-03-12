@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>netstandard2.0</TargetFramework>
+        
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+
+        <LangVersion>latest</LangVersion>
+        <OutputType>library</OutputType>
+        <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+
+        <DebugType>embedded</DebugType>
+        <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
+        
+        <!-- Output will be in the analyzer (not lib) folder -->
+        <IncludeBuildOutput>true</IncludeBuildOutput>
+        <!-- Suppress related NuGet warnings about the above -->
+        <NoWarn>NU5100;NU5128</NoWarn>
+        
+        <!-- See https://github.com/dotnet/roslyn/discussions/47517#discussioncomment-5786857 -->
+        <IsRoslynComponent>true</IsRoslynComponent>
+    </PropertyGroup>
+    
+    <ItemGroup>
+        <PackageReference Include="JetBrains.Annotations" Version="2023.3.0" />
+
+        <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4" PrivateAssets="All" />
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" PrivateAssets="All" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <InternalsVisibleTo Include="PureES.Tests" />
+        <InternalsVisibleto Include="DynamicProxyGenAssembly2" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <Using Include="System.Diagnostics.CodeAnalysis" />
+        <Using Include="JetBrains.Annotations" />
+        
+        <Using Include="System.Reflection" />
+        <Using Include="System.Linq.Expressions" />
+        
+        <Using Include="PureES.SourceGenerators.Symbols" />
+    </ItemGroup>
+    
+    <ItemGroup>
+        <None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+    </ItemGroup>
+</Project>
