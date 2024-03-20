@@ -130,35 +130,35 @@ public static class EventStoreReadExtensions
         ulong count,
         CancellationToken cancellationToken = default)
     {
-        if (eventStore == null) throw new ArgumentNullException(nameof(eventStore));
+        ArgumentNullException.ThrowIfNull(eventStore);
         return eventStore.ReadPartial(Direction.Forwards, streamId, count, cancellationToken);
     }
 
     /// <summary>
-    /// Reads multiple streams. Order is undefined
+    /// Reads multiple streams as a single operation. Order of streams is undefined.
     /// </summary>
     /// <param name="eventStore">Event store</param>
     /// <param name="streams">The streams to read</param>
     /// <param name="cancellationToken"></param>
-    public static IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMultiple(this IEventStore eventStore,
+    public static IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(this IEventStore eventStore,
         IEnumerable<string> streams, 
         CancellationToken cancellationToken = default)
     {
-        if (eventStore == null) throw new ArgumentNullException(nameof(eventStore));
+        ArgumentNullException.ThrowIfNull(eventStore);
         return eventStore.ReadMany(Direction.Forwards, streams, cancellationToken);
     }
     
     /// <summary>
-    /// Reads multiple streams. Order is undefined
+    /// Reads multiple streams as a single operation. Order of streams is undefined.
     /// </summary>
     /// <param name="eventStore">Event store</param>
     /// <param name="streams">The streams to read</param>
     /// <param name="cancellationToken"></param>
-    public static IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMultiple(this IEventStore eventStore, 
+    public static IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(this IEventStore eventStore, 
         IAsyncEnumerable<string> streams, 
         CancellationToken cancellationToken = default)
     {
-        if (eventStore == null) throw new ArgumentNullException(nameof(eventStore));
+        ArgumentNullException.ThrowIfNull(eventStore);
         return eventStore.ReadMany(Direction.Forwards, streams, cancellationToken);
     }
 

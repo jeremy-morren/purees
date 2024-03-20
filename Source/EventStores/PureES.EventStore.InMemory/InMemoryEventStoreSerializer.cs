@@ -35,6 +35,9 @@ internal class InMemoryEventStoreSerializer
         int streamPos,
         DateTimeOffset created)
     {
+        ArgumentNullException.ThrowIfNull(streamId);
+        ArgumentNullException.ThrowIfNull(record);
+
         var @event = JsonSerializer.SerializeToElement(record.Event, _options.JsonSerializerOptions);
         JsonElement? metadata = record.Metadata != null 
             ? JsonSerializer.SerializeToElement(record.Metadata, _options.JsonSerializerOptions)
@@ -49,6 +52,8 @@ internal class InMemoryEventStoreSerializer
 
     public EventRecord Serialize(EventEnvelope envelope)
     {
+        ArgumentNullException.ThrowIfNull(envelope);
+
         var @event = JsonSerializer.SerializeToElement(envelope.Event, _options.JsonSerializerOptions);
         JsonElement? metadata = envelope.Metadata != null 
             ? JsonSerializer.SerializeToElement(envelope.Metadata, _options.JsonSerializerOptions)
