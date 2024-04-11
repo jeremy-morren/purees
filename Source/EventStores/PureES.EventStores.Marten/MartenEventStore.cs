@@ -1,8 +1,6 @@
-﻿using System.Collections.Immutable;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 using Marten;
 using Marten.Exceptions;
-using Npgsql;
 
 namespace PureES.EventStores.Marten;
 
