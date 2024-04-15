@@ -478,7 +478,9 @@ internal class InMemoryEventStore : IInMemoryEventStore
                 {
                     var end = _records[stream[^1]];
                     if (e.StreamPos != end.StreamPos + 1)
-                        throw new InvalidOperationException($"Stream {e.StreamId} is not sequential");
+                        throw new InvalidOperationException(
+                            $"Stream {e.StreamId} is not sequential. Expected {end.StreamPos + 1}, got {e.StreamPos}");
+                    
                     _streams[e.StreamId] = stream.Add(_records.Count);
                 }
                 else
