@@ -22,7 +22,7 @@ public class MartenEventStoreOptions
     /// <summary>
     /// Json options for serializing/deserializing events/metadata
     /// </summary>
-    public JsonSerializerOptions JsonSerializerOptions { get; } = new()
+    public JsonSerializerOptions JsonSerializerOptions { get; set; } = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
@@ -31,6 +31,7 @@ public class MartenEventStoreOptions
     {
         Require(nameof(DatabaseSchema), DatabaseSchema);
         Require(nameof(MetadataType), MetadataType);
+        Require(nameof(JsonSerializerOptions), JsonSerializerOptions);
         return true;
     }
     

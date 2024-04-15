@@ -238,8 +238,12 @@ internal class MartenEventStore : IEventStore
         
         query = direction switch
         {
-            Direction.Forwards => query.OrderBy(e => e.Timestamp),
-            Direction.Backwards => query.OrderByDescending(e => e.Timestamp),
+            Direction.Forwards => query.OrderBy(e => e.Timestamp)
+                .ThenBy(e => e.StreamId)
+                .ThenBy(e => e.StreamPosition),
+            Direction.Backwards => query.OrderByDescending(e => e.Timestamp)
+                .ThenByDescending(e => e.StreamId)
+                .ThenByDescending(e => e.StreamPosition),
             _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
         };
         await foreach (var e in query.ToAsyncEnumerable(cancellationToken))
