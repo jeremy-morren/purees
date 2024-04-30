@@ -13,7 +13,7 @@ public static class MartenEventStoreServiceCollectionExtensions
         this MartenServiceCollectionExtensions.MartenConfigurationExpression configuration,
         Action<MartenEventStoreOptions>? configureOptions = null)
     {
-        if (configuration == null) throw new ArgumentNullException(nameof(configuration));
+        ArgumentNullException.ThrowIfNull(configuration);
 
         configuration.Services.AddOptions<MartenEventStoreOptions>()
             .Configure(o => configureOptions?.Invoke(o))
@@ -30,8 +30,8 @@ public static class MartenEventStoreServiceCollectionExtensions
         this MartenServiceCollectionExtensions.MartenConfigurationExpression configuration,
         Action<EventBusOptions>? configureOptions = null)
     {
-        if (configuration == null) throw new ArgumentNullException(nameof(configuration));
-        
+        ArgumentNullException.ThrowIfNull(configuration);
+
         configuration.Services.AddHostedService<MartenSubscriptionToAll>();
 
         configuration.Services.AddOptions<EventBusOptions>(nameof(AddPureESSubscriptionToAll))
