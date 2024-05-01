@@ -43,12 +43,8 @@ public static class InMemoryEventStoreServiceCollectionExtensions
         return services;
     }
 
-    public static IServiceCollection AddInMemorySubscriptionToAll(this IServiceCollection services,
-        Action<EventBusOptions>? configureOptions = null)
+    public static IServiceCollection AddInMemorySubscriptionToAll(this IServiceCollection services)
     {
-        services.AddOptions<EventBusOptions>(nameof(InMemoryEventStoreSubscriptionToAll))
-            .Configure(o => configureOptions?.Invoke(o));
-        
         services.AddHostedService<InMemoryEventStoreSubscriptionToAll>();
 
         return services;

@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using System.Text.Json.Nodes;
 using JetBrains.Annotations;
 
 namespace PureES.EventStore.InMemory;
@@ -27,6 +28,6 @@ public interface IInMemoryEventStore : IEventStore
     /// <exception cref="InvalidOperationException">The event store already events</exception>
     Task Load(IAsyncEnumerable<EventEnvelope> envelopes, CancellationToken ct);
 
-    public IReadOnlyList<JsonElement> Serialize();
-    public void Deserialize(IEnumerable<JsonElement> events);
+    public JsonElement Serialize();
+    public void Deserialize(JsonElement events);
 }

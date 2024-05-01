@@ -31,8 +31,7 @@ internal class InMemoryEventStoreSerializer
     }
 
     public EventRecord Serialize(UncommittedEvent record, 
-        string streamId, 
-        int streamPos,
+        string streamId,
         DateTimeOffset created)
     {
         ArgumentNullException.ThrowIfNull(streamId);
@@ -42,12 +41,14 @@ internal class InMemoryEventStoreSerializer
         JsonElement? metadata = record.Metadata != null 
             ? JsonSerializer.SerializeToElement(record.Metadata, _options.JsonSerializerOptions)
             : null;
-        return new EventRecord(streamId,
-            streamPos,
-            created.UtcDateTime,
-            _typeMap.GetTypeName(record.Event.GetType()),
-            @event,
-            metadata);
+        return new EventRecord()
+        {
+            StreamId = streamId,
+            Timestamp = created.UtcDateTime,
+            EventType = _typeMap.GetTypeName(record.Event.GetType()),
+            Event = @event,
+            Metadata = metadata
+        };
     }
 
     public EventRecord Serialize(EventEnvelope envelope)
@@ -58,11 +59,14 @@ internal class InMemoryEventStoreSerializer
         JsonElement? metadata = envelope.Metadata != null 
             ? JsonSerializer.SerializeToElement(envelope.Metadata, _options.JsonSerializerOptions)
             : null;
-        return new EventRecord(envelope.StreamId,
-            (int)envelope.StreamPosition,
-            envelope.Timestamp,
-            _typeMap.GetTypeName(envelope.Event.GetType()),
-            @event,
-            metadata);
+        return new EventRecord()
+        {
+            StreamId = envelope.StreamId,
+            Timestamp = envelope.Timestamp,
+            EventType = _typeMap.GetTypeName(envelope.Event.GetType()),
+            Event = @event,
+            Metadata = metadata,
+            StreamPos = (int)envelope.StreamPosition
+        };
     }
 }
