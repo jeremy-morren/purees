@@ -27,15 +27,11 @@ public static class MartenEventStoreServiceCollectionExtensions
     }
 
     public static MartenServiceCollectionExtensions.MartenConfigurationExpression AddPureESSubscriptionToAll(
-        this MartenServiceCollectionExtensions.MartenConfigurationExpression configuration,
-        Action<EventBusOptions>? configureOptions = null)
+        this MartenServiceCollectionExtensions.MartenConfigurationExpression configuration)
     {
         ArgumentNullException.ThrowIfNull(configuration);
 
         configuration.Services.AddHostedService<MartenSubscriptionToAll>();
-
-        configuration.Services.AddOptions<EventBusOptions>(nameof(AddPureESSubscriptionToAll))
-            .Configure(o => configureOptions?.Invoke(o));
 
         return configuration;
     }

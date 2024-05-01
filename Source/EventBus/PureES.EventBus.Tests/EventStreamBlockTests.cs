@@ -31,13 +31,9 @@ public class EventStreamBlockTests
             await completions[e.StreamId].Task;
             lock (result)
             {
-                result.TryAdd(e.StreamId, new List<int>());
-                result[e.StreamId].Add((int) e.StreamPosition);
+                result.TryAdd(e.StreamId, []);
+                result[e.StreamId].Add((int)e.StreamPosition);
             }
-        }, new EventBusOptions()
-        {
-            MaxDegreeOfParallelism = 1,
-            BufferSize = count
         });
 
         var all = new List<EventEnvelope>();

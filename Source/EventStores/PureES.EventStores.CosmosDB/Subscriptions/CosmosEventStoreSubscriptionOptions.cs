@@ -48,8 +48,6 @@ public class CosmosEventStoreSubscriptionOptions
     /// </summary>
     public TimeSpan ClientElapsedWarningThreshold { get; set; } = TimeSpan.FromSeconds(5);
 
-    public EventBusOptions EventBusOptions { get; } = new();
-
     public void Validate()
     {
         if (PollInterval.Ticks <= 0)

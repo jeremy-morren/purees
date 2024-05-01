@@ -16,10 +16,8 @@ internal sealed class EventStreamBlock : ITargetBlock<EventEnvelope>, ISourceBlo
     
     private readonly ISourceBlock<EventEnvelope> _consumer;
 
-    public EventStreamBlock(Func<EventEnvelope, Task> handle,
-        EventBusOptions options)
+    public EventStreamBlock(Func<EventEnvelope, Task> handle)
     {
-        options.Validate();
         //Producer creates/appends to queues
         var producer = new TransformBlock<EventEnvelope, EventQueue>(e =>
         {
@@ -42,12 +40,12 @@ internal sealed class EventStreamBlock : ITargetBlock<EventEnvelope>, ISourceBlo
         {
             //Queue in the order we received, 1 at a time
             EnsureOrdered = true,
-            MaxDegreeOfParallelism = 1,
-
-            //This creates backpressure on block.SendAsync
-            BoundedCapacity = options.BufferSize
+            MaxDegreeOfParallelism = 1
         });
 
+        //The worker process in parallel
+        //Access to the streams is synchronized via the Semaphore
+        
         var worker = new TransformBlock<EventQueue, HandleResult>(async queue =>
         {
             var handled = new List<EventEnvelope>();
@@ -87,11 +85,7 @@ internal sealed class EventStreamBlock : ITargetBlock<EventEnvelope>, ISourceBlo
             return new HandleResult(queue.StreamId, handled);
         }, new ExecutionDataflowBlockOptions
         {
-            BoundedCapacity = 1, //Do not buffer anything, this creates backpressure
-
-            //The worker process in parallel
-            //Access to the streams is synchronized via the Semaphore
-            MaxDegreeOfParallelism = options.MaxDegreeOfParallelism,
+            BoundedCapacity = 1,
 
             //Event streams are processed in no particular order
             EnsureOrdered = false
@@ -109,8 +103,6 @@ internal sealed class EventStreamBlock : ITargetBlock<EventEnvelope>, ISourceBlo
             },
             new ExecutionDataflowBlockOptions
             {
-                BoundedCapacity = DataflowBlockOptions.Unbounded, //The backpressure is all above, we can buffer as much as we like here
-                
                 //Order & synchronization are unimportant, since we are locking on _queues anyway
                 EnsureOrdered = false, 
                 MaxDegreeOfParallelism = DataflowBlockOptions.Unbounded

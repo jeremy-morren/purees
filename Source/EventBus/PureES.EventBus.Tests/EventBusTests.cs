@@ -17,15 +17,15 @@ public class EventBusTests
         var services = new EventHandlerServices(new Dictionary<Type, Action<EventEnvelope>[]>()
         {
             {
-                typeof(object), new Action<EventEnvelope>[]
-                {
+                typeof(object), 
+                [
                     _ => executed1 = true,
                     _ => executed2 = true
-                }
+                ]
             }
         });
 
-        var bus = new EventBus(new EventBusOptions(), services);
+        var bus = new EventBus(services);
 
         await bus.SendAsync(NewEnvelope());
         
@@ -41,7 +41,7 @@ public class EventBusTests
     {
         var services = new EventHandlerServices(new Dictionary<Type, Action<EventEnvelope>[]>());
 
-        var bus = new EventBus(new EventBusOptions(), services);
+        var bus = new EventBus(services);
 
         await bus.SendAsync(NewEnvelope());
         
@@ -57,7 +57,7 @@ public class EventBusTests
         var services = new EventHandlerServices(new Dictionary<Type, Action<EventEnvelope>[]>(),
             s => s.AddSingleton(events.Object));
         
-        var bus = new EventBus(new EventBusOptions(), services);
+        var bus = new EventBus(services);
 
         var eventEnvelope = NewEnvelope();
         await bus.SendAsync(eventEnvelope);

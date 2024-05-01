@@ -29,9 +29,7 @@ internal class CosmosEventStoreSubscriptionToAll : ICosmosEventStoreSubscription
         
         _options = optionsFactory.Create(nameof(CosmosEventStoreSubscriptionToAll));
 
-        _eventBus = new EventBus.EventBus(_options.EventBusOptions,
-            services,
-            loggerFactory?.CreateLogger<EventBus.EventBus>());
+        _eventBus = new EventBus.EventBus(services, loggerFactory?.CreateLogger<EventBus.EventBus>());
     }
 
     private string ProcessorName => _options.ChangeFeedProcessorName ?? nameof(CosmosEventStoreSubscriptionToAll);

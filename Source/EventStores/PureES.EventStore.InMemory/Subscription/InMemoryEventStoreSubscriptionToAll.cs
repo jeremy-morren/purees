@@ -13,12 +13,9 @@ internal class InMemoryEventStoreSubscriptionToAll : IInMemoryEventStoreSubscrip
     public InMemoryEventStoreSubscriptionToAll(
         IServiceProvider services,
         InMemoryEventStoreSerializer serializer,
-        IOptionsFactory<EventBusOptions> optionsFactory,
         ILoggerFactory? loggerFactory = null)
     {
-        _eventBus = new EventBus.EventBus(optionsFactory.Create(nameof(InMemoryEventStoreSubscriptionToAll)),
-            services,
-            loggerFactory?.CreateLogger<EventBus.EventBus>());
+        _eventBus = new EventBus.EventBus(services, loggerFactory?.CreateLogger<EventBus.EventBus>());
         
         //Load records, and publish to event block
         

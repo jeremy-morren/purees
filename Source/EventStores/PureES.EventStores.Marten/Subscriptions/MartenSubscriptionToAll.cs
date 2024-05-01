@@ -11,13 +11,11 @@ internal class MartenSubscriptionToAll : IMartenEventStoreSubscription
     private readonly MartenEventsListener _eventsListener;
     private readonly IEventBus _eventBus;
     
-    public MartenSubscriptionToAll(IOptionsFactory<EventBusOptions> optionsFactory,
-        MartenEventSerializer serializer,
+    public MartenSubscriptionToAll(MartenEventSerializer serializer,
         IServiceProvider services,
         ILoggerFactory? loggerFactory = null)
     {
-        var options = optionsFactory.Create(nameof(MartenSubscriptionToAll));
-        _eventBus = new EventBus.EventBus(options, services, loggerFactory?.CreateLogger<EventBus.EventBus>());
+        _eventBus = new EventBus.EventBus(services, loggerFactory?.CreateLogger<EventBus.EventBus>());
         _eventsListener = new MartenEventsListener(serializer);
         _eventsListener.LinkTo(_eventBus, new DataflowLinkOptions() { PropagateCompletion = true });
     }

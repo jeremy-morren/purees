@@ -47,8 +47,7 @@ public static class InMemoryEventStoreServiceCollectionExtensions
         Action<EventBusOptions>? configureOptions = null)
     {
         services.AddOptions<EventBusOptions>(nameof(InMemoryEventStoreSubscriptionToAll))
-            .Configure(o => configureOptions?.Invoke(o))
-            .Validate(o => o.Validate());
+            .Configure(o => configureOptions?.Invoke(o));
         
         services.AddHostedService<InMemoryEventStoreSubscriptionToAll>();
 

@@ -13,21 +13,19 @@ namespace PureES.EventBus;
 
 public class EventBus : IEventBus
 {
-    private readonly ITargetBlock<EventEnvelope> _targetBlock;
+    private readonly EventStreamBlock _handler;
 
     private readonly ILogger<EventBus> _logger;
     private readonly IServiceProvider _services;
 
-    public EventBus(EventBusOptions options,
+    public EventBus(
         IServiceProvider services,
         ILogger<EventBus>? logger = null)
     {
         _services = services;
         _logger = logger ?? NullLogger<EventBus>.Instance;
         
-        var handler = new EventStreamBlock(Publish, options);
-        
-        _targetBlock = handler;
+        _handler = new EventStreamBlock(Publish);
 
         var onHandled = new ActionBlock<EventEnvelope>(OnEventHandled, 
             new ExecutionDataflowBlockOptions()
@@ -36,7 +34,8 @@ public class EventBus : IEventBus
                 BoundedCapacity = DataflowBlockOptions.Unbounded, //No backpressure after handle
                 MaxDegreeOfParallelism = 1 //Handle 1 at a time
             });
-        handler.LinkTo(onHandled, new DataflowLinkOptions() {PropagateCompletion = true});
+        _handler.LinkTo(onHandled, new DataflowLinkOptions() {PropagateCompletion = true});
+        
         Completion = onHandled.Completion;
     }
 
@@ -88,8 +87,7 @@ public class EventBus : IEventBus
         }
         catch (Exception e)
         {
-            //Benign exceptions will be caught by the event handlers themselves
-            //This is most likely a dependency injection failure
+            //Either DI failure, or event handler propagated exception
             _logger.LogCritical(e, "An error occurred handling event {@LogEvent}", logEvent);
             throw;
         }
@@ -144,16 +142,16 @@ public class EventBus : IEventBus
         EventEnvelope messageValue,
         ISourceBlock<EventEnvelope>? source, 
         bool consumeToAccept) =>
-        _targetBlock.OfferMessage(messageHeader, messageValue, source, consumeToAccept);
+        _handler.OfferMessage(messageHeader, messageValue, source, consumeToAccept);
 
     public void Complete()
     {
-        _targetBlock.Complete();
+        _handler.Complete();
     }
 
     public void Fault(Exception exception)
     {
-        _targetBlock.Fault(exception);
+        _handler.Fault(exception);
     }
 
     public Task Completion { get; }
