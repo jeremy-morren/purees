@@ -23,7 +23,7 @@ internal class TypeSymbol : IType
 
     public string? Namespace => _source.ContainingNamespace?.ToString();
 
-    public string Name => _source.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+    public string Name => GetName(_source);
 
     public string FullName => _source.ToDisplayString();
 
@@ -62,6 +62,14 @@ internal class TypeSymbol : IType
         .Select(t => new TypeSymbol(t));
 
     public override string ToString() => _source.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
+
+    private static string GetName(ITypeSymbol symbol)
+    {
+        var name = symbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat);
+        return symbol.ContainingType != null
+            ? $"{GetName(symbol.ContainingType)}+{name}" 
+            : name;
+    }
 
     #region Equality
 
