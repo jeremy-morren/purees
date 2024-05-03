@@ -109,8 +109,7 @@ public static class EventStoreReadExtensions
         eventStore.Read(Direction.Forwards, streamId, startRevision, expectedRevision, cancellationToken);
 
     /// <summary>
-    ///     Loads events from stream <paramref name="streamId" /> up
-    ///     to and including <paramref name="count" />
+    ///     Loads events from stream <paramref name="streamId" />, returning at most <paramref name="count" /> elements
     /// </summary>
     /// <param name="eventStore">Event store</param>
     /// <param name="streamId">Id of stream to load events from</param>

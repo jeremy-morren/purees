@@ -206,8 +206,7 @@ public interface IEventStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    ///     Loads events from stream <paramref name="streamId" /> up
-    ///     to and including <paramref name="count" />
+    ///     Loads events from stream <paramref name="streamId" />, returning at most <paramref name="count" /> elements
     /// </summary>
     /// <param name="direction">Read direction</param>
     /// <param name="streamId">Id of stream to load events from</param>

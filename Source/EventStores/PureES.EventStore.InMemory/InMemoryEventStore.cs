@@ -304,7 +304,7 @@ internal class InMemoryEventStore : IInMemoryEventStore
         
         var stream = _events.ReadStream(direction, streamId, out var actual);
         if (actual < count - 1)
-            throw new WrongStreamRevisionException(streamId, count, actual);
+            throw new WrongStreamRevisionException(streamId, count - 1, actual);
 
         return ToAsyncEnumerable(stream.Take((int)count));
     }
