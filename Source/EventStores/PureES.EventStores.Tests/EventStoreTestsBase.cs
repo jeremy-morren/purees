@@ -311,7 +311,7 @@ public abstract class EventStoreTestsBase
             
             ex = await Assert.ThrowsAsync<WrongStreamRevisionException>(async () => 
                 await getEvents(Direction.Backwards).CountAsync());
-
+            
             ex.ActualRevision.ShouldBe(revision);
         }
 
