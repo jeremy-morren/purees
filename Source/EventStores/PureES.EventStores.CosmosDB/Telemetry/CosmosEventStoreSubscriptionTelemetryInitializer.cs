@@ -55,19 +55,17 @@ internal class CosmosEventStoreSubscriptionTelemetryInitializer : ITelemetryInit
             return false;
 
         var operation = d.Properties["db.operation"];
-        var container = d.Properties["db.cosmosdb.container"];
-        
-        switch (operation)
+        var container = d.Properties.TryGetValue("db.cosmosdb.container", out var c) ? c : null;
+
+        return operation switch
         {
-            case "Change Feed Processor Read Next Async":
-                return d.ResultCode == "304" && container == _eventStore;
+            "Change Feed Processor Read Next Async" => 
+                d.ResultCode == "304" && container == _eventStore,
             
-            case "ReadItemStreamAsync":
-            case "ReplaceItemStreamAsync":
-            case "FeedIterator Read Next Async":
-                return d.ResultCode == "200" && container == _lease;
-            default:
-                return false;
-        }
+            "ReadItemStreamAsync" or "ReplaceItemStreamAsync" or "FeedIterator Read Next Async" =>
+                d.ResultCode == "200" && container == _lease,
+            
+            _ => false
+        };
     }
 }

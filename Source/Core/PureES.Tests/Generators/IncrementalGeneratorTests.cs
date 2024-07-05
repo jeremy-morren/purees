@@ -17,7 +17,6 @@ using Xunit;
 
 namespace PureES.Tests.Generators;
 
-[UsesVerify]
 public class IncrementalGeneratorTests
 {
     [Fact]
