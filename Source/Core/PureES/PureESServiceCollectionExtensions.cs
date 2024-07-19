@@ -53,7 +53,7 @@ public static class PureESServiceCollectionExtensions
         var method = type.GetMethod(methodName, 
                          BindingFlags.NonPublic | BindingFlags.Static)
                      ?? throw new NotImplementedException($"Unable to get register method for assembly {assembly}");
-        method.Invoke(null, new object?[] { builder.Services });
+        method.Invoke(null, [builder.Services]);
         
         return builder;
     }

@@ -1,7 +1,6 @@
 ﻿using JetBrains.Annotations;
 using Marten;
 using Microsoft.Extensions.DependencyInjection;
-using PureES.EventBus;
 using PureES.EventStores.Marten.Subscriptions;
 
 namespace PureES.EventStores.Marten;

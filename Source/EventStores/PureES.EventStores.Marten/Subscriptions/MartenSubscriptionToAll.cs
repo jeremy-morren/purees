@@ -1,7 +1,6 @@
 ﻿using System.Threading.Tasks.Dataflow;
 using Marten;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using PureES.EventBus;
 
 namespace PureES.EventStores.Marten.Subscriptions;

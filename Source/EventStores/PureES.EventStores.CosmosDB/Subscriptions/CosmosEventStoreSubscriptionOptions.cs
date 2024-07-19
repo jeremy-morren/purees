@@ -1,5 +1,4 @@
 ﻿using JetBrains.Annotations;
-using PureES.EventBus;
 
 namespace PureES.EventStores.CosmosDB.Subscriptions;
 

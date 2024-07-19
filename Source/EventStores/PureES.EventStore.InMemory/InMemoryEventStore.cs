@@ -1,10 +1,6 @@
-﻿using System.Collections.Concurrent;
-using System.Collections.Immutable;
-using System.Diagnostics.CodeAnalysis;
-using System.IO.Compression;
+﻿using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Internal;
 using PureES.EventStore.InMemory.Subscription;
