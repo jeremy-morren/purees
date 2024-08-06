@@ -14,15 +14,15 @@ internal class MartenEventSerializer
         _options = options.Value;
     }
 
-    public EventEnvelope Deserialize(MartenEvent marvenEvent)
+    public EventEnvelope Deserialize(MartenEvent martenEvent)
     {
-        var metadata = marvenEvent.Metadata?.Deserialize(_options.MetadataType, _options.JsonSerializerOptions);
-        var eventType = _typeMap.GetCLRType(marvenEvent.EventType);
-        var @event = marvenEvent.Event?.Deserialize(eventType, _options.JsonSerializerOptions) 
-                     ?? throw new InvalidOperationException($"Event data is null for event {marvenEvent.Id}");
-        return new EventEnvelope(marvenEvent.StreamId,
-            (ulong)marvenEvent.StreamPosition,
-            marvenEvent.Timestamp.UtcDateTime,
+        var metadata = martenEvent.Metadata?.Deserialize(_options.MetadataType, _options.JsonSerializerOptions);
+        var eventType = _typeMap.GetCLRType(martenEvent.EventType);
+        var @event = martenEvent.Event?.Deserialize(eventType, _options.JsonSerializerOptions) 
+                     ?? throw new InvalidOperationException($"Event data is null for event {martenEvent.Id}");
+        return new EventEnvelope(martenEvent.StreamId,
+            (ulong)martenEvent.StreamPosition,
+            martenEvent.Timestamp.UtcDateTime,
             @event,
             metadata);
     }

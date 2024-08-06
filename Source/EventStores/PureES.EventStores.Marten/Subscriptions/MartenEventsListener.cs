@@ -54,10 +54,10 @@ internal sealed class MartenEventsListener : DocumentSessionListenerBase, ISourc
 
         foreach (var g in streams)
         {
-            var e = new CommittedEvent(g.Key,
-                list.First().StreamPosition,
-                list.Last().StreamPosition,
-                session.DocumentStore);
+            var positions = g.Select(e => e.StreamPosition).ToList();
+            positions.Sort();
+            
+            var e = new CommittedEvent(g.Key, positions[0], positions[^1], session.DocumentStore);
             
             //There is no backpressure, so this should succeed immediately
             if (!_block.Post(e))
