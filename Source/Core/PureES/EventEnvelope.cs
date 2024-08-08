@@ -7,9 +7,7 @@ namespace PureES;
 /// <summary>
 ///     Represents an event persisted to <see cref="IEventStore" />
 /// </summary>
-
-[PublicAPI]
-public class EventEnvelope : IEquatable<EventEnvelope>
+public class EventEnvelope : IEventEnvelope
 {
     public EventEnvelope(EventEnvelope other)
     {
@@ -61,16 +59,28 @@ public class EventEnvelope : IEquatable<EventEnvelope>
 
     #region Equality
     
-    public bool Equals(EventEnvelope? other)
+    internal static bool Equal(IEventEnvelope? left, IEventEnvelope? right)
     {
-        if (ReferenceEquals(null, other)) return false;
-        if (ReferenceEquals(this, other)) return true;
-        return Event.Equals(other.Event) &&
-               MetadataEquals(other.Metadata) &&
-               StreamId == other.StreamId &&
-               StreamPosition == other.StreamPosition &&
-               Timestamp.Equals(other.Timestamp);
+        if (ReferenceEquals(left, right)) return true;
+        if (ReferenceEquals(left, null)) return false;
+        if (ReferenceEquals(right, null)) return false;
+
+        return left.StreamId == right.StreamId &&
+               left.StreamPosition == right.StreamPosition &&
+               left.Timestamp == right.Timestamp &&
+               MetadataEquals(left.Metadata, right.Metadata) &&
+               left.Event.Equals(right.Event);
     }
+    
+    private static bool MetadataEquals(object? left, object? right)
+    {
+        if (ReferenceEquals(left, right)) return true;
+        if (ReferenceEquals(left, null)) return false;
+        if (ReferenceEquals(right, null)) return false;
+        return left.Equals(right);
+    }
+
+    public bool Equals(IEventEnvelope? other) => Equal(this, other);
 
     public override bool Equals(object? obj)
     {
@@ -81,24 +91,6 @@ public class EventEnvelope : IEquatable<EventEnvelope>
 
     public override int GetHashCode() => 
         HashCode.Combine(Event, Metadata, StreamId, StreamPosition, Timestamp);
-    
-    public bool Equals<TEvent, TMetadata>(EventEnvelope<TEvent, TMetadata>? other)
-        where TEvent : notnull
-        where TMetadata : notnull
-    {
-        if (ReferenceEquals(other, null)) return false;
-        return StreamId == other.StreamId
-               && StreamPosition == other.StreamPosition
-               && Timestamp.Equals(other.Timestamp)
-               && other.Event.Equals(Event)
-               && MetadataEquals(other.Metadata);
-    }
-
-    private bool MetadataEquals<TMetadata>(TMetadata other) =>
-        ReferenceEquals(Metadata, other)
-        || ReferenceEquals(Metadata, null)
-        || ReferenceEquals(other, null)
-        || other.Equals(Metadata);
 
     public static bool operator ==(EventEnvelope? left, EventEnvelope? right)
         => left?.Equals(right) ?? ReferenceEquals(right, null);
@@ -109,8 +101,10 @@ public class EventEnvelope : IEquatable<EventEnvelope>
     #endregion
 }
 
-[PublicAPI]
-public class EventEnvelope<TEvent, TMetadata> : IEquatable<EventEnvelope<TEvent, TMetadata>>, IEquatable<EventEnvelope>
+/// <summary>
+/// Represents a strongly-typed event persisted to <see cref="IEventStore" />
+/// </summary>
+public class EventEnvelope<TEvent, TMetadata> : IEventEnvelope<TEvent, TMetadata>, IEquatable<IEventEnvelope<TEvent, TMetadata>> 
     where TEvent : notnull
 {
     public EventEnvelope(EventEnvelope source)
@@ -167,6 +161,10 @@ public class EventEnvelope<TEvent, TMetadata> : IEquatable<EventEnvelope<TEvent,
     ///     The metadata pertaining to the event
     /// </summary>
     public TMetadata Metadata { get; }
+    
+    object IEventEnvelope.Event => Event;
+    
+    object? IEventEnvelope.Metadata => Metadata;
 
     public override string? ToString() => new 
     {
@@ -179,43 +177,43 @@ public class EventEnvelope<TEvent, TMetadata> : IEquatable<EventEnvelope<TEvent,
     
     #region Equality
     
-    public bool Equals(EventEnvelope<TEvent, TMetadata>? other)
+    private static bool MetadataEquals(TMetadata? left, TMetadata? right)
     {
-        if (ReferenceEquals(null, other)) return false;
-        if (ReferenceEquals(this, other)) return true;
-        return Event.Equals(other.Event) &&
-               MetadataEquals(other.Metadata) &&
-               StreamId == other.StreamId &&
-               StreamPosition == other.StreamPosition &&
-               Timestamp.Equals(other.Timestamp);
+        if (ReferenceEquals(left, right)) return true;
+        if (ReferenceEquals(left, null)) return false;
+        if (ReferenceEquals(right, null)) return false;
+        return left.Equals(right);
     }
+    
+    internal static bool Equal(IEventEnvelope<TEvent, TMetadata>? left, IEventEnvelope<TEvent, TMetadata>? right)
+    {
+        if (ReferenceEquals(left, right)) return true;
+        if (ReferenceEquals(left, null)) return false;
+        if (ReferenceEquals(right, null)) return false;
+
+        return left.StreamId == right.StreamId &&
+               left.StreamPosition == right.StreamPosition &&
+               left.Timestamp == right.Timestamp &&
+               MetadataEquals(left.Metadata, right.Metadata) &&
+               left.Event.Equals(right.Event);
+    }
+    
+    public bool Equals(IEventEnvelope? other)
+    {
+        return EventEnvelope.Equal(this, other);
+    }
+    
+    public bool Equals(IEventEnvelope<TEvent, TMetadata>? other) => Equal(this, other);
 
     public override bool Equals(object? obj)
     {
         if (ReferenceEquals(null, obj)) return false;
         if (ReferenceEquals(this, obj)) return true;
-        if (obj.GetType() != GetType()) return false;
-        return Equals((EventEnvelope<TEvent, TMetadata>) obj);
+        return obj is IEventEnvelope<TEvent, TMetadata> e && Equals(e);
     }
 
     public override int GetHashCode() => 
         HashCode.Combine(Event, Metadata, StreamId, StreamPosition, Timestamp);
-    
-    public bool Equals(EventEnvelope? other)
-    {
-        if (ReferenceEquals(other, null)) return false;
-        return StreamId == other.StreamId
-               && StreamPosition == other.StreamPosition
-               && Timestamp.Equals(other.Timestamp)
-               && Event.Equals(other.Event)
-               && MetadataEquals(other.Metadata);
-    }
-
-    private bool MetadataEquals(object? other) =>
-        ReferenceEquals(Metadata, other)
-        || ReferenceEquals(Metadata, null)
-        || ReferenceEquals(other, null)
-        || Metadata.Equals(other);
 
     public static bool operator ==(EventEnvelope<TEvent, TMetadata>? left, EventEnvelope? right)
         => left?.Equals(right) ?? ReferenceEquals(right, null);
