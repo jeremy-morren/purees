@@ -9,7 +9,7 @@ internal static class PureESSymbols
     public const string UncommittedEventsList = "PureES.UncommittedEventsList";
     public const string EventEnvelope = "PureES.EventEnvelope";
     public const string CommandResult = "PureES.CommandResult";
-    public const string EventsTransaction = "PureES.EventsTransaction";
+    public const string EventsTransaction = "PureES.IEventsTransaction";
     
     public const string CommandAttribute = "PureES.CommandAttribute";
     public const string EventHandlersAttribute = "PureES.EventHandlersAttribute";

@@ -6,7 +6,7 @@ namespace PureES;
 /// A map of multiple event streams to be committed to the database in a single transaction.
 /// </summary>
 [PublicAPI]
-public class EventsTransaction : IDictionary<string, EventsList>
+public class EventsTransaction : IEventsTransaction
 {
     private readonly IDictionary<string, EventsList> _dictionary = new Dictionary<string, EventsList>();
 
@@ -89,9 +89,11 @@ public class EventsTransaction : IDictionary<string, EventsList>
 
     public void CopyTo(KeyValuePair<string, EventsList>[] array, int arrayIndex) => _dictionary.CopyTo(array, arrayIndex);
     
+    [MustDisposeResource]
     public IEnumerator<KeyValuePair<string, EventsList>> GetEnumerator() => _dictionary.GetEnumerator();
 
-    IEnumerator IEnumerable.GetEnumerator() => ((IEnumerable)_dictionary).GetEnumerator();
+    [MustDisposeResource]
+    IEnumerator IEnumerable.GetEnumerator() => _dictionary.GetEnumerator();
 
     public override string ToString() => $"Count = {Count}";
     
