@@ -47,7 +47,7 @@ namespace PureES.DependencyInjection
                     registeredImplementations.Add(s.ImplementationType);
                 }
             }
-            // Aggregate: PureES.Tests.Models.TestAggregate. Command handlers: 9
+            // Aggregate: PureES.Tests.Models.TestAggregate. Command handlers: 11
             if (registeredServices.Contains(typeof(global::PureES.IAggregateFactory<global::PureES.Tests.Models.TestAggregate>)))
             {
                 services.RemoveAll(typeof(global::PureES.IAggregateFactory<global::PureES.Tests.Models.TestAggregate>));
@@ -126,6 +126,22 @@ namespace PureES.DependencyInjection
             services.Add(new ServiceDescriptor(
                 serviceType: typeof(global::PureES.ICommandHandler<short>),
                 implementationType: typeof(global::PureES.CommandHandlers.shortCommandHandler),
+                lifetime: ServiceLifetime.Transient));
+            if (registeredServices.Contains(typeof(global::PureES.ICommandHandler<global::System.Runtime.Serialization.ISerializable>)))
+            {
+                services.RemoveAll(typeof(global::PureES.ICommandHandler<global::System.Runtime.Serialization.ISerializable>));
+            }
+            services.Add(new ServiceDescriptor(
+                serviceType: typeof(global::PureES.ICommandHandler<global::System.Runtime.Serialization.ISerializable>),
+                implementationType: typeof(global::PureES.CommandHandlers.ISerializableCommandHandler),
+                lifetime: ServiceLifetime.Transient));
+            if (registeredServices.Contains(typeof(global::PureES.ICommandHandler<ushort[]>)))
+            {
+                services.RemoveAll(typeof(global::PureES.ICommandHandler<ushort[]>));
+            }
+            services.Add(new ServiceDescriptor(
+                serviceType: typeof(global::PureES.ICommandHandler<ushort[]>),
+                implementationType: typeof(global::PureES.CommandHandlers.ushortArrayCommandHandler),
                 lifetime: ServiceLifetime.Transient));
             if (registeredServices.Contains(typeof(global::PureES.ICommandHandler<long[], object>)))
             {

@@ -61,7 +61,7 @@ internal static class PureESSymbolTypes
 
     [Pure]
     public static bool IsEventsTransaction(this IType type) => 
-        type.ImplementedInterfaces.Any(i => i.FullName == PureESSymbols.EventsTransaction);
+        type.FullName == PureESSymbols.EventsTransaction || type.ImplementedInterfaces.Any(i => i.FullName == PureESSymbols.EventsTransaction);
 
     public static bool HasCommandAttribute(this IParameter parameter) => 
         parameter.Attributes.Contains(PureESSymbols.CommandAttribute);
