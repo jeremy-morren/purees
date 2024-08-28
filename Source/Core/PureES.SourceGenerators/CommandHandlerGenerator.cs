@@ -133,7 +133,7 @@ internal class CommandHandlerGenerator
 
         if (_handler.Command.IsReferenceType)
         {
-            //Add null check, which returns immediately
+            //Add null check
             _w.WriteStatement("if (command == null)", "throw new ArgumentNullException(nameof(command));");
         }
 
@@ -316,18 +316,11 @@ internal class CommandHandlerGenerator
         
         _w.WriteStatement($"foreach (var pair in {source})", () =>
         {
-            _w.WriteStatement("if (pair.Value.Count == 0)", "continue;");
+            //If stream is current stream, manually calculate return revision
+            _w.WriteStatement("if (pair.Key == streamId)", 
+                "revision = pair.Value.ExpectedRevision.HasValue ? pair.Value.ExpectedRevision.Value + (ulong)pair.Value.Count : (ulong)(pair.Value.Count - 1);");
             
-            //If stream is current stream, use currentRevision as expected
-            //And manually calculate return revision
-            _w.WriteStatement("if (pair.Key == streamId)", () =>
-            {
-                _w.WriteLine($"transaction.Add(pair.Key, new {list}(currentRevision, pair.Value));");
-                _w.WriteLine(_handler.IsUpdate
-                    ? "revision = currentRevision + (ulong)pair.Value.Count;"
-                    : "revision = (ulong)pair.Value.Count - 1;");
-            });
-            _w.WriteStatement("else", 
+            _w.WriteStatement("if (pair.Value.Count > 0)", 
                 $"transaction.Add(pair.Key, new {list}(pair.Value.ExpectedRevision, pair.Value));");
         });
     }
