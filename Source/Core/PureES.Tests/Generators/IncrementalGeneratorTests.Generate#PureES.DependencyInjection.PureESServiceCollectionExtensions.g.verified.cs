@@ -47,7 +47,7 @@ namespace PureES.DependencyInjection
                     registeredImplementations.Add(s.ImplementationType);
                 }
             }
-            // Aggregate: PureES.Tests.Models.TestAggregate. Command handlers: 11
+            // Aggregate: PureES.Tests.Models.TestAggregate. Command handlers: 12
             if (registeredServices.Contains(typeof(global::PureES.IAggregateFactory<global::PureES.Tests.Models.TestAggregate>)))
             {
                 services.RemoveAll(typeof(global::PureES.IAggregateFactory<global::PureES.Tests.Models.TestAggregate>));
@@ -134,6 +134,14 @@ namespace PureES.DependencyInjection
             services.Add(new ServiceDescriptor(
                 serviceType: typeof(global::PureES.ICommandHandler<global::System.Runtime.Serialization.ISerializable>),
                 implementationType: typeof(global::PureES.CommandHandlers.ISerializableCommandHandler),
+                lifetime: ServiceLifetime.Transient));
+            if (registeredServices.Contains(typeof(global::PureES.ICommandHandler<uint[]>)))
+            {
+                services.RemoveAll(typeof(global::PureES.ICommandHandler<uint[]>));
+            }
+            services.Add(new ServiceDescriptor(
+                serviceType: typeof(global::PureES.ICommandHandler<uint[]>),
+                implementationType: typeof(global::PureES.CommandHandlers.uintArrayCommandHandler),
                 lifetime: ServiceLifetime.Transient));
             if (registeredServices.Contains(typeof(global::PureES.ICommandHandler<ushort[]>)))
             {

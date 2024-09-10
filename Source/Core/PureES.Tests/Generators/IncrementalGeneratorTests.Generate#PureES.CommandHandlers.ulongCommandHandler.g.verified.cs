@@ -114,16 +114,11 @@ namespace PureES.CommandHandlers
                         var transaction = new global::System.Collections.Generic.Dictionary<string, global::PureES.UncommittedEventsList>();
                         foreach (var pair in result)
                         {
-                            if (pair.Value.Count == 0)
-                            {
-                                continue;
-                            }
                             if (pair.Key == streamId)
                             {
-                                transaction.Add(pair.Key, new global::PureES.UncommittedEventsList(currentRevision, pair.Value));
-                                revision = (ulong)pair.Value.Count - 1;
+                                revision = pair.Value.ExpectedRevision.HasValue ? pair.Value.ExpectedRevision.Value + (ulong)pair.Value.Count : (ulong)(pair.Value.Count - 1);
                             }
-                            else
+                            if (pair.Value.Count > 0)
                             {
                                 transaction.Add(pair.Key, new global::PureES.UncommittedEventsList(pair.Value.ExpectedRevision, pair.Value));
                             }

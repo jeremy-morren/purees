@@ -27,6 +27,12 @@ internal class TypeSymbol : IType
 
     public string FullName => _source.ToDisplayString();
 
+    public string GetFullName(bool nullable)
+    {
+        var type = nullable ? _source : _source.WithNullableAnnotation(NullableAnnotation.NotAnnotated);
+        return type.ToDisplayString();
+    }
+
     public string CSharpName => _source.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
     public bool IsInterface => _source.TypeKind == TypeKind.Interface;
 

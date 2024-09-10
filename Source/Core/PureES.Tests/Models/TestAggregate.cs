@@ -60,6 +60,9 @@ public partial class TestAggregate
 
     public static IEventsTransaction TransactionInterface([Command] ISerializable s) =>
         throw new NotImplementedException();
+    
+    public static IEventsTransaction? TransactionInterfaceNull([Command] uint[] _) =>
+        throw new NotImplementedException();
 
     public static DerivedTransaction DerivedTransaction([Command] ushort[] x) => throw new NotImplementedException();
     
