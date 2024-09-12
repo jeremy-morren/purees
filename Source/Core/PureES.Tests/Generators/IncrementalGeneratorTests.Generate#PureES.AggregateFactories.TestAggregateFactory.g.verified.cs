@@ -24,17 +24,13 @@ namespace PureES.AggregateFactories
     [global::System.CodeDom.Compiler.GeneratedCodeAttribute("PureES.SourceGenerator", "1.0.0.0")]
     internal sealed class TestAggregateFactory : global::PureES.IAggregateFactory<global::PureES.Tests.Models.TestAggregate>
     {
-        private readonly global::PureES.IEventStore _eventStore;
         private readonly global::System.IServiceProvider _services;
 
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        public TestAggregateFactory(
-            global::PureES.IEventStore eventStore,
-            global::System.IServiceProvider services)
+        public TestAggregateFactory(global::System.IServiceProvider services)
         {
-            this._eventStore = eventStore ?? throw new ArgumentNullException(nameof(eventStore));
             this._services = services ?? throw new ArgumentNullException(nameof(services));
         }
         private static readonly global::System.Type AggregateType = typeof(global::PureES.Tests.Models.TestAggregate);

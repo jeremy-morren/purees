@@ -58,18 +58,16 @@ internal class AggregateFactoryGenerator
 
     private void WriteConstructor()
     {
-        _w.WriteLine($"private readonly {EventStoreType} _eventStore;");
         _w.WriteLine($"private readonly {ServiceProviderType} _services;");
         
         _w.WriteMethodAttributes();
         _w.Write($"public {ClassName}(");
 
-        _w.WriteParameters($"{EventStoreType} eventStore", $"{ServiceProviderType} services");
+        _w.WriteParameters($"{ServiceProviderType} services");
 
         _w.WriteRawLine(")");
         _w.PushBrace();
 
-        _w.WriteLine("this._eventStore = eventStore ?? throw new ArgumentNullException(nameof(eventStore));");
         _w.WriteLine("this._services = services ?? throw new ArgumentNullException(nameof(services));");
         
         _w.PopBrace();
