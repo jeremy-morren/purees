@@ -181,5 +181,10 @@ namespace PureES.EventHandlers
                 }
             }
         }
+
+        [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
+        [global::System.Diagnostics.DebuggerStepThroughAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        public bool CanHandle(global::PureES.EventEnvelope @event) => @event.Event is global::PureES.Tests.Models.Events.Created;
     }
 }
