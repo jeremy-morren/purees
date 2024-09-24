@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Reflection;
@@ -55,22 +54,14 @@ public class EventBus : IEventBus
         try
         {
             await using var scope = _services.CreateAsyncScope();
-            var serviceType = EventHandlerTypes.GetOrAdd(envelope.Event.GetType(), 
-                t =>
-                {
-                    t = typeof(IEventHandler<>).MakeGenericType(t);
-                    return typeof(IEnumerable<>).MakeGenericType(t);
-                });
+            var serviceType = EventHandlerTypes.GetOrAdd(
+                envelope.Event.GetType(),
+                t => typeof(IEventHandlerCollection<>).MakeGenericType(t));
 
-            var handlers = new List<IEventHandler>();
-            var genericHandlers = (IEnumerable?)scope.ServiceProvider.GetService(serviceType);
-            if (genericHandlers != null)
-                handlers.AddRange(genericHandlers.OfType<IEventHandler>());
+            var collection = (IEventHandlerCollection)scope.ServiceProvider.GetRequiredService(serviceType);
             
-            var catchAllHandlers = scope.ServiceProvider.GetService<IEnumerable<IEventHandler>>();
-            if (catchAllHandlers != null)
-                handlers.AddRange(catchAllHandlers);
-        
+            var handlers = collection.GetHandlers(envelope).ToList();
+            
             if (handlers.Count == 0) return;
     
             _logger.LogDebug("Processing {EventHandlerCount} event handler(s) for event {@Event}", 

@@ -186,63 +186,24 @@ namespace PureES.DependencyInjection
                 implementationType: typeof(global::PureES.CommandHandlers.Dictionary_string_object_CommandHandler),
                 lifetime: ServiceLifetime.Transient));
 
-            // Event Handlers. Count: 7
+            // Event Handlers. Count: 8
 
-            if (!registeredImplementations.Contains(typeof(global::PureES.EventHandlers.Events_CreatedEventHandler_PureESTestsModelsTestEventHandlers_OnCreated)))
-            {
-                services.Add(new ServiceDescriptor(
-                    serviceType: typeof(global::PureES.IEventHandler<global::PureES.Tests.Models.Events.Created>),
-                    implementationType: typeof(global::PureES.EventHandlers.Events_CreatedEventHandler_PureESTestsModelsTestEventHandlers_OnCreated),
-                    lifetime: ServiceLifetime.Transient));
-            }
+            services.TryAddEnumerable(new ServiceDescriptor(lifetime: ServiceLifetime.Transient, serviceType: typeof(global::PureES.IEventHandler<global::PureES.Tests.Models.Events.Created>), implementationType: typeof(global::PureES.EventHandlers.Events_CreatedEventHandler_PureESTestsModelsTestEventHandlers_OnCreated)));
 
-            if (!registeredImplementations.Contains(typeof(global::PureES.EventHandlers.Events_UpdatedEventHandler_PureESTestsModelsTestEventHandlers_OnUpdated)))
-            {
-                services.Add(new ServiceDescriptor(
-                    serviceType: typeof(global::PureES.IEventHandler<global::PureES.Tests.Models.Events.Updated>),
-                    implementationType: typeof(global::PureES.EventHandlers.Events_UpdatedEventHandler_PureESTestsModelsTestEventHandlers_OnUpdated),
-                    lifetime: ServiceLifetime.Transient));
-            }
+            services.TryAddEnumerable(new ServiceDescriptor(lifetime: ServiceLifetime.Transient, serviceType: typeof(global::PureES.IEventHandler<global::PureES.Tests.Models.Events.Updated>), implementationType: typeof(global::PureES.EventHandlers.Events_UpdatedEventHandler_PureESTestsModelsTestEventHandlers_OnUpdated)));
 
-            if (!registeredImplementations.Contains(typeof(global::PureES.EventHandlers.Events_CreatedEventHandler_PureESTestsModelsTestEventHandlers_OnCreated2)))
-            {
-                services.Add(new ServiceDescriptor(
-                    serviceType: typeof(global::PureES.IEventHandler<global::PureES.Tests.Models.Events.Created>),
-                    implementationType: typeof(global::PureES.EventHandlers.Events_CreatedEventHandler_PureESTestsModelsTestEventHandlers_OnCreated2),
-                    lifetime: ServiceLifetime.Transient));
-            }
+            services.TryAddEnumerable(new ServiceDescriptor(lifetime: ServiceLifetime.Transient, serviceType: typeof(global::PureES.IEventHandler<global::PureES.Tests.Models.Events.DerivedUpdated>), implementationType: typeof(global::PureES.EventHandlers.Events_DerivedUpdatedEventHandler_PureESTestsModelsTestEventHandlers_OnDerivedUpdated)));
+            services.TryAddEnumerable(new ServiceDescriptor(lifetime: ServiceLifetime.Transient, serviceType: typeof(global::PureES.IEventHandler<global::PureES.Tests.Models.Events.Updated>), implementationType: typeof(global::PureES.EventHandlers.Events_DerivedUpdatedEventHandler_PureESTestsModelsTestEventHandlers_OnDerivedUpdated)));
 
-            if (!registeredImplementations.Contains(typeof(global::PureES.EventHandlers.CatchAllEventHandler_PureESTestsModelsTestEventHandlers_CatchAll)))
-            {
-                services.Add(new ServiceDescriptor(
-                    serviceType: typeof(global::PureES.IEventHandler),
-                    implementationType: typeof(global::PureES.EventHandlers.CatchAllEventHandler_PureESTestsModelsTestEventHandlers_CatchAll),
-                    lifetime: ServiceLifetime.Transient));
-            }
+            services.TryAddEnumerable(new ServiceDescriptor(lifetime: ServiceLifetime.Transient, serviceType: typeof(global::PureES.IEventHandler<global::PureES.Tests.Models.Events.Created>), implementationType: typeof(global::PureES.EventHandlers.Events_CreatedEventHandler_PureESTestsModelsTestEventHandlers_OnCreated2)));
 
-            if (!registeredImplementations.Contains(typeof(global::PureES.EventHandlers.Events_CreatedEventHandler_PureESTestsModelsImplementedGenericEventHandlers_On)))
-            {
-                services.Add(new ServiceDescriptor(
-                    serviceType: typeof(global::PureES.IEventHandler<global::PureES.Tests.Models.Events.Created>),
-                    implementationType: typeof(global::PureES.EventHandlers.Events_CreatedEventHandler_PureESTestsModelsImplementedGenericEventHandlers_On),
-                    lifetime: ServiceLifetime.Transient));
-            }
+            services.TryAddEnumerable(new ServiceDescriptor(lifetime: ServiceLifetime.Transient, serviceType: typeof(global::PureES.IEventHandler), implementationType: typeof(global::PureES.EventHandlers.CatchAllEventHandler_PureESTestsModelsTestEventHandlers_CatchAll)));
 
-            if (!registeredImplementations.Contains(typeof(global::PureES.EventHandlers.Events_CreatedEventHandler_PureESTestsModelsImplementedGenericEventHandlers_On2)))
-            {
-                services.Add(new ServiceDescriptor(
-                    serviceType: typeof(global::PureES.IEventHandler<global::PureES.Tests.Models.Events.Created>),
-                    implementationType: typeof(global::PureES.EventHandlers.Events_CreatedEventHandler_PureESTestsModelsImplementedGenericEventHandlers_On2),
-                    lifetime: ServiceLifetime.Transient));
-            }
+            services.TryAddEnumerable(new ServiceDescriptor(lifetime: ServiceLifetime.Transient, serviceType: typeof(global::PureES.IEventHandler<global::PureES.Tests.Models.Events.Created>), implementationType: typeof(global::PureES.EventHandlers.Events_CreatedEventHandler_PureESTestsModelsImplementedGenericEventHandlers_On)));
 
-            if (!registeredImplementations.Contains(typeof(global::PureES.EventHandlers.Events_CreatedEventHandler_PureESTestsModelsImplementedGenericEventHandlers_Async)))
-            {
-                services.Add(new ServiceDescriptor(
-                    serviceType: typeof(global::PureES.IEventHandler<global::PureES.Tests.Models.Events.Created>),
-                    implementationType: typeof(global::PureES.EventHandlers.Events_CreatedEventHandler_PureESTestsModelsImplementedGenericEventHandlers_Async),
-                    lifetime: ServiceLifetime.Transient));
-            }
+            services.TryAddEnumerable(new ServiceDescriptor(lifetime: ServiceLifetime.Transient, serviceType: typeof(global::PureES.IEventHandler<global::PureES.Tests.Models.Events.Created>), implementationType: typeof(global::PureES.EventHandlers.Events_CreatedEventHandler_PureESTestsModelsImplementedGenericEventHandlers_On2)));
+
+            services.TryAddEnumerable(new ServiceDescriptor(lifetime: ServiceLifetime.Transient, serviceType: typeof(global::PureES.IEventHandler<global::PureES.Tests.Models.Events.Created>), implementationType: typeof(global::PureES.EventHandlers.Events_CreatedEventHandler_PureESTestsModelsImplementedGenericEventHandlers_Async)));
             // Event handler parents. Count: 2
 
             if (!registeredServices.Contains(typeof(global::PureES.Tests.Models.TestEventHandlers)))

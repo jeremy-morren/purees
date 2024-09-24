@@ -41,6 +41,8 @@ public class EventHandlerServices : IServiceProvider
             return Task.CompletedTask;
         }
 
+        public bool CanHandle(EventEnvelope @event) => true;
+
         public MethodInfo Method => throw new NotImplementedException();
         public int Priority => 0;
     }

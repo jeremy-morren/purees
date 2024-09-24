@@ -106,10 +106,13 @@ internal class DependencyInjectionGenerator
         foreach (var handler in _eventHandlers)
         {
             _w.WriteLine();
-            var handlerType = $"typeof(global::{EventHandlerGenerator.Namespace}.{EventHandlerGenerator.GetClassName(handler)})";
-            var @interface = EventHandlerGenerator.GetInterface(handler.EventType);
-            _w.WriteStatement($"if (!{registeredImplementations}({handlerType}))",
-                () => AddService(@interface, handlerType, false));
+            var handlerType = $"global::{EventHandlerGenerator.Namespace}.{EventHandlerGenerator.GetClassName(handler)}";
+            //Register all interfaces implemented by the handler, as enumerable
+            foreach (var i in EventHandlerGenerator.GetInterfaces(handler))
+            {
+                var descriptor = $"new ServiceDescriptor(lifetime: ServiceLifetime.Transient, serviceType: typeof({i}), implementationType: typeof({handlerType}))";
+                _w.WriteLine($"services.TryAddEnumerable({descriptor});");
+            }
         }
         
         var handlerParents = _eventHandlers
@@ -120,7 +123,7 @@ internal class DependencyInjectionGenerator
         
         _w.WriteLine($"// Event handler parents. Count: {handlerParents.Count}");
         
-        //Register all parents if not already registered
+        //Register all event handler containing classes if not already registered
         foreach (var parent in handlerParents)
         {
             _w.WriteLine();

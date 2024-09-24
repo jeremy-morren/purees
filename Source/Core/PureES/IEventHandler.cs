@@ -9,11 +9,6 @@ namespace PureES;
 public interface IEventHandler
 {
     /// <summary>
-    /// Invokes all registered event handlers for <c>TEvent</c> from <see cref="IEventHandler{TEvent}"/>
-    /// </summary>
-    Task Handle(EventEnvelope @event);
-
-    /// <summary>
     /// Gets the method that handles the event
     /// </summary>
     MethodInfo Method { get; }
@@ -22,6 +17,18 @@ public interface IEventHandler
     /// The event handler priority (lower priority is executed first)
     /// </summary>
     int Priority { get; }
+    
+    /// <summary>
+    /// Invokes all registered event handlers for <c>TEvent</c> from <see cref="IEventHandler{TEvent}"/>
+    /// </summary>
+    Task Handle(EventEnvelope @event);
+
+    /// <summary>
+    /// Returns whether the envelope can be handled by this handler
+    /// </summary>
+    /// <param name="event">The event envelope to test</param>
+    /// <returns>true if the event can be handled, otherwise false</returns>
+    bool CanHandle(EventEnvelope @event);
 }
 
 /// <summary>

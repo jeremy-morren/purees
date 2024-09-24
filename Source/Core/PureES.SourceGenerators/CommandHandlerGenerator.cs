@@ -329,15 +329,9 @@ internal class CommandHandlerGenerator
     {
         //If stream id was provided, then a constant
         //Otherwise invoke service
-        if (_handler.StreamId != null)
-        {
-            var streamId = _handler.StreamId.Replace("\"", "\\\"");
-            _w.WriteLine($"const string streamId = \"{streamId}\";");
-        }
-        else
-        {
-            _w.WriteLine("var streamId = this._getStreamId.GetStreamId(command);");
-        }
+        _w.WriteLine(_handler.StreamId != null
+            ? $"const string streamId = {_handler.StreamId.ToStringLiteral()};"
+            : "var streamId = this._getStreamId.GetStreamId(command);");
     }
     
     private void BeginLogScope()
@@ -360,7 +354,7 @@ internal class CommandHandlerGenerator
             });
         
         foreach (var (key, value) in parameters)
-            _w.WriteLine($"{{ \"{key}\", {value} }},");
+            _w.WriteLine($"{{ {key.ToStringLiteral()}, {value} }},");
         _w.Pop();
         _w.WriteLine("}))");
         _w.Pop();
