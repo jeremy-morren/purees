@@ -16,7 +16,7 @@ public class EventHandlerServices : IServiceProvider
             var svc = typeof(IEventHandler<>).MakeGenericType(pair.Key);
             var impl = typeof(EventHandler<>).MakeGenericType(pair.Key);
             foreach (var handler in pair.Value)
-                services.AddSingleton(svc, Activator.CreateInstance(impl, new object?[] { handler })!);
+                services.AddSingleton(svc, Activator.CreateInstance(impl, [handler])!);
         }
 
         configureServices?.Invoke(services);

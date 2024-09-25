@@ -18,6 +18,7 @@ internal class EventHandlerCollection<TEvent> : IEventHandlerCollection<TEvent>
         _handlers = HandlerFactory(services)
             .SelectMany(l => l ?? [])
             .Concat(catchAllHandlers ?? [])
+            .DistinctBy(h => h.GetType())
             .OrderBy(l => l.Priority)
             .ToList();
     }

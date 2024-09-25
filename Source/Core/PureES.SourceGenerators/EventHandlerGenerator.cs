@@ -134,7 +134,7 @@ internal class EventHandlerGenerator
         if (_handler.EventType != null)
             //Validate correct event input
             _w.WriteStatement($"if (@event.Event is not {_handler.EventType.CSharpName})",
-                "throw new ArgumentException(nameof(@event));");
+                "throw new ArgumentOutOfRangeException($\"Unknown event type {@event.Event.GetType()}\", nameof(@event));");
         
         WriteStartActivity();
         
