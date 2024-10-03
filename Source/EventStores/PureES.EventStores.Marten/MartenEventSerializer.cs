@@ -16,9 +16,9 @@ internal class MartenEventSerializer
 
     public EventEnvelope Deserialize(MartenEvent martenEvent)
     {
-        var metadata = martenEvent.Metadata?.Deserialize(_options.MetadataType, _options.JsonSerializerOptions);
+        var metadata = Deserialize(martenEvent.Metadata, _options.MetadataType);
         var eventType = _typeMap.GetCLRType(martenEvent.EventType);
-        var @event = martenEvent.Event?.Deserialize(eventType, _options.JsonSerializerOptions) 
+        var @event = Deserialize(martenEvent.Event, eventType)
                      ?? throw new InvalidOperationException($"Event data is null for event {martenEvent.Id}");
         return new EventEnvelope(martenEvent.StreamId,
             (ulong)martenEvent.StreamPosition,
@@ -38,5 +38,19 @@ internal class MartenEventSerializer
             _typeMap.GetTypeName(@event.Event.GetType()),
             e,
             metadata);
+    }
+    
+    private object? Deserialize(JsonElement? element, Type type)
+    {
+        if (element == null)
+            return null;
+        try
+        {
+            return element.Value.Deserialize(type, _options.JsonSerializerOptions);
+        }
+        catch (JsonException e)
+        {
+            throw new InvalidOperationException($"Failed to deserialize JSON element to type {type}", e);
+        }
     }
 }

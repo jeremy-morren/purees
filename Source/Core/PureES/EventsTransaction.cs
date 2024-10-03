@@ -42,6 +42,20 @@ public class EventsTransaction : IEventsTransaction
     /// Adds a new stream to the transaction.
     /// </summary>
     /// <param name="streamId">The event stream id</param>
+    /// <param name="revision">
+    /// The expected revision of the event stream,
+    /// or <see langword="null" /> if the stream is to be created.
+    /// </param>
+    /// <param name="events">Stream events.</param>
+    public void Add<T>(string streamId, ulong? revision, T[] @events)
+    {
+        Add(streamId, new EventsList(revision, events.Cast<object>()));
+    }
+    
+    /// <summary>
+    /// Adds a new stream to the transaction.
+    /// </summary>
+    /// <param name="streamId">The event stream id</param>
     /// <param name="value">Stream events list.</param>
     public void Add(string streamId, EventsList value)
     {
