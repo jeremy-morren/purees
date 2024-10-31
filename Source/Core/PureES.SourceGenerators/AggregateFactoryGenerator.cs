@@ -32,6 +32,9 @@ internal class AggregateFactoryGenerator
     private string GenerateInternal()
     {
         _w.WriteFileHeader(false);
+        
+        //Allow marking when methods as obsolete
+        _w.WriteLine("#pragma warning disable CS0618 // Type or member is obsolete");
 
         _w.WriteLine();
         
