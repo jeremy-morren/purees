@@ -51,6 +51,29 @@ public class EventsTransaction : IEventsTransaction
     {
         Add(streamId, new EventsList(revision, events.Cast<object>()));
     }
+
+    /// <summary>
+    /// Adds a new stream to the transaction, or appends events to an existing stream.
+    /// </summary>
+    /// <param name="streamId">The event stream id</param>
+    /// <param name="revision">
+    /// The expected revision of the event stream,
+    /// or <see langword="null" /> if the stream is to be created.
+    /// </param>
+    /// <param name="events">Stream events.</param>
+    public void AddOrAppend(string streamId, ulong? revision, params object[] @events)
+    {
+        if (_dictionary.TryGetValue(streamId, out var list))
+        {
+            if (list.ExpectedRevision != revision)
+                throw new InvalidOperationException("Expected revision mismatch.");
+            list.AddRange(@events);
+        }
+        else
+        {
+            Add(streamId, revision, @events);
+        }
+    }
     
     /// <summary>
     /// Adds a new stream to the transaction.
