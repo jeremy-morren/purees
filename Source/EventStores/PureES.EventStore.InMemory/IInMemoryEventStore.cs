@@ -19,6 +19,16 @@ public interface IInMemoryEventStore : IEventStore
     IEnumerable<EventEnvelope> ReadAll();
 
     /// <summary>
+    /// Reads stream events as a synchronous operation
+    /// </summary>
+    IEnumerable<EventEnvelope> Read(string streamId);
+    
+    /// <summary>
+    /// Checks if a stream exists as a synchronous operation
+    /// </summary>
+    bool Exists(string streamId);
+
+    /// <summary>
     /// Initializes the event store from the given envelopes.
     /// </summary>
     /// <param name="envelopes"></param>

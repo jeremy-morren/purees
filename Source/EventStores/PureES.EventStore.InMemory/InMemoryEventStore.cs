@@ -221,19 +221,24 @@ internal class InMemoryEventStore : IInMemoryEventStore
 
     #endregion
     
-    #region Read
+    #region Read Sync
 
     public IEnumerable<EventEnvelope> ReadAll() => _events.Select(_serializer.Deserialize);
     
-    private IAsyncEnumerable<EventEnvelope> ToAsyncEnumerable(IEnumerable<EventRecord> records)
-    {
-        return records.Select(_serializer.Deserialize).ToAsyncEnumerable();
-    }
+    public IEnumerable<EventEnvelope> Read(string streamId) => 
+        _events.ReadStream(Direction.Forwards, streamId, out _).Select(_serializer.Deserialize);
+    
+    public bool Exists(string streamId) => _events.Exists(streamId);
+    
+    #endregion
+    
+    #region Read
 
-    public IAsyncEnumerable<EventEnvelope> ReadAll(Direction direction, CancellationToken cancellationToken)
-    {
-        return ToAsyncEnumerable(_events.ReadAll(direction));
-    }
+    private IAsyncEnumerable<EventEnvelope> ToAsyncEnumerable(IEnumerable<EventRecord> records) => 
+        records.Select(_serializer.Deserialize).ToAsyncEnumerable();
+
+    public IAsyncEnumerable<EventEnvelope> ReadAll(Direction direction, CancellationToken cancellationToken) => 
+        ToAsyncEnumerable(_events.ReadAll(direction));
 
     public IAsyncEnumerable<EventEnvelope> ReadAll(Direction direction, 
         ulong maxCount, 
