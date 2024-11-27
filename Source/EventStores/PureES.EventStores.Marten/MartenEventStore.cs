@@ -55,8 +55,8 @@ internal class MartenEventStore : IEventStore
     {
         var pos = await session.Query<MartenEvent>()
             .Where(e => e.StreamId == streamId)
+            .OrderByDescending(e => e.StreamPosition)
             .Select(e => (int?)e.StreamPosition)
-            .OrderByDescending(e => e)
             .FirstOrDefaultAsync(ct);
         
         if (pos == null)
@@ -374,7 +374,6 @@ internal class MartenEventStore : IEventStore
         var query = session
             .Query<MartenEvent>()
             .Where(e => e.StreamId == streamId)
-            .OrderBy(e => e.StreamPosition)
             .Take((int)count);
         query = direction switch
         {

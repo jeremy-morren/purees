@@ -24,6 +24,10 @@ public class MartenEventStoreTests : EventStoreTestsBase
 
         var list = new List<EventEnvelope>();
 
+        handler.Setup(s => s.CanHandle(It.Is<EventEnvelope>(e => e.Timestamp != default)))
+            .Returns(true)
+            .Verifiable(Times.Exactly(110));
+
         handler.Setup(s => s.Handle(It.IsAny<EventEnvelope>()))
             .Callback((EventEnvelope e) =>
             {
@@ -33,31 +37,45 @@ public class MartenEventStoreTests : EventStoreTestsBase
                 }
             });
 
-        await using var harness = await CreateHarness(s => s.AddSingleton(handler.Object));
+        await using var harness = await CreateHarness(s =>
+        {
+            s.AddPureES();
+            s.AddSingleton(handler.Object);
+        });
 
         var subscription = harness.GetRequiredService<IEnumerable<IHostedService>>()
             .OfType<MartenSubscriptionToAll>().Single();
 
         await subscription.StartAsync(default); //noop
+        
+        foreach (var i in Enumerable.Range(0, 10))
+            await harness.EventStore.Create(i.ToString(), NewEvent(), default);
 
         var transaction = new EventsTransaction();
-        foreach (var i in Enumerable.Range(0, 10))
+        foreach (var i in Enumerable.Range(100, 10))
             transaction.Add(i.ToString(), null, Enumerable.Range(0, 10).Select(_ => NewEvent()));
         
         await harness.EventStore.SubmitTransaction(transaction.ToUncommittedTransaction(), default);
         
         await subscription.StopAsync(default);
 
+        handler.Verify();
+        
         handler.Verify(s => 
                 s.Handle(It.Is<EventEnvelope>(e => e.Timestamp != default)),
-            Times.Exactly(100));
+            Times.Exactly(110));
+        
+        list.Should().HaveCount(110);
 
-        list.Should().HaveCount(100);
-
-        list.GroupBy(e => e.StreamId).Should().HaveCount(10);
+        list.GroupBy(e => e.StreamId).Should().HaveCount(20);
         Assert.All(list.GroupBy(e => e.StreamId), g =>
         {
-            g.Should().HaveCount(10);
+            var i = int.Parse(g.Key);
+            if (i < 100)
+                g.ShouldHaveSingleItem();
+            else
+                g.Should().HaveCount(10);
+            
             g.Should().BeInAscendingOrder(e => e.StreamPosition);
             Assert.All(g, e => e.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromMinutes(1)));
         });
@@ -74,9 +92,8 @@ public class MartenEventStoreTests : EventStoreTestsBase
             .AddSingleton<IEventTypeMap>(new BasicEventTypeMap())
             .AddMarten(o =>
             {
-                o.UseDefaultSerialization(serializerType: SerializerType.SystemTextJson);
-                o.Connection(
-                    "host=localhost:5432;database=postgres;password=postgres;username=postgres");
+                o.UseSystemTextJsonForSerialization();
+                o.Connection("host=localhost:5432;database=postgres;password=postgres;username=postgres");
                 o.DatabaseSchemaName = testName;
             })
             .AddPureESEventStore(o => o.DatabaseSchema = testName)

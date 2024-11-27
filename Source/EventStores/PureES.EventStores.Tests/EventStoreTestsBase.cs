@@ -17,7 +17,7 @@ public abstract class EventStoreTestsBase
     protected Task<EventStoreTestHarness> CreateHarness(Action<IServiceCollection> configureServices,
         [CallerMemberName] string testName = null!)
     {
-        if (testName == null) throw new ArgumentNullException(nameof(testName));
+        ArgumentNullException.ThrowIfNull(testName);
         var ct = new CancellationTokenSource(TimeSpan.FromSeconds(30)).Token;
         return CreateStore($"{testName}-{Environment.Version}", configureServices, ct);
     }

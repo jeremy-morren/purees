@@ -9,7 +9,7 @@
 
     <ItemGroup>
         <PackageReference Include="JetBrains.Annotations" Version="2023.3.0" />
-        <PackageReference Include="Marten" Version="6.4.1" />
+        <PackageReference Include="Marten" Version="7.33.1" />
         <PackageReference Include="System.Linq.Async" Version="6.0.1" />
     </ItemGroup>
 
