@@ -57,6 +57,7 @@ internal class MartenEventStore : IEventStore
             .Where(e => e.StreamId == streamId)
             .OrderByDescending(e => e.StreamPosition)
             .Select(e => (int?)e.StreamPosition)
+            .Take(1)
             .FirstOrDefaultAsync(ct);
         
         if (pos == null)
