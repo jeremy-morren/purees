@@ -18,13 +18,13 @@ public class PureESEventHandlerOptions
     /// <summary>
     /// Gets or sets the maximum time that event handlers should run before timing out.
     /// </summary>
-    /// <remarks>Must be greater than 0. The default is 60 seconds.</remarks>
-    public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(60);
+    /// <remarks>Must be greater than 0. The default is 5 minutes.</remarks>
+    public TimeSpan Timeout { get; set; } = TimeSpan.FromMinutes(5);
 
     /// <summary>
     /// Gets or sets the maximum time in seconds that event handlers should run before timing out.
     /// </summary>
-    /// <remarks>Must be greater than 0. The default is 60 seconds.</remarks>
+    /// <remarks>Must be greater than 0. The default is 300 seconds (5 minutes)</remarks>
     public double TimeoutSeconds
     {
         get => Timeout.TotalSeconds;
