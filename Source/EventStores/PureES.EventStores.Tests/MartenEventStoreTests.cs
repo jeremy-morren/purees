@@ -89,7 +89,6 @@ public class MartenEventStoreTests : EventStoreTestsBase
         testName = $"testing_{testName}";
         var services = new ServiceCollection()
             .AddTestLogging(_output)
-            .AddSingleton<IEventTypeMap>(new BasicEventTypeMap())
             .AddMarten(o =>
             {
                 o.UseSystemTextJsonForSerialization();
@@ -98,13 +97,21 @@ public class MartenEventStoreTests : EventStoreTestsBase
             })
             .AddPureESEventStore(o => o.DatabaseSchema = testName)
             .AddPureESSubscriptionToAll()
+            .Services
+            .AddPureES()
+            .AddBasicEventTypeMap()
             .Services;
             
         configureServices(services); 
         var sp = services.BuildServiceProvider();
 
         var store = sp.GetRequiredService<IDocumentStore>();
-        await store.Storage.ApplyAllConfiguredChangesToDatabaseAsync(AutoCreate.All);
+
+        await using var session = store.LightweightSession();
+        await session.ExecuteAsync(new NpgsqlCommand($"drop schema if exists {testName} cascade"), ct);
+        var script = store.Storage.ToDatabaseScript();
+        //_output.WriteLine(script);
+        await session.ExecuteAsync(new NpgsqlCommand(script), ct);
 
         var harness = new MartenEventStoreTestHarness(testName, sp);
         return new EventStoreTestHarness(harness, harness.EventStore);

@@ -4,10 +4,38 @@ namespace PureES.EventStore.InMemory;
 
 internal record EventRecord
 {
+    /// <summary>
+    /// Stream position
+    /// </summary>
     public int StreamPos { get; set; }
+    
+    /// <summary>
+    /// Stream Id
+    /// </summary>
     public required string StreamId { get; init; }
+    
+    /// <summary>
+    /// Timestamp of the event (UTC)
+    /// </summary>
     public required DateTime Timestamp { get; init; }
-    public required string EventType { get; init; }
+    
+    /// <summary>
+    /// Event type (full inheritance hierarchy)
+    /// </summary>
+    public required List<string> EventType { get; init; }
+    
+    /// <summary>
+    /// Event data
+    /// </summary>
     public required JsonElement Event { get; init; }
+    
+    /// <summary>
+    /// Event metadata
+    /// </summary>
     public required JsonElement? Metadata { get; init; }
+
+    /// <summary>
+    /// Whether the event type contains any of the provided types
+    /// </summary>
+    public bool TypeContains(HashSet<string> types) => types.Overlaps(EventType);
 }

@@ -176,7 +176,7 @@ public static class EventStoreReadExtensions
         CancellationToken cancellationToken = default)
     {
         if (eventStore == null) throw new ArgumentNullException(nameof(eventStore));
-        return eventStore.ReadByEventType(Direction.Forwards, eventType, cancellationToken);
+        return eventStore.ReadByEventType(Direction.Forwards, [eventType], cancellationToken);
     }
     
     /// <summary>
@@ -196,6 +196,6 @@ public static class EventStoreReadExtensions
         CancellationToken cancellationToken = default)
     {
         if (eventStore == null) throw new ArgumentNullException(nameof(eventStore));
-        return eventStore.ReadByEventType(Direction.Forwards, eventType, maxCount, cancellationToken);
+        return eventStore.ReadByEventType(Direction.Forwards, [eventType], maxCount, cancellationToken);
     }
 }

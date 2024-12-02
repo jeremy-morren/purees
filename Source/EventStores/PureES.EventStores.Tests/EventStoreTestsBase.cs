@@ -464,27 +464,45 @@ public abstract class EventStoreTestsBase
         for (var i = 0; i < count; i++)
         {
             var events = Enumerable.Range(0, count).Select(_ => NewEvent());
+            var eventsDerived = Enumerable.Range(0, count).Select(_ => NewEventDerived());
             await store.Create($"{i}-{nameof(ReadByEventType)}", events, CancellationToken);
+            await store.Create($"{i}-derived-{nameof(ReadByEventType)}", eventsDerived, CancellationToken);
         }
 
-        var forwards =await store.ReadByEventType(Direction.Forwards, typeof(Event), CancellationToken).ToListAsync();
-            
+        var forwards =await store.ReadByEventType(Direction.Forwards, [typeof(Event)], CancellationToken).ToListAsync();
+        
+        forwards.ShouldNotBeEmpty();
+        forwards.Should().HaveCount(count * count * 2, "Read by event type should include derived types");
+        forwards.Should().BeInAscendingOrder(e => e.Timestamp);
+        forwards.GroupBy(e => e.Timestamp).Should().HaveCountGreaterThan(1);
+        
+        var backwards = await store.ReadByEventType(Direction.Backwards, [typeof(Event)], CancellationToken).ToListAsync();
+
+        backwards.ShouldNotBeEmpty();
+        backwards.Should().HaveCount(count * count * 2, "Read by event type should include derived types");
+        backwards.Should().BeInDescendingOrder(e => e.Timestamp);
+        backwards.GroupBy(e => e.Timestamp).Should().HaveCountGreaterThan(1);
+        
+        forwards = await store.ReadByEventType(Direction.Forwards, [typeof(EventDerived)], CancellationToken).ToListAsync();
         forwards.ShouldNotBeEmpty();
         forwards.Should().HaveCount(count * count);
         forwards.Should().BeInAscendingOrder(e => e.Timestamp);
         forwards.GroupBy(e => e.Timestamp).Should().HaveCountGreaterThan(1);
         
-        var backwards = await store.ReadByEventType(Direction.Backwards, typeof(Event), CancellationToken).ToListAsync();
-
+        backwards = await store.ReadByEventType(Direction.Backwards, [typeof(Event), typeof(EventDerived)], CancellationToken).ToListAsync();
         backwards.ShouldNotBeEmpty();
-        backwards.Should().HaveCount(count * count);
+        backwards.Should().HaveCount(count * count * 2);
         backwards.Should().BeInDescendingOrder(e => e.Timestamp);
         backwards.GroupBy(e => e.Timestamp).Should().HaveCountGreaterThan(1);
 
-        (await store.ReadByEventType(Direction.Forwards, typeof(Event), 1, CancellationToken).ToListAsync())
+        (await store.ReadByEventType(Direction.Forwards, [typeof(Event)], 1, CancellationToken).ToListAsync())
+            .ShouldHaveSingleItem();
+        (await store.ReadByEventType(Direction.Forwards, [typeof(EventDerived)], 1, CancellationToken).ToListAsync())
             .ShouldHaveSingleItem();
         
-        (await store.ReadByEventType(Direction.Backwards, typeof(Event), 1, CancellationToken).ToListAsync())
+        (await store.ReadByEventType(Direction.Backwards, [typeof(Event)], 1, CancellationToken).ToListAsync())
+            .ShouldHaveSingleItem();
+        (await store.ReadByEventType(Direction.Backwards, [typeof(EventDerived)], 1, CancellationToken).ToListAsync())
             .ShouldHaveSingleItem();
     }
     
@@ -500,8 +518,8 @@ public abstract class EventStoreTestsBase
             await store.Create($"stream-{stream}",
                 Enumerable.Range(0, count).Select(_ => NewEvent()),
                 CancellationToken);
-        
-        Assert.Equal((ulong)count * count, await store.Count(CancellationToken));
+
+        (await store.Count(CancellationToken)).ShouldBe((ulong)count * count);
     }
     
     [Fact]
@@ -511,11 +529,18 @@ public abstract class EventStoreTestsBase
         var store = harness.EventStore;
 
         const string stream = nameof(CountByEventType);
+        const string streamDerived = $"{nameof(CountByEventType)}-derived";
         const int count = 100;
         var events = Enumerable.Range(0, count).Select(_ => NewEvent()).ToList();
+        var eventsDerived = Enumerable.Range(0, count).Select(_ => NewEventDerived()).ToList();
+        
         await store.Create(stream, events, CancellationToken);
-
-        (await store.CountByEventType(typeof(Event), CancellationToken)).ShouldBe((ulong)count);
+        await store.Create(streamDerived, eventsDerived, CancellationToken);
+        
+        (await store.CountByEventType([typeof(Event)], CancellationToken))
+            .ShouldBe((ulong)count  * 2, "Count events should include derived types");
+        (await store.CountByEventType([typeof(EventDerived)], CancellationToken)).ShouldBe((ulong)count);
+        (await store.CountByEventType([typeof(Event), typeof(EventDerived)], CancellationToken)).ShouldBe((ulong)count * 2);
     }
 
     [Fact]
@@ -674,7 +699,7 @@ public abstract class EventStoreTestsBase
         other.Select(e => ((Event)e.Event).Id).Should().BeEquivalentTo(
             source.Select(e => ((Event)e.Event).Id));
         
-        Assert.All(other, o =>
+        other.Should().AllSatisfy(o =>
         {
             o.Timestamp.Kind.ShouldBe(DateTimeKind.Utc);
             o.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromMinutes(1));
@@ -691,8 +716,19 @@ public abstract class EventStoreTestsBase
             Metadata = new Metadata()
         };
     }
+    
+    protected static UncommittedEvent NewEventDerived()
+    {
+        var id = Guid.NewGuid();
+        return new UncommittedEvent(new EventDerived(id))
+        {
+            Metadata = new Metadata()
+        };
+    }
 
     public record Event(Guid Id);
+    
+    public record EventDerived(Guid Id) : Event(Id);
 
     protected record Metadata;
 }

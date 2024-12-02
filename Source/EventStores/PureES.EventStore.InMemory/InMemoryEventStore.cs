@@ -380,27 +380,24 @@ internal class InMemoryEventStore : IInMemoryEventStore
     }
 
     public IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction, 
-        Type eventType,
+        Type[] eventTypes,
         CancellationToken cancellationToken)
     {
-        var type = _eventTypeMap.GetTypeName(eventType);
+        var types = GetTypeNames(eventTypes);
         var records = _events.ReadAll(direction)
-            .Where(e => e.EventType == type);
-
+            .Where(r => r.TypeContains(types));
         return ToAsyncEnumerable(records);
     }
 
     public IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction, 
-        Type eventType,
+        Type[] eventTypes,
         ulong maxCount,
         CancellationToken cancellationToken)
     {
-        var type = _eventTypeMap.GetTypeName(eventType);
-
+        var types = GetTypeNames(eventTypes);
         var records = _events.ReadAll(direction)
-            .Where(e => e.EventType == type)
+            .Where(r => r.TypeContains(types))
             .Take((int)maxCount);
-
         return ToAsyncEnumerable(records);
     }
 
@@ -408,10 +405,10 @@ internal class InMemoryEventStore : IInMemoryEventStore
     
     #region Count
 
-    public Task<ulong> CountByEventType(Type eventType, CancellationToken cancellationToken)
+    public Task<ulong> CountByEventType(Type[] eventTypes, CancellationToken cancellationToken)
     {
-        var type = _eventTypeMap.GetTypeName(eventType);
-        var count = _events.Count(r => r.EventType == type);
+        var types = GetTypeNames(eventTypes);
+        var count = _events.Count(r => r.TypeContains(types));
         return Task.FromResult((ulong)count);
     }
     
@@ -420,6 +417,16 @@ internal class InMemoryEventStore : IInMemoryEventStore
     public int GetCount() => _events.Count;
 
     #endregion
+
+    private HashSet<string> GetTypeNames(Type[] eventTypes)
+    {
+        ArgumentNullException.ThrowIfNull(eventTypes);
+        return eventTypes
+            .Distinct()
+            .Select(_eventTypeMap.GetTypeNames)
+            .Select(l => l[^1])
+            .ToHashSet();
+    }
     
     #region Load
 

@@ -3,7 +3,9 @@ using Marten;
 using Marten.Schema;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
+using PureES.EventStores.Marten.CustomMethods;
 using PureES.EventStores.Marten.Subscriptions;
+using Weasel.Postgresql.Tables;
 
 namespace PureES.EventStores.Marten;
 
@@ -21,19 +23,23 @@ internal class EventStoreConfigureMarten : IConfigureMarten
 
     public void Configure(IServiceProvider _, StoreOptions options)
     {
+        options.Linq.MethodCallParsers.Add(new IntersectsMethodCallParser());
+        
         options.Schema.For<MartenEvent>()
             .Identity(x => x.Id)
             .DatabaseSchemaName(_options.Value.DatabaseSchema)
             .UniqueIndex(UniqueIndexType.Computed, x => x.StreamId, x => x.StreamPosition)
-            .Index([i => i.EventType, i => i.Timestamp])
             .Metadata(c =>
             {
                 c.LastModified.MapTo(x => x.Timestamp);
                 c.DotNetType.Enabled = false;
                 c.Version.Enabled = false;
             })
-            .IndexLastModified()
-            .Index(i => i.EventType);
+            
+            //Index event types with gin for intersection queries
+            .Index(i => i.EventTypes, i => i.Method = IndexMethod.gin)
+            
+            .IndexLastModified();
         
         foreach (var s in _subscriptions)
             options.Listeners.Add(s.Listener);

@@ -16,9 +16,12 @@ internal class CosmosEventStoreSerializer
 
     public EventEnvelope Deserialize(CosmosEvent cosmosEvent)
     {
+        if (cosmosEvent.EventType.Count == 0 || cosmosEvent.Created.Kind != DateTimeKind.Utc)
+            throw new InvalidOperationException($"Invalid event record {cosmosEvent.Id}");
+        
         var metadata = cosmosEvent.Metadata?.Deserialize(_options.MetadataType, _options.JsonSerializerOptions);
         
-        var eventType = _typeMap.GetCLRType(cosmosEvent.EventType);
+        var eventType = _typeMap.GetCLRType(cosmosEvent.EventType[^1]);
         var @event = cosmosEvent.Event?.Deserialize(eventType, _options.JsonSerializerOptions) 
                      ?? throw new InvalidOperationException($"Event data is null for event {cosmosEvent.Id}");
         return new EventEnvelope(cosmosEvent.EventStreamId,
@@ -34,10 +37,11 @@ internal class CosmosEventStoreSerializer
         var metadata = @event.Metadata != null 
             ? JsonSerializer.SerializeToElement(@event.Metadata, _options.JsonSerializerOptions) 
             : (JsonElement?)null;
-        return new CosmosEvent(timestamp.UtcDateTime,
+        return new CosmosEvent(
+            timestamp.UtcDateTime,
             streamId,
             streamPosition,
-            _typeMap.GetTypeName(@event.Event.GetType()),
+            _typeMap.GetTypeNames(@event.Event.GetType()),
             e,
             metadata);
     }

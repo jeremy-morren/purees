@@ -296,21 +296,21 @@ public interface IEventStore
     ///     Loads events by <c>EventType</c>
     /// </summary>
     /// <param name="direction">Read direction</param>
-    /// <param name="eventType">Type of event to query</param>
+    /// <param name="eventTypes">Types of event to query</param>
     /// <param name="cancellationToken"></param>
     /// <returns>
     ///     An <see cref="IAsyncEnumerable{T}" /> of <see cref="EventEnvelope" />
     ///     from the events in the stream in the order in which they were added
     /// </returns>
     public IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction,
-        Type eventType, 
+        Type[] eventTypes, 
         CancellationToken cancellationToken = default);
     
     /// <summary>
     ///     Loads events by <c>EventType</c>
     /// </summary>
     /// <param name="direction">Read direction</param>
-    /// <param name="eventType">Type of event to query</param>
+    /// <param name="eventTypes">Types of event to query</param>
     /// <param name="maxCount">The maximum number of events to return</param>
     /// <param name="cancellationToken"></param>
     /// <returns>
@@ -318,7 +318,7 @@ public interface IEventStore
     ///     from the events in the stream in the order in which they were added
     /// </returns>
     public IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction,
-        Type eventType, 
+        Type[] eventTypes, 
         ulong maxCount,
         CancellationToken cancellationToken = default);
     
@@ -334,11 +334,11 @@ public interface IEventStore
     /// <summary>
     ///     Counts events by <c>EventType</c>
     /// </summary>
-    /// <param name="eventType">Type of event to query</param>
+    /// <param name="eventTypes">Type of event to query</param>
     /// <param name="cancellationToken"></param>
     /// <returns>
     ///     An <see cref="IAsyncEnumerable{T}" /> of <see cref="EventEnvelope" />
     ///     from the events in the stream in the order in which they were added
     /// </returns>
-    public Task<ulong> CountByEventType(Type eventType, CancellationToken cancellationToken);
+    public Task<ulong> CountByEventType(Type[] eventTypes, CancellationToken cancellationToken);
 }

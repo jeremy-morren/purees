@@ -1,6 +1,8 @@
 ﻿using System.Runtime.CompilerServices;
 using Marten;
 using Marten.Exceptions;
+using Marten.Linq.MatchesSql;
+using PureES.EventStores.Marten.CustomMethods;
 
 namespace PureES.EventStores.Marten;
 
@@ -429,7 +431,7 @@ internal class MartenEventStore : IEventStore
         if (!exists)
             throw new StreamNotFoundException(streamId);
 
-        //Stream does exists, ensure we read to the end
+        //Stream does exist, ensure we read to the end
         actual ??= await GetRevision(streamId, cancellationToken);
         if (actual.Value != endRevision)
             throw new WrongStreamRevisionException(streamId, endRevision, actual.Value);
@@ -529,7 +531,7 @@ internal class MartenEventStore : IEventStore
             if (stream.Count > 0 && e.StreamId != stream[^1].StreamId)
             {
                 yield return stream.ToAsyncEnumerable();
-                stream = new List<EventEnvelope>();
+                stream = [];
             }
 
             stream.Add(_serializer.Deserialize(e));
@@ -540,12 +542,13 @@ internal class MartenEventStore : IEventStore
     }
 
     public async IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction, 
-        Type eventType,
+        Type[] eventTypes,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var type = _eventTypeMap.GetTypeName(eventType);
+        var types = GetTypeNames(eventTypes);
         await using var session = ReadSession();
-        var query = session.Query<MartenEvent>().Where(e => e.EventType == type);
+        var query = session.Query<MartenEvent>()
+            .Where(e => e.EventTypes.Intersects(types));
         query = direction switch
         {
             Direction.Forwards => query.OrderBy(e => e.Timestamp),
@@ -557,13 +560,14 @@ internal class MartenEventStore : IEventStore
     }
 
     public async IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction,
-        Type eventType, 
+        Type[] eventTypes, 
         ulong maxCount,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var type = _eventTypeMap.GetTypeName(eventType);
+        var types = GetTypeNames(eventTypes);
         await using var session = ReadSession();
-        var query = session.Query<MartenEvent>().Where(e => e.EventType == type);
+        var query = session.Query<MartenEvent>()
+            .Where(e => e.EventTypes.Intersects(types));
         query = direction switch
         {
             Direction.Forwards => query.OrderBy(e => e.Timestamp),
@@ -581,12 +585,24 @@ internal class MartenEventStore : IEventStore
         return (ulong) await session.Query<MartenEvent>().LongCountAsync(cancellationToken);
     }
 
-    public async Task<ulong> CountByEventType(Type eventType, CancellationToken cancellationToken)
+    public async Task<ulong> CountByEventType(Type[] eventTypes, CancellationToken cancellationToken)
     {
-        var type = _eventTypeMap.GetTypeName(eventType);
+        var types = GetTypeNames(eventTypes).ToArray();
         await using var session = ReadSession();
-        return (ulong) await session.Query<MartenEvent>()
-            .Where(e => e.EventType == type)
+
+        var count = await session.Query<MartenEvent>()
+            .Where(e => e.EventTypes.Intersects(types))
             .LongCountAsync(cancellationToken);
+        return (ulong) count;
+    }
+
+    private List<string> GetTypeNames(Type[] eventTypes)
+    {
+        ArgumentNullException.ThrowIfNull(eventTypes);
+        return eventTypes
+            .Distinct()
+            .Select(_eventTypeMap.GetTypeNames)
+            .Select(l => l[^1])
+            .ToList();
     }
 }

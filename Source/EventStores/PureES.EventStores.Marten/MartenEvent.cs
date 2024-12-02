@@ -9,9 +9,10 @@ namespace PureES.EventStores.Marten;
 /// </summary>
 [UsedImplicitly(ImplicitUseTargetFlags.Members)]
 [Newtonsoft.Json.JsonConverter(typeof(NewtonsoftJsonEventConverter))]
-public record MartenEvent(string StreamId, 
+public record MartenEvent(
+    string StreamId, 
     int StreamPosition,
-    string EventType,
+    List<string> EventTypes,
     JsonElement? Event,
     JsonElement? Metadata)
 {

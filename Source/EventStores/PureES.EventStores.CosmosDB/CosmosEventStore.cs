@@ -678,21 +678,21 @@ internal class CosmosEventStore : IEventStore
     #region By Event Type
     
     public async IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction, 
-        Type eventType, 
+        Type[] eventTypes, 
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var container = _client.GetContainer();
 
-        var queryDef = direction switch
+        var query = "select * from c where SetIntersect(c.eventTypes, @eventTypes) ORDER BY ";
+        query += direction switch
         {
-            Direction.Forwards => new QueryDefinition(
-                "select * from c where c.eventType = @eventType ORDER BY c._ts, c.created, c.eventStreamId, c.eventStreamPosition"),
-            Direction.Backwards => new QueryDefinition(
-                "select * from c where c.eventType = @eventType ORDER BY c._ts desc, c.created desc, c.eventStreamId desc, c.eventStreamPosition desc"),
+            Direction.Forwards => "c._ts, c.created, c.eventStreamId, c.eventStreamPosition",
+            Direction.Backwards => "c._ts desc, c.created desc, c.eventStreamId desc, c.eventStreamPosition desc",
             _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
         };
-            
-        queryDef  = queryDef.WithParameter("@eventType", _typeMap.GetTypeName(eventType));
+
+        var queryDef = new QueryDefinition(query)
+            .WithParameter("@eventTypes", GetTypeNames(eventTypes));
 
         using var iterator = container.GetItemQueryIterator<CosmosEvent>(queryDef);
         while (iterator.HasMoreResults)
@@ -704,22 +704,22 @@ internal class CosmosEventStore : IEventStore
     }
     
     public async IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction, 
-        Type eventType, 
+        Type[] eventTypes, 
         ulong maxCount,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var container = _client.GetContainer();
 
-        var queryDef = direction switch
+        var query = "select top @count * from c where SetIntersect(c.eventTypes, @eventTypes) ORDER BY ";
+        query += direction switch
         {
-            Direction.Forwards => new QueryDefinition(
-                "select top @count * from c where c.eventType = @eventType ORDER BY c._ts, c.created, c.eventStreamId, c.eventStreamPosition"),
-            Direction.Backwards => new QueryDefinition(
-                "select top @count * from c where c.eventType = @eventType ORDER BY c._ts desc, c.created desc, c.eventStreamId desc, c.eventStreamPosition desc"),
+            Direction.Forwards => "c._ts, c.created, c.eventStreamId, c.eventStreamPosition",
+            Direction.Backwards => "c._ts desc, c.created desc, c.eventStreamId desc, c.eventStreamPosition desc",
             _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
         };
 
-        queryDef = queryDef.WithParameter("@eventType", _typeMap.GetTypeName(eventType))
+        var queryDef = new QueryDefinition(query)
+            .WithParameter("@eventTypes", GetTypeNames(eventTypes))
             .WithParameter("@count", maxCount);
 
         using var iterator = container.GetItemQueryIterator<CosmosEvent>(queryDef);
@@ -746,13 +746,12 @@ internal class CosmosEventStore : IEventStore
         return result.Single();
     }
     
-    public async Task<ulong> CountByEventType(Type eventType, CancellationToken cancellationToken)
+    public async Task<ulong> CountByEventType(Type[] eventTypes, CancellationToken cancellationToken)
     {
         var container = _client.GetContainer();
 
-        var queryDef =
-            new QueryDefinition("select value count(1) from c where c.eventType = @eventType")
-                .WithParameter("@eventType", _typeMap.GetTypeName(eventType));
+        const string query = "select value count(1) from c where SetIntersect(c.eventTypes, @eventTypes)";
+        var queryDef = new QueryDefinition(query).WithParameter("@eventType", GetTypeNames(eventTypes));
 
         using var iterator = container.GetItemQueryIterator<ulong>(queryDef);
         var result = await iterator.ReadNextAsync(cancellationToken);
@@ -760,4 +759,10 @@ internal class CosmosEventStore : IEventStore
     }
 
     #endregion
+    
+    private HashSet<string> GetTypeNames(Type[] eventTypes)
+    {
+        ArgumentNullException.ThrowIfNull(eventTypes);
+        return eventTypes.SelectMany(_typeMap.GetTypeNames).Distinct().ToHashSet();
+    }
 }

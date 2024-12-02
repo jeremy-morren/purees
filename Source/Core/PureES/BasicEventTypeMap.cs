@@ -10,12 +10,12 @@ namespace PureES;
 [PublicAPI]
 public class BasicEventTypeMap : IEventTypeMap
 {
-    string IEventTypeMap.GetTypeName(Type eventType) => NamesMap.GetOrAdd(eventType, GetTypeName);
+    List<string> IEventTypeMap.GetTypeNames(Type eventType) => NamesMap.GetOrAdd(eventType, GetTypeNames);
 
     Type IEventTypeMap.GetCLRType(string typeName) => TypesMap.GetOrAdd(typeName, GetCLRType);
 
     private static readonly ConcurrentDictionary<string, Type> TypesMap = new();
-    private static readonly ConcurrentDictionary<Type, string> NamesMap = new();
+    private static readonly ConcurrentDictionary<Type, List<string>> NamesMap = new();
     
     public static Type GetCLRType(string typeName)
     {
@@ -25,12 +25,24 @@ public class BasicEventTypeMap : IEventTypeMap
                ?? throw new ArgumentOutOfRangeException(nameof(typeName), typeName, "Unable to resolve CLR type");
     }
 
-    public static string GetTypeName(Type eventType)
+    /// <summary>
+    /// Gets type names (full inheritance hierarchy) for a type
+    /// </summary>
+    public static List<string> GetTypeNames(Type eventType)
     {
         if (eventType == null) throw new ArgumentNullException(nameof(eventType));
 
-        GetTypeName(eventType, out var name, out _);
-        return name;
+        var result = new List<string>();
+        while (true)
+        {
+            GetTypeName(eventType, out var name, out _);
+            result.Add(name);
+            if (eventType.BaseType == typeof(object) || eventType.BaseType == null)
+                break;
+            eventType = eventType.BaseType;
+        }
+        result.Reverse(); //Base type first
+        return result;
     }
     
     /// <summary>

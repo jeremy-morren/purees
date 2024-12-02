@@ -13,7 +13,7 @@ public class RehydrationException : Exception
     public RehydrationException(string streamId, 
         Type aggregateType, 
         Exception innerException)
-        : base($"An error occurred rehydrating '{BasicEventTypeMap.GetTypeName(aggregateType)}'. Stream Id: '{streamId}'", 
+        : base($"An error occurred rehydrating '{BasicEventTypeMap.GetTypeNames(aggregateType)}'. Stream Id: '{streamId}'", 
             innerException)
     {
         StreamId = streamId;
@@ -23,7 +23,7 @@ public class RehydrationException : Exception
     public RehydrationException(string streamId, 
         Type aggregateType, 
         string message)
-        : base($"{message}. Aggregate type: '{BasicEventTypeMap.GetTypeName(aggregateType)}'. Stream Id: '{streamId}'")
+        : base($"{message}. Aggregate type: '{BasicEventTypeMap.GetTypeNames(aggregateType)}'. Stream Id: '{streamId}'")
     {
         StreamId = streamId;
         AggregateType = aggregateType;
@@ -33,7 +33,7 @@ public class RehydrationException : Exception
         Type aggregateType, 
         string message,
         Exception innerException)
-        : base($"{message}. Aggregate type: '{BasicEventTypeMap.GetTypeName(aggregateType)}'. Stream Id: '{streamId}'", innerException)
+        : base($"{message}. Aggregate type: '{BasicEventTypeMap.GetTypeNames(aggregateType)}'. Stream Id: '{streamId}'", innerException)
     {
         StreamId = streamId;
         AggregateType = aggregateType;
