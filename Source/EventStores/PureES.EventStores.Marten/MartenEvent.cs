@@ -19,4 +19,6 @@ public record MartenEvent(
     public string Id => $"{StreamId}/{StreamPosition}";
     
     [JsonIgnore] public DateTimeOffset Timestamp { get; set; }
+
+    public string? EventType { get; set; }
 }

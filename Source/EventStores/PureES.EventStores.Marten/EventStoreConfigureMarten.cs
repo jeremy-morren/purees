@@ -1,5 +1,4 @@
-﻿using System.Linq.Expressions;
-using Marten;
+﻿using Marten;
 using Marten.Schema;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;

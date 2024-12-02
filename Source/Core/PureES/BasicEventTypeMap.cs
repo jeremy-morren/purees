@@ -10,9 +10,20 @@ namespace PureES;
 [PublicAPI]
 public class BasicEventTypeMap : IEventTypeMap
 {
-    List<string> IEventTypeMap.GetTypeNames(Type eventType) => NamesMap.GetOrAdd(eventType, GetTypeNames);
+    List<string> IEventTypeMap.GetTypeNames(Type eventType)
+    {
+        if (eventType == null) throw new ArgumentNullException(nameof(eventType));
+        return NamesMap.GetOrAdd(eventType, GetTypeNames);
+    }
 
-    Type IEventTypeMap.GetCLRType(string typeName) => TypesMap.GetOrAdd(typeName, GetCLRType);
+    Type IEventTypeMap.GetCLRType(string typeName)
+    {
+        if (typeName == null) throw new ArgumentNullException(nameof(typeName));
+        return TypesMap.GetOrAdd(typeName, GetCLRType);
+    }
+
+    // Used by AggregateFactory for showing a type name in exceptions
+    public static string GetTypeName(Type type) => GetTypeNames(type)[^1];
 
     private static readonly ConcurrentDictionary<string, Type> TypesMap = new();
     private static readonly ConcurrentDictionary<Type, List<string>> NamesMap = new();

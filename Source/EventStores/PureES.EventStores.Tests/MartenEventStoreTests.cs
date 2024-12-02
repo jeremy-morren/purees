@@ -1,5 +1,4 @@
 ﻿using Marten;
-using Marten.Services.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Moq;
@@ -7,7 +6,6 @@ using Npgsql;
 using PureES.EventStores.Marten;
 using PureES.EventStores.Marten.Subscriptions;
 using PureES.EventStores.Tests.Framework.Logging;
-using Weasel.Core;
 
 namespace PureES.EventStores.Tests;
 

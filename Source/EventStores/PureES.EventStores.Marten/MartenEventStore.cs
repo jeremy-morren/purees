@@ -1,7 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 using Marten;
 using Marten.Exceptions;
-using Marten.Linq.MatchesSql;
 using PureES.EventStores.Marten.CustomMethods;
 
 namespace PureES.EventStores.Marten;

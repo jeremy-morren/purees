@@ -2,12 +2,10 @@
 using System.Diagnostics.CodeAnalysis;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Text.Json;
 using FastExpressionCompiler;
 using Marten;
 using Marten.Linq.Members;
 using Marten.Linq.Parsing;
-using Npgsql;
 using NpgsqlTypes;
 using Weasel.Postgresql.SqlGeneration;
 

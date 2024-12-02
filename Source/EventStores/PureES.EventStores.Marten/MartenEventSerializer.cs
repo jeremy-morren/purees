@@ -16,6 +16,14 @@ internal class MartenEventSerializer
 
     public EventEnvelope Deserialize(MartenEvent martenEvent)
     {
+        if (martenEvent.EventTypes == null!)
+        {
+            // Old event, migrate
+            martenEvent = martenEvent with
+            {
+                EventTypes = [martenEvent.EventType!]
+            };
+        }
         if (martenEvent.EventTypes.Count == 0)
             throw new InvalidOperationException($"Invalid event record {martenEvent.Id}");
         
