@@ -20,5 +20,6 @@ public record MartenEvent(
     
     [JsonIgnore] public DateTimeOffset Timestamp { get; set; }
 
+    [Obsolete("Use EventTypes instead")]
     public string? EventType { get; set; }
 }

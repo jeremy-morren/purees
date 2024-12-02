@@ -26,7 +26,7 @@ public class MartenEventStoreOptions
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
-
+    
     public bool Validate()
     {
         Require(nameof(DatabaseSchema), DatabaseSchema);

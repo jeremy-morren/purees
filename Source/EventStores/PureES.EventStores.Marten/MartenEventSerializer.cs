@@ -21,7 +21,9 @@ internal class MartenEventSerializer
             // Old event, migrate
             martenEvent = martenEvent with
             {
+#pragma warning disable CS0618 // Type or member is obsolete
                 EventTypes = [martenEvent.EventType!]
+#pragma warning restore CS0618 // Type or member is obsolete
             };
         }
         if (martenEvent.EventTypes.Count == 0)
