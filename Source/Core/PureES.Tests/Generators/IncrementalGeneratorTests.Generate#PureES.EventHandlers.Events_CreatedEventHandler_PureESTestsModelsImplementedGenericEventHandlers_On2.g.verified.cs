@@ -98,7 +98,7 @@ namespace PureES.EventHandlers
         {
             if (@event.Event is not global::PureES.Tests.Models.Events.Created)
             {
-                throw new ArgumentException(nameof(@event));
+                throw new ArgumentOutOfRangeException($"Unknown event type {@event.Event.GetType()}", nameof(@event));
             }
             using (var activity = new global::System.Diagnostics.Activity("PureES.EventHandlers.EventHandler"))
             {

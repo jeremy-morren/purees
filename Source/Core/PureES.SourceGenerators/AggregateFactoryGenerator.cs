@@ -177,7 +177,7 @@ internal class AggregateFactoryGenerator
 
     private void ThrowRehydrationException(string parameters)
     {
-        _w.WriteLine($"throw new global::{PureESSymbols.RehydrationException}(streamId, AggregateType, {parameters});");
+        _w.WriteLine($"throw new global::{PureESSymbols.RehydrationException}(enumerator.Current, AggregateType, {parameters});");
     }
 
     private void InvokeWhen(When when)
