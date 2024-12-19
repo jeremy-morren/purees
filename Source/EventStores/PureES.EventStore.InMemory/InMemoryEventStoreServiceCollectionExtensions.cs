@@ -23,7 +23,7 @@ public static class InMemoryEventStoreServiceCollectionExtensions
     public static IServiceCollection AddInMemoryEventStore(this IServiceCollection services,
         Action<InMemoryEventStoreOptions>? configureOptions = null)
     {
-        services.TryAddSingleton<ISystemClock, SystemClock>();
+        services.TryAddSingleton(TimeProvider.System);
 
         services.AddOptions<InMemoryEventStoreOptions>()
             .Configure(o => configureOptions?.Invoke(o))

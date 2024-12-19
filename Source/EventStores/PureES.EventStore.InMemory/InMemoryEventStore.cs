@@ -17,12 +17,12 @@ internal class InMemoryEventStore : IInMemoryEventStore
     private readonly IEventTypeMap _eventTypeMap;
 
     private readonly InMemoryEventStoreSerializer _serializer;
-    private readonly ISystemClock _clock;
+    private readonly TimeProvider _clock;
 
     private readonly List<IInMemoryEventStoreSubscription> _subscriptions;
 
     public InMemoryEventStore(InMemoryEventStoreSerializer serializer,
-        ISystemClock clock,
+        TimeProvider clock,
         IEventTypeMap eventTypeMap,
         IEnumerable<IHostedService>? hostedServices = null)
     {
@@ -69,10 +69,10 @@ internal class InMemoryEventStore : IInMemoryEventStore
         IEnumerable<UncommittedEvent> events,
         out List<EventRecord> records)
     {
-        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
-        if (events == null) throw new ArgumentNullException(nameof(events));
+        ArgumentNullException.ThrowIfNull(streamId);
+        ArgumentNullException.ThrowIfNull(events);
 
-        var ts = _clock.UtcNow;
+        var ts = _clock.GetLocalNow();
         records = events.Select(e => _serializer.Serialize(e, streamId, ts)).ToList();
         if (records.Count == 0)
             throw new ArgumentOutOfRangeException(nameof(events));
@@ -204,7 +204,7 @@ internal class InMemoryEventStore : IInMemoryEventStore
                     throw new EventsTransactionException(exceptions);
             }
 
-            var ts = _clock.UtcNow;
+            var ts = _clock.GetLocalNow();
             
             foreach (var (streamId, list) in transaction)
             {
