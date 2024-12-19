@@ -44,6 +44,9 @@ public abstract class EventStoreTestsBase
         await AssertEqual(events, d => store.Read(d, stream, CancellationToken));
 
         (await store.GetRevision(stream, CancellationToken)).ShouldBe((ulong)events.Count - 1);
+        
+        (await store.ReadAll(Direction.Forwards, CancellationToken).GroupBy(s => s.Timestamp).CountAsync())
+            .ShouldBe(1, "Created events should have the same timestamp");
     }
     
     [Fact]
@@ -75,6 +78,9 @@ public abstract class EventStoreTestsBase
             transaction.Add(i.ToString(), null, Enumerable.Range(0, i + 1).Select(_ => NewEvent()));
         
         await store.SubmitTransaction(transaction.ToUncommittedTransaction(), CancellationToken);
+        
+        (await store.ReadAll(Direction.Forwards, CancellationToken).GroupBy(s => s.Timestamp).CountAsync())
+            .ShouldBe(1, "All events in a transaction should have the same timestamp");
         
         transaction.Clear();
         foreach (var i in Enumerable.Range(0, 5))
@@ -180,6 +186,13 @@ public abstract class EventStoreTestsBase
         
         await AssertEqual(events, d => store.Read(d, stream, CancellationToken));
         (await store.GetRevision(stream, CancellationToken)).ShouldBe((ulong)events.Count - 1);
+        
+        
+        (await store.ReadAll(Direction.Forwards, CancellationToken)
+                .Skip(5)
+                .GroupBy(s => s.Timestamp)
+                .CountAsync())
+            .ShouldBe(1, "Appended events should have the same timestamp");
     }
 
     [Theory]

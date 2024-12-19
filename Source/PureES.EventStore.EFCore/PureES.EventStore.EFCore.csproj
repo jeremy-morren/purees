@@ -8,11 +8,16 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="JetBrains.Annotations" Version="2023.3.0" />
         <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.11" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.11" />
     </ItemGroup>
     
     <ItemGroup>
         <InternalsVisibleTo Include="PureES.EventStores.Tests"/>
+    </ItemGroup>
+    
+    <ItemGroup>
+      <ProjectReference Include="..\Core\PureES\PureES.csproj" />
     </ItemGroup>
 </Project>

@@ -17,6 +17,12 @@ internal class EventStoreDbContext : DbContext
     public async Task<IReadOnlyList<EventStoreEvent>> WriteEvents(IEnumerable<EventStoreEvent> events, CancellationToken ct)
     {
         var list = events.ToList();
+        if (IsSqlite())
+        {
+            var ts = DateTime.UtcNow;
+            foreach (var e in list)
+                e.Timestamp = ts;
+        }
         Set<EventStoreEvent>().AddRange(list);
         await SaveChangesAsync(ct);
         return list;
