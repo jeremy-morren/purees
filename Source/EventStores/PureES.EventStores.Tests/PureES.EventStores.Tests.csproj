@@ -29,10 +29,10 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\PureES.EventStore.EFCore\PureES.EventStore.EFCore.csproj" />
-        <ProjectReference Include="..\PureES.EventStores.CosmosDB\PureES.EventStores.CosmosDB.csproj" />
+        <ProjectReference Include="..\PureES.EventStore.EFCore\PureES.EventStore.EFCore.csproj" />
+        <ProjectReference Include="..\PureES.EventStore.CosmosDB\PureES.EventStore.CosmosDB.csproj" />
         <ProjectReference Include="..\PureES.EventStore.InMemory\PureES.EventStore.InMemory.csproj" />
-        <ProjectReference Include="..\PureES.EventStores.Marten\PureES.EventStores.Marten.csproj" />
+        <ProjectReference Include="..\PureES.EventStore.Marten\PureES.EventStore.Marten.csproj" />
     </ItemGroup>
 
     <ItemGroup>

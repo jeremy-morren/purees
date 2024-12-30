@@ -1,8 +1,8 @@
 ﻿using JetBrains.Annotations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using PureES.EventStores.CosmosDB;
-using PureES.EventStores.CosmosDB.Subscriptions;
+using PureES.EventStore.CosmosDB;
+using PureES.EventStore.CosmosDB.Subscriptions;
 
 namespace PureES.EventStores.Tests.Cosmos;
 

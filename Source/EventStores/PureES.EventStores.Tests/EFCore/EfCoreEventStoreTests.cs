@@ -1,6 +1,10 @@
-﻿using System.Text.Json;
+﻿using System.Data.Common;
+using System.Text.Json;
+using Marten;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
 using PureES.EventStore.EFCore;
 // ReSharper disable MethodHasAsyncOverload
 // ReSharper disable UseAwaitUsing

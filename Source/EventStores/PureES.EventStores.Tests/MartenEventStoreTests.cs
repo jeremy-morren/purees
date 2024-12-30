@@ -3,8 +3,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Moq;
 using Npgsql;
-using PureES.EventStores.Marten;
-using PureES.EventStores.Marten.Subscriptions;
+using PureES.EventStore.Marten;
+using PureES.EventStore.Marten.Subscriptions;
 using PureES.EventStores.Tests.Framework.Logging;
 
 namespace PureES.EventStores.Tests;
