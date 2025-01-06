@@ -1,5 +1,6 @@
 ﻿using System.Data.Common;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices.JavaScript;
 using Microsoft.EntityFrameworkCore;
 
 namespace PureES.EventStore.EFCore;
@@ -9,11 +10,15 @@ internal class EfCoreEventStore<TContext> : IEventStore
 {
     private readonly EventStoreDbContext<TContext> _context;
     private readonly EfCoreEventSerializer _serializer;
+    private readonly IEventTypeMap _eventTypeMap;
 
-    public EfCoreEventStore(EventStoreDbContext<TContext> context, EfCoreEventSerializer serializer)
+    public EfCoreEventStore(EventStoreDbContext<TContext> context, 
+        EfCoreEventSerializer serializer,
+        IEventTypeMap eventTypeMap)
     {
         _context = context;
         _serializer = serializer;
+        _eventTypeMap = eventTypeMap;
     }
 
     public Task<bool> Exists(string streamId, CancellationToken cancellationToken)
@@ -263,9 +268,35 @@ internal class EfCoreEventStore<TContext> : IEventStore
             throw new WrongStreamRevisionException(streamId, endRevision, actual.Value);
     }
 
-    public IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId, ulong startRevision, CancellationToken cancellationToken)
+    public async IAsyncEnumerable<EventEnvelope> ReadSlice(
+        string streamId, 
+        ulong startRevision, 
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        ArgumentNullException.ThrowIfNull(streamId);
+
+        var query = ReadStream(Direction.Forwards, streamId)
+            .Where(e => e.StreamPos == 0 || e.StreamPos >= (int)startRevision);
+        var enumerable = _context.ReadEvents(query, _serializer, cancellationToken);
+        
+        var exists = false;
+        ulong? actual = null;
+        await foreach (var e in enumerable)
+        {
+            exists = true;
+            if (e.StreamPosition == 0 && startRevision != 0) continue;
+            yield return e;
+            actual = e.StreamPosition;
+        }
+        
+        if (!exists)
+            throw new StreamNotFoundException(streamId);
+
+        if (actual.HasValue) yield break;
+        
+        //Stream exists, but before start
+        actual = await GetRevision(streamId, cancellationToken);
+        throw new WrongStreamRevisionException(streamId, startRevision, actual.Value);
     }
     
     #endregion
@@ -291,13 +322,21 @@ internal class EfCoreEventStore<TContext> : IEventStore
         throw new NotImplementedException();
     }
 
+    private static Task<ulong> Count(IQueryable<EventStoreEvent> queryable, CancellationToken ct)
+    {
+        return queryable.LongCountAsync(ct)
+            .ContinueWith(t => (ulong)t.Result, TaskContinuationOptions.OnlyOnRanToCompletion);
+    }
+
     public Task<ulong> Count(CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        return Count(_context.QueryEvents(), cancellationToken);
     }
 
     public Task<ulong> CountByEventType(Type[] eventTypes, CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        var types = eventTypes.SelectMany(_eventTypeMap.GetTypeNames).Distinct().ToList();
+        var query = _context.QueryEvents().Where(e => e.EventTypes.Any(t => types.Contains(t)));
+        return Count(query, cancellationToken);
     }
 }
