@@ -15,18 +15,32 @@ internal class EventStoreEvent
     /// <summary>
     /// The stream position of the event
     /// </summary>
-    public required uint StreamPos { get; init; }
+    public required int StreamPos { get; init; }
 
     /// <summary>
     /// Timestamp of the event in UTC
     /// </summary>
-    public DateTime Timestamp { get; set; }
+    public DateTimeOffset Timestamp { get; set; }
     
     /// <summary>
     /// The event type of the event (full hierarchy)
     /// </summary>
     public required List<string> EventTypes { get; init; }
-    
+
+    /// <summary>
+    /// The concrete event type (last part)
+    /// </summary>
+    /// <remarks>
+    /// When reading events, we can read this column (instead of deserializing the hierarchy JSON)
+    /// </remarks>
+    public string EventType
+    {
+        get => EventTypes[^1];
+        // ReSharper disable once ValueParameterNotUsed
+        // ReSharper disable once UnusedMember.Local
+        private set {}
+    }
+
     /// <summary>
     /// Event data
     /// </summary>

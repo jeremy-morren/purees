@@ -1,31 +1,64 @@
 ﻿using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using PureES.EventStore.EFCore.Providers;
 
 namespace PureES.EventStore.EFCore;
 
 internal class EventStoreDbContext : DbContext
 {
-    public EventStoreDbContext(DbContextOptions<EventStoreDbContext> options)
-        : base(options) {}
+    public EventStoreDbContext(DbContextOptions options)
+        : base(options)
+    {
+    }
+    
+    #region Provider
 
+    private IEfCoreProvider? _provider;
+    public IEfCoreProvider Provider => _provider ??= CreateProvider();
+
+    /// <summary>
+    /// Create the provider for the database
+    /// </summary>
+    private IEfCoreProvider CreateProvider()
+    {
+        return Database.ProviderName switch
+        {
+            "Microsoft.EntityFrameworkCore.Sqlite" => new SqliteProvider(this),
+            null => throw new InvalidOperationException("Database provider not set"),
+            _ => throw new NotImplementedException($"Database provider {Database.ProviderName} not supported")
+            
+            // "Npgsql.EntityFrameworkCore.PostgreSQL" => "transaction_timestamp() at time zone 'utc'",
+            // "Microsoft.EntityFrameworkCore.SqlServer" => "GETUTCDATE()",
+        };
+    }
+    
+    #endregion
+    
+    #region Events
+    
+    public async Task<List<EventStoreEvent>> WriteAndSaveChanges(List<EventStoreEvent> events, CancellationToken ct)
+    {
+        Set<EventStoreEvent>().AddRange(events);
+        await SaveChangesAsync(ct);
+        return events;
+    }
 
     /// <summary>
     /// Writes the events and returns the events written (with timestamps set)
     /// </summary>
-    public async Task<IReadOnlyList<EventStoreEvent>> WriteEvents(IEnumerable<EventStoreEvent> events, CancellationToken ct)
+    public Task<List<EventStoreEvent>> WriteEvents(IEnumerable<EventStoreEvent> events, CancellationToken ct)
     {
-        var list = events.ToList();
-        if (IsSqlite())
-        {
-            var ts = DateTime.UtcNow;
-            foreach (var e in list)
-                e.Timestamp = ts;
-        }
-        Set<EventStoreEvent>().AddRange(list);
-        await SaveChangesAsync(ct);
-        return list;
+        return Provider.WriteEvents(events, ct);
     }
+    
+    public IAsyncEnumerable<EventEnvelope> ReadEvents(IQueryable<EventStoreEvent> query, EfCoreEventSerializer serializer, CancellationToken ct)
+    {
+        return Provider.ReadEvents(query, serializer, ct);
+    }
+
+    public IQueryable<EventStoreEvent> QueryEvents() => Set<EventStoreEvent>().AsNoTracking();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -41,55 +74,36 @@ internal class EventStoreDbContext : DbContext
             entity.Property(e => e.StreamPos)
                 .IsRequired()
                 .ValueGeneratedNever();
-
-            if (!IsSqlite())
-            {
-                // For sqlite, date is set manually
-                entity.Property(e => e.Timestamp)
-                    .IsRequired()
-                    .HasComputedColumnSql(GetServerDateTime(), true);
-            }
             
             entity.OwnsOne(e => e.EventTypes).ToJson();
-            
-            entity.Property(e => e.Data)
-                .HasConversion(new JsonElementConverter());
-            
-            entity.Property(e => e.Metadata)
-                .HasConversion(new JsonElementConverter());
 
-            // entity.HasIndex(e => e.EventTypes);
-            // entity.HasIndex(e => new { e.Timestamp, e.StreamId, e.StreamPos });
+            entity.Property(e => e.EventType)
+                .IsRequired()
+                .HasMaxLength(4096);
+
+            Provider.ConfigureEntity(entity);
         });
     }
+    
+    #endregion
+}
 
-    /// <summary>
-    /// Gets a SQL expression for the current server date and time
-    /// </summary>
-    /// <remarks>
-    /// Using the server datetime ensures consistency even for multi-server setups
-    /// </remarks>
-    private string GetServerDateTime()
+/// <summary>
+/// A DbContext for the event store that uses options from another context
+/// </summary>
+internal class EventStoreDbContext<TContext> : EventStoreDbContext
+    where TContext : DbContext
+{
+    public EventStoreDbContext(DbContextOptions<TContext> options)
+        : base(CloneOptions(options))
     {
-        return Database.ProviderName switch
-        {
-            "Npgsql.EntityFrameworkCore.PostgreSQL" => "transaction_timestamp() at time zone 'utc'",
-            "Microsoft.EntityFrameworkCore.SqlServer" => "GETUTCDATE()",
-            null => throw new InvalidOperationException("Database provider not set"),
-            _ => throw new NotImplementedException($"Database provider {Database.ProviderName} not supported")
-        };
     }
     
-    private bool IsSqlite() => Database.ProviderName == "Microsoft.EntityFrameworkCore.Sqlite";
-    
-    private class JsonElementConverter : ValueConverter<JsonElement, string>
+    private static DbContextOptions<EventStoreDbContext> CloneOptions(DbContextOptions<TContext> options)
     {
-        public JsonElementConverter(ConverterMappingHints? mappingHints = null) 
-            : base(
-                e => JsonSerializer.Serialize(e, JsonSerializerOptions.Default),
-                s => JsonSerializer.Deserialize<JsonElement>(s, JsonSerializerOptions.Default),
-                mappingHints)
-        {
-        }
+        var builder = new DbContextOptionsBuilder<EventStoreDbContext>();
+        foreach (var extension in options.Extensions)
+            ((IDbContextOptionsBuilderInfrastructure)builder).AddOrUpdateExtension(extension);
+        return builder.Options;
     }
 }

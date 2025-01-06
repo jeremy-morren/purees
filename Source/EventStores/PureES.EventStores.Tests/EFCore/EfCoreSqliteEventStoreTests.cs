@@ -1,16 +1,17 @@
 ﻿using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using PureES.EventStore.EFCore;
 // ReSharper disable MethodHasAsyncOverload
 // ReSharper disable UseAwaitUsing
 
 namespace PureES.EventStores.Tests.EFCore;
 
-public class EfCoreEventStoreTests
+public class EfCoreSqliteEventStoreTests : EventStoreTestsBase
 {
     [Fact]
-    public async Task SqliteEventsShouldSetTimestamp()
+    public async Task EventsShouldSetTimestamp()
     {
         using var connection = new SqliteConnection("Data Source=:memory:");
         connection.Open();
@@ -28,17 +29,44 @@ public class EfCoreEventStoreTests
 
         var inserted = await context.WriteEvents(events, default);
         inserted.Should().HaveCount(10);
-        inserted.ShouldAllBe(i => i.Timestamp.Kind == DateTimeKind.Utc);
         inserted.ShouldAllBe(i => i.Timestamp != default);
         inserted.GroupBy(i => i.Timestamp).Should().HaveCount(1, "All timestamps should be the same");
+
+        var query = context.QueryEvents().ToList();
+        query.Should().HaveSameCount(inserted);
     }
 
     private static EventStoreEvent CreateEvent(string stream, int position) => new()
     {
         StreamId = stream,
-        StreamPos = (uint)position,
+        StreamPos = position,
         EventTypes = ["TestEvent"],
         Data = JsonSerializer.SerializeToElement(new Dictionary<string, string>()),
         Metadata = JsonSerializer.SerializeToElement(new Dictionary<string, string>()),
     };
+
+    protected override Task<EventStoreTestHarness> CreateStore(string testName, Action<IServiceCollection> configureServices, CancellationToken ct)
+    {
+        var services = new ServiceCollection();
+        
+        var connection = new SqliteConnection("Data Source=:memory:");
+        connection.Open();
+        
+        services.AddSingleton(connection); //Dispose will be called by the container
+
+        services.AddDbContext<NoOpDbContext>(builder => builder.UseSqlite(connection));
+
+        services.AddEfCoreEventStore<NoOpDbContext>();
+
+        services.AddPureES().AddBasicEventTypeMap();
+        
+        configureServices(services);
+
+        var sp = services.BuildServiceProvider();
+
+        using (var context = sp.GetRequiredService<EventStoreDbContext<NoOpDbContext>>())
+            context.Database.EnsureCreated();
+
+        return Task.FromResult(new EventStoreTestHarness(sp, sp.GetRequiredService<IEventStore>()));
+    }
 }

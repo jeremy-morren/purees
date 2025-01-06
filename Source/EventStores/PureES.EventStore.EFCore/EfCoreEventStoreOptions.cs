@@ -12,7 +12,10 @@ public class EfCoreEventStoreOptions
     /// <summary>
     /// Custom options for serializing/deserializing events and metadata
     /// </summary>
-    public JsonSerializerOptions JsonOptions { get; set; } = new();
+    public JsonSerializerOptions JsonOptions { get; set; } = new()
+    {
+        PropertyNamingPolicy = null
+    };
     
     /// <summary>
     /// Type to deserialize metadata as
