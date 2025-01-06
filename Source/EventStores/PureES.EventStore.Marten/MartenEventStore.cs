@@ -232,7 +232,7 @@ internal class MartenEventStore : IEventStore
     }
 
     public async IAsyncEnumerable<EventEnvelope> ReadAll(Direction direction, 
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         await using var session = ReadSession();
 
@@ -254,7 +254,7 @@ internal class MartenEventStore : IEventStore
 
     public async IAsyncEnumerable<EventEnvelope> ReadAll(Direction direction, 
         ulong maxCount, 
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         await using var session = ReadSession();
         
@@ -274,7 +274,7 @@ internal class MartenEventStore : IEventStore
 
     public async IAsyncEnumerable<EventEnvelope> Read(Direction direction, 
         string streamId, 
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         await using var session = ReadSession();
         var query = session.Query<MartenEvent>().Where(e => e.StreamId == streamId);
@@ -299,7 +299,7 @@ internal class MartenEventStore : IEventStore
     public async IAsyncEnumerable<EventEnvelope> Read(Direction direction, 
         string streamId, 
         ulong expectedRevision,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(streamId);
         
@@ -331,13 +331,11 @@ internal class MartenEventStore : IEventStore
         string streamId, 
         ulong startRevision, 
         ulong expectedRevision,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(streamId);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(startRevision, expectedRevision);
 
-        if (startRevision > expectedRevision)
-            throw new ArgumentOutOfRangeException(nameof(startRevision));
-        
         await using var session = ReadSession();
         var query = session
             .Query<MartenEvent>()
@@ -363,15 +361,15 @@ internal class MartenEventStore : IEventStore
             throw new WrongStreamRevisionException(streamId, expectedRevision, count);
     }
 
-    public async IAsyncEnumerable<EventEnvelope> ReadPartial(Direction direction, 
+    public async IAsyncEnumerable<EventEnvelope> ReadPartial(
+        Direction direction, 
         string streamId, 
         ulong count,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(streamId);
-        if (count == 0)
-            throw new ArgumentOutOfRangeException(nameof(count));
-        
+        ArgumentOutOfRangeException.ThrowIfZero(count);
+
         await using var session = ReadSession();
         var query = session
             .Query<MartenEvent>()
@@ -398,16 +396,15 @@ internal class MartenEventStore : IEventStore
     
     //NB: For reading slice: We always include at position '0'. The reason is to differentiate between 'doesn't exist' and 'read after end'
 
-    public async IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId, 
+    public async IAsyncEnumerable<EventEnvelope> ReadSlice(
+        string streamId, 
         ulong startRevision, 
         ulong endRevision,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(streamId);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(startRevision, endRevision);
 
-        if (startRevision > endRevision)
-            throw new ArgumentOutOfRangeException(nameof(startRevision));
-        
         await using var session = ReadSession();
         var query = session
             .Query<MartenEvent>()
@@ -438,7 +435,7 @@ internal class MartenEventStore : IEventStore
 
     public async IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId,
         ulong startRevision, 
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(streamId);
 
@@ -472,7 +469,7 @@ internal class MartenEventStore : IEventStore
 
     public async IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(Direction direction,
         IEnumerable<string> streams, 
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var list = streams.ToList();
         await using var session = ReadSession();
@@ -507,7 +504,7 @@ internal class MartenEventStore : IEventStore
 
     public async IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(Direction direction, 
         IAsyncEnumerable<string> streams, 
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var list = await streams.ToListAsync(cancellationToken);
         await using var session = ReadSession();
@@ -542,7 +539,7 @@ internal class MartenEventStore : IEventStore
 
     public async IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction, 
         Type[] eventTypes,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var types = GetTypeNames(eventTypes);
         await using var session = ReadSession();
@@ -561,7 +558,7 @@ internal class MartenEventStore : IEventStore
     public async IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction,
         Type[] eventTypes, 
         ulong maxCount,
-        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var types = GetTypeNames(eventTypes);
         await using var session = ReadSession();

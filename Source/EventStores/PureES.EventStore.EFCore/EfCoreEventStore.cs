@@ -1,4 +1,5 @@
 ﻿using System.Data.Common;
+using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore;
 
 namespace PureES.EventStore.EFCore;
@@ -57,7 +58,8 @@ internal class EfCoreEventStore<TContext> : IEventStore
             await _context.WriteEvents(list, cancellationToken);
             return (ulong)list.Count - 1;
         }
-        catch (DbException ex) when (_context.Provider.IsAlreadyExistsException(ex))
+        catch (DbUpdateException ex) when 
+            (ex.InnerException is DbException dex && _context.Provider.IsUniqueConstraintFailedException(dex))
         {
             throw new StreamAlreadyExistsException(streamId, ex);
         }
@@ -68,47 +70,70 @@ internal class EfCoreEventStore<TContext> : IEventStore
         return Create(streamId, [@event], cancellationToken);
     }
 
-    public Task<ulong> Append(string streamId, ulong expectedRevision, IEnumerable<UncommittedEvent> events, CancellationToken cancellationToken)
+    public async Task<ulong> Append(string streamId, ulong expectedRevision, IEnumerable<UncommittedEvent> events, CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        var actual = await GetRevision(streamId, cancellationToken);
+        if (actual != expectedRevision)
+            throw new WrongStreamRevisionException(streamId, expectedRevision, actual);
+        
+        var r = (int)expectedRevision;
+        var list = events.Select(e => _serializer.Serialize(streamId, ++r, e));
+        await _context.WriteEvents(list, cancellationToken);
+        return (ulong)r;
     }
 
-    public Task<ulong> Append(string streamId, IEnumerable<UncommittedEvent> events, CancellationToken cancellationToken)
+    public async Task<ulong> Append(string streamId, IEnumerable<UncommittedEvent> events, CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        var actual = await GetRevision(streamId, cancellationToken);
+        var r = (int)actual;
+        var list = events.Select(e => _serializer.Serialize(streamId, ++r, e));
+        await _context.WriteEvents(list, cancellationToken);
+        return (ulong)r;
     }
 
     public Task<ulong> Append(string streamId, ulong expectedRevision, UncommittedEvent @event, CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        return Append(streamId, expectedRevision, [@event], cancellationToken);
     }
 
     public Task<ulong> Append(string streamId, UncommittedEvent @event, CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        return Append(streamId, [@event], cancellationToken);
     }
 
     public Task SubmitTransaction(IReadOnlyDictionary<string, UncommittedEventsList> transaction, CancellationToken cancellationToken)
     {
         throw new NotImplementedException();
     }
-
-    public IAsyncEnumerable<EventEnvelope> ReadAll(Direction direction, CancellationToken cancellationToken = default)
+    
+    #region Read All
+    
+    private IQueryable<EventStoreEvent> ReadAll(Direction direction)
     {
         var query = _context.QueryEvents();
-        query = direction switch
+        return direction switch
         {
             Direction.Forwards => query.OrderBy(e => e.Timestamp),
             Direction.Backwards => query.OrderByDescending(e => e.Timestamp),
             _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
         };
+    }
+
+    public IAsyncEnumerable<EventEnvelope> ReadAll(Direction direction, CancellationToken cancellationToken)
+    {
+        var query = ReadAll(direction);
         return _context.ReadEvents(query, _serializer, cancellationToken);
     }
 
-    public IAsyncEnumerable<EventEnvelope> ReadAll(Direction direction, ulong maxCount, CancellationToken cancellationToken = default)
+    public IAsyncEnumerable<EventEnvelope> ReadAll(Direction direction, ulong maxCount, CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        var query = ReadAll(direction).Take((int)maxCount);
+        return _context.ReadEvents(query, _serializer, cancellationToken);
     }
+    
+    #endregion
+    
+    #region Read Stream
 
     private IQueryable<EventStoreEvent> ReadStream(Direction direction, string streamId)
     {
@@ -124,7 +149,7 @@ internal class EfCoreEventStore<TContext> : IEventStore
         };
     }
     
-    public IAsyncEnumerable<EventEnvelope> Read(Direction direction, string streamId, CancellationToken cancellationToken = default)
+    public IAsyncEnumerable<EventEnvelope> Read(Direction direction, string streamId, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(streamId);
         
@@ -132,52 +157,136 @@ internal class EfCoreEventStore<TContext> : IEventStore
         return _context.ReadEvents(query, _serializer, cancellationToken);
     }
 
-    public IAsyncEnumerable<EventEnvelope> Read(Direction direction, string streamId, ulong expectedRevision,
-        CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<EventEnvelope> Read(
+        Direction direction, 
+        string streamId, 
+        ulong expectedRevision,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(streamId);
+        
+        var query = _context.ReadEvents(ReadStream(direction, streamId), _serializer, cancellationToken);
+        var actual = ulong.MaxValue;
+        await foreach (var e in query)
+        {
+            yield return e;
+            ++actual;
+        }
+
+        if (actual == ulong.MaxValue)
+            throw new StreamNotFoundException(streamId);
+        if (actual != expectedRevision)
+            throw new WrongStreamRevisionException(streamId, expectedRevision, actual);
+    }
+
+    public async IAsyncEnumerable<EventEnvelope> Read(
+        Direction direction, 
+        string streamId,
+        ulong startRevision, 
+        ulong expectedRevision,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(streamId);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(startRevision, expectedRevision);
+        
+        var query = ReadStream(direction, streamId)
+            .Where(e => e.StreamPos >= (int)startRevision);
+        
+        var enumerable = _context.ReadEvents(query, _serializer, cancellationToken);
+        var count = startRevision;
+        await foreach (var e in enumerable)
+        {
+            yield return e;
+            ++count;
+        }
+        
+        if (count == startRevision)
+            throw new StreamNotFoundException(streamId);
+        --count;
+        if (count != expectedRevision)
+            throw new WrongStreamRevisionException(streamId, expectedRevision, count);
+    }
+
+    public async IAsyncEnumerable<EventEnvelope> ReadPartial(
+        Direction direction, 
+        string streamId, 
+        ulong count,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(streamId);
+        ArgumentOutOfRangeException.ThrowIfNegative(count);
+        
+        var query = ReadStream(direction, streamId).Take((int)count);
+        var enumerable = _context.ReadEvents(query, _serializer, cancellationToken);
+        var read = 0ul;
+        await foreach (var e in enumerable)
+        {
+            yield return e;
+            ++read;
+        }
+
+        if (read == 0)
+            throw new StreamNotFoundException(streamId);
+        if (read != count)
+            throw new WrongStreamRevisionException(streamId, count - 1, read - 1);
+    }
+
+    public async IAsyncEnumerable<EventEnvelope> ReadSlice(
+        string streamId, 
+        ulong startRevision, 
+        ulong endRevision,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(streamId);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(startRevision, endRevision);
+
+        var query = ReadStream(Direction.Forwards, streamId)
+            .Where(e => e.StreamPos == 0 || (e.StreamPos >= (int)startRevision && e.StreamPos <= (int)endRevision));
+        var enumerable = _context.ReadEvents(query, _serializer, cancellationToken);
+        
+        var exists = false;
+        ulong? actual = null;
+        await foreach (var e in enumerable)
+        {
+            exists = true;
+            if (e.StreamPosition == 0 && startRevision != 0) continue;
+            yield return e;
+            actual = e.StreamPosition;
+        }
+        
+        if (!exists)
+            throw new StreamNotFoundException(streamId);
+
+        //Stream does exist, ensure we read to the end
+        actual ??= await GetRevision(streamId, cancellationToken);
+        if (actual.Value != endRevision)
+            throw new WrongStreamRevisionException(streamId, endRevision, actual.Value);
+    }
+
+    public IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId, ulong startRevision, CancellationToken cancellationToken)
+    {
+        throw new NotImplementedException();
+    }
+    
+    #endregion
+
+    public IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(Direction direction, IEnumerable<string> streams, CancellationToken cancellationToken)
     {
         throw new NotImplementedException();
     }
 
-    public IAsyncEnumerable<EventEnvelope> Read(Direction direction, string streamId, ulong startRevision, ulong expectedRevision,
-        CancellationToken cancellationToken = default)
+    public IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(Direction direction, IAsyncEnumerable<string> streams, CancellationToken cancellationToken)
     {
         throw new NotImplementedException();
     }
 
-    public IAsyncEnumerable<EventEnvelope> ReadPartial(Direction direction, string streamId, ulong count,
-        CancellationToken cancellationToken = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId, ulong startRevision, ulong endRevision,
-        CancellationToken cancellationToken = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId, ulong startRevision, CancellationToken cancellationToken = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(Direction direction, IEnumerable<string> streams, CancellationToken cancellationToken = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(Direction direction, IAsyncEnumerable<string> streams, CancellationToken cancellationToken = default)
-    {
-        throw new NotImplementedException();
-    }
-
-    public IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction, Type[] eventTypes, CancellationToken cancellationToken = default)
+    public IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction, Type[] eventTypes, CancellationToken cancellationToken)
     {
         throw new NotImplementedException();
     }
 
     public IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction, Type[] eventTypes, ulong maxCount,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
         throw new NotImplementedException();
     }

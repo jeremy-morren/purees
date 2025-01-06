@@ -8,9 +8,12 @@ namespace PureES.EventStore.EFCore;
 
 internal class EventStoreDbContext : DbContext
 {
+    private readonly DbContextOptions _options;
+
     public EventStoreDbContext(DbContextOptions options)
         : base(options)
     {
+        _options = options;
     }
     
     #region Provider
@@ -40,8 +43,9 @@ internal class EventStoreDbContext : DbContext
     
     public async Task<List<EventStoreEvent>> WriteAndSaveChanges(List<EventStoreEvent> events, CancellationToken ct)
     {
-        Set<EventStoreEvent>().AddRange(events);
-        await SaveChangesAsync(ct);
+        await using var context = new EventStoreDbContext(_options);
+        context.Set<EventStoreEvent>().AddRange(events);
+        await context.SaveChangesAsync(ct);
         return events;
     }
 

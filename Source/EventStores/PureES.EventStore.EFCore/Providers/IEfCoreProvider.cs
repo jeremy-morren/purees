@@ -27,5 +27,5 @@ internal interface IEfCoreProvider
     /// <summary>
     /// Returns true if the exception indicates that the entity already exists
     /// </summary>
-    bool IsAlreadyExistsException(DbException e);
+    bool IsUniqueConstraintFailedException(DbException e);
 }

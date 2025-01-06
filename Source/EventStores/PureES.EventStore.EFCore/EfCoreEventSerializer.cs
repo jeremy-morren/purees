@@ -15,7 +15,7 @@ internal class EfCoreEventSerializer
         _metadataType = options.Value.MetadataType;
         _map = map;
     }
-
+    
     public EventStoreEvent Serialize(string streamId, int streamPos, UncommittedEvent @event)
     {
         return new EventStoreEvent()

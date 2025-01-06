@@ -72,9 +72,9 @@ internal class SqliteProvider(EventStoreDbContext context) : IEfCoreProvider
         return DateTime.ParseExact(s, "O", null, DateTimeStyles.RoundtripKind);
     }
 
-    public bool IsAlreadyExistsException(DbException e)
+    public bool IsUniqueConstraintFailedException(DbException e)
     {
-        throw new NotImplementedException();
+        return e.Source == "Microsoft.Data.Sqlite" && ((dynamic)e).SqliteExtendedErrorCode == 1555;
     }
     
     private class JsonElementConverter : ValueConverter<JsonElement, string>
