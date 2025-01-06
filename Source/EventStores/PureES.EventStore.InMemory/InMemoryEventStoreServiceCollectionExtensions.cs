@@ -1,7 +1,6 @@
 ﻿using JetBrains.Annotations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Internal;
 using PureES.EventStore.InMemory.Subscription;
 
 namespace PureES.EventStore.InMemory;

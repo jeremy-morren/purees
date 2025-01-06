@@ -2,7 +2,6 @@
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Internal;
 using PureES.EventStore.InMemory.Subscription;
 
 // ReSharper disable MemberCanBeProtected.Global
