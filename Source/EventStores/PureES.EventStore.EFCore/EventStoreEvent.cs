@@ -1,11 +1,12 @@
-﻿using System.Text.Json;
+﻿using System.Collections.Immutable;
+using System.Text.Json;
 
 namespace PureES.EventStore.EFCore;
 
 /// <summary>
 /// An event stored in the event store
 /// </summary>
-internal class EventStoreEvent
+internal record EventStoreEvent
 {
     /// <summary>
     /// The stream id of the event
@@ -25,7 +26,7 @@ internal class EventStoreEvent
     /// <summary>
     /// The event type of the event (full hierarchy)
     /// </summary>
-    public required List<string> EventTypes { get; init; }
+    public required ImmutableArray<string> EventTypes { get; init; }
 
     /// <summary>
     /// The concrete event type (last part)

@@ -26,7 +26,7 @@ internal class MartenEventSerializer
 #pragma warning restore CS0618 // Type or member is obsolete
             };
         }
-        if (martenEvent.EventTypes.Count == 0)
+        if (martenEvent.EventTypes.Length == 0)
             throw new InvalidOperationException($"Invalid event record {martenEvent.Id}");
         
         var metadata = Deserialize(martenEvent.Metadata, _options.MetadataType);

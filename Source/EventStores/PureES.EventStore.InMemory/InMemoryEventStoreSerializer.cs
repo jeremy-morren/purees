@@ -18,12 +18,12 @@ internal class InMemoryEventStoreSerializer
     public EventEnvelope Deserialize(EventRecord record)
     {
         ArgumentNullException.ThrowIfNull(record);
-        if (record.EventType.Count == 0 || record.Timestamp.Kind != DateTimeKind.Utc)
+        if (record.EventTypes.Length == 0 || record.Timestamp.Kind != DateTimeKind.Utc)
             throw new InvalidOperationException($"Invalid event record {record.StreamId}/{record.StreamPos}");
         
         var metadata = record.Metadata?.Deserialize(_options.MetadataType, _options.JsonSerializerOptions);
         
-        var eventType = _typeMap.GetCLRType(record.EventType[^1]);
+        var eventType = _typeMap.GetCLRType(record.EventTypes[^1]);
         var @event = record.Event.Deserialize(eventType, _options.JsonSerializerOptions) 
                      ?? throw new InvalidOperationException($"Event data is null for event {record.StreamId}/{record.StreamPos}");
         
@@ -48,7 +48,7 @@ internal class InMemoryEventStoreSerializer
         {
             StreamId = streamId,
             Timestamp = created.UtcDateTime,
-            EventType = _typeMap.GetTypeNames(record.Event.GetType()),
+            EventTypes = _typeMap.GetTypeNames(record.Event.GetType()),
             Event = @event,
             Metadata = metadata
         };
@@ -66,7 +66,7 @@ internal class InMemoryEventStoreSerializer
         {
             StreamId = envelope.StreamId,
             Timestamp = envelope.Timestamp,
-            EventType = _typeMap.GetTypeNames(envelope.Event.GetType()),
+            EventTypes = _typeMap.GetTypeNames(envelope.Event.GetType()),
             Event = @event,
             Metadata = metadata,
             StreamPos = (int)envelope.StreamPosition

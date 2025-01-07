@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Collections.Immutable;
+using System.Text.Json;
 
 namespace PureES.EventStore.InMemory;
 
@@ -22,7 +23,7 @@ internal record EventRecord
     /// <summary>
     /// Event type (full inheritance hierarchy)
     /// </summary>
-    public required List<string> EventType { get; init; }
+    public required ImmutableArray<string> EventTypes { get; init; }
     
     /// <summary>
     /// Event data
@@ -37,5 +38,5 @@ internal record EventRecord
     /// <summary>
     /// Whether the event type contains any of the provided types
     /// </summary>
-    public bool TypeContains(HashSet<string> types) => types.Overlaps(EventType);
+    public bool TypeContains(HashSet<string> types) => types.Overlaps(EventTypes);
 }

@@ -34,6 +34,34 @@ public class EfCoreSqliteEventStoreTests : EventStoreTestsBase
 
         var query = context.QueryEvents().ToList();
         query.Should().HaveSameCount(inserted);
+        query.ShouldAllBe(q => q.EventTypes.Length == 1);
+    }
+
+    [Fact]
+    public async Task EventsTypesShouldBeWritten()
+    {
+        using var connection = new SqliteConnection("Data Source=:memory:");
+        connection.Open();
+        
+        var options = new DbContextOptionsBuilder<EventStoreDbContext>()
+            .UseSqlite(connection)
+            .Options;
+        
+        await using var context = new EventStoreDbContext(options);
+        context.Database.EnsureCreated();
+
+        var events = Enumerable.Range(0, 10)
+            .Select(i => CreateEvent($"test-{i / 2}", i % 2))
+            .ToList();
+
+        var inserted = await context.WriteEvents(events, default);
+        inserted.Should().HaveCount(10);
+        inserted.ShouldAllBe(i => i.EventTypes.Length == 1);
+        inserted.ShouldAllBe(i => i.Timestamp != default);
+        inserted.GroupBy(i => i.Timestamp).Should().HaveCount(1, "All timestamps should be the same");
+
+        var types = context.Database.SqlQueryRaw<string>("select EventTypes from EventStoreEvent").ToList();
+        types.Should().AllSatisfy(t => JsonSerializer.Deserialize<string[]>(t).ShouldHaveSingleItem());
     }
 
     private static EventStoreEvent CreateEvent(string stream, int position) => new()

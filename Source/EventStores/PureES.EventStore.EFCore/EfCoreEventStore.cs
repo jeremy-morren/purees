@@ -1,4 +1,5 @@
 ﻿using System.Data.Common;
+using System.Linq.Async;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices.JavaScript;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +21,9 @@ internal class EfCoreEventStore<TContext> : IEventStore
         _serializer = serializer;
         _eventTypeMap = eventTypeMap;
     }
+    
+    private IAsyncEnumerable<EventEnvelope> ReadEvents(IQueryable<EventStoreEvent> queryable, CancellationToken ct) =>
+        _context.ReadEvents(queryable, _serializer, ct);
 
     public Task<bool> Exists(string streamId, CancellationToken cancellationToken)
     {
@@ -127,13 +131,13 @@ internal class EfCoreEventStore<TContext> : IEventStore
     public IAsyncEnumerable<EventEnvelope> ReadAll(Direction direction, CancellationToken cancellationToken)
     {
         var query = ReadAll(direction);
-        return _context.ReadEvents(query, _serializer, cancellationToken);
+        return ReadEvents(query, cancellationToken);
     }
 
     public IAsyncEnumerable<EventEnvelope> ReadAll(Direction direction, ulong maxCount, CancellationToken cancellationToken)
     {
         var query = ReadAll(direction).Take((int)maxCount);
-        return _context.ReadEvents(query, _serializer, cancellationToken);
+        return ReadEvents(query, cancellationToken);
     }
     
     #endregion
@@ -154,12 +158,20 @@ internal class EfCoreEventStore<TContext> : IEventStore
         };
     }
     
-    public IAsyncEnumerable<EventEnvelope> Read(Direction direction, string streamId, CancellationToken cancellationToken)
+    public async IAsyncEnumerable<EventEnvelope> Read(Direction direction, string streamId, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(streamId);
         
         var query = ReadStream(direction, streamId);
-        return _context.ReadEvents(query, _serializer, cancellationToken);
+        
+        var exists = false;
+        await foreach (var e in ReadEvents(query, cancellationToken))
+        {
+            exists = true;
+            yield return e;
+        }
+        if (!exists)
+            throw new StreamNotFoundException(streamId);
     }
 
     public async IAsyncEnumerable<EventEnvelope> Read(
@@ -170,9 +182,10 @@ internal class EfCoreEventStore<TContext> : IEventStore
     {
         ArgumentNullException.ThrowIfNull(streamId);
         
-        var query = _context.ReadEvents(ReadStream(direction, streamId), _serializer, cancellationToken);
+        var query = ReadStream(direction, streamId);
+        
         var actual = ulong.MaxValue;
-        await foreach (var e in query)
+        await foreach (var e in ReadEvents(query, cancellationToken))
         {
             yield return e;
             ++actual;
@@ -197,9 +210,8 @@ internal class EfCoreEventStore<TContext> : IEventStore
         var query = ReadStream(direction, streamId)
             .Where(e => e.StreamPos >= (int)startRevision);
         
-        var enumerable = _context.ReadEvents(query, _serializer, cancellationToken);
         var count = startRevision;
-        await foreach (var e in enumerable)
+        await foreach (var e in ReadEvents(query, cancellationToken))
         {
             yield return e;
             ++count;
@@ -219,12 +231,11 @@ internal class EfCoreEventStore<TContext> : IEventStore
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(streamId);
-        ArgumentOutOfRangeException.ThrowIfNegative(count);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
         
         var query = ReadStream(direction, streamId).Take((int)count);
-        var enumerable = _context.ReadEvents(query, _serializer, cancellationToken);
         var read = 0ul;
-        await foreach (var e in enumerable)
+        await foreach (var e in ReadEvents(query, cancellationToken))
         {
             yield return e;
             ++read;
@@ -247,11 +258,10 @@ internal class EfCoreEventStore<TContext> : IEventStore
 
         var query = ReadStream(Direction.Forwards, streamId)
             .Where(e => e.StreamPos == 0 || (e.StreamPos >= (int)startRevision && e.StreamPos <= (int)endRevision));
-        var enumerable = _context.ReadEvents(query, _serializer, cancellationToken);
         
         var exists = false;
         ulong? actual = null;
-        await foreach (var e in enumerable)
+        await foreach (var e in ReadEvents(query, cancellationToken))
         {
             exists = true;
             if (e.StreamPosition == 0 && startRevision != 0) continue;
@@ -277,11 +287,10 @@ internal class EfCoreEventStore<TContext> : IEventStore
 
         var query = ReadStream(Direction.Forwards, streamId)
             .Where(e => e.StreamPos == 0 || e.StreamPos >= (int)startRevision);
-        var enumerable = _context.ReadEvents(query, _serializer, cancellationToken);
         
         var exists = false;
         ulong? actual = null;
-        await foreach (var e in enumerable)
+        await foreach (var e in ReadEvents(query, cancellationToken))
         {
             exists = true;
             if (e.StreamPosition == 0 && startRevision != 0) continue;
@@ -300,16 +309,45 @@ internal class EfCoreEventStore<TContext> : IEventStore
     }
     
     #endregion
+    
+    #region Read Many
 
-    public IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(Direction direction, IEnumerable<string> streams, CancellationToken cancellationToken)
+    public IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(
+        Direction direction, 
+        IEnumerable<string> streams, 
+        CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        ArgumentNullException.ThrowIfNull(streams);
+
+        var query = _context.Provider.ReadMany(streams.ToList());
+        query = direction switch
+        {
+            Direction.Forwards => query
+                .OrderBy(e => e.StreamId)
+                .ThenBy(e => e.StreamPos),
+
+            Direction.Backwards => query
+                .OrderByDescending(e => e.StreamId)
+                .ThenByDescending(e => e.StreamPos),
+            _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
+        };
+        return ReadEvents(query, cancellationToken)
+            .GroupSequential(e => e.StreamId);
     }
 
-    public IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(Direction direction, IAsyncEnumerable<string> streams, CancellationToken cancellationToken)
+    public async IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(
+        Direction direction, 
+        IAsyncEnumerable<string> streams, 
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        var list = await streams.ToListAsync(cancellationToken);
+        await foreach (var e in ReadMany(direction, list, cancellationToken))
+            yield return e;
     }
+    
+    #endregion
+    
+    #region Read by event type
 
     public IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction, Type[] eventTypes, CancellationToken cancellationToken)
     {
@@ -321,22 +359,22 @@ internal class EfCoreEventStore<TContext> : IEventStore
     {
         throw new NotImplementedException();
     }
+    
+    #endregion
 
-    private static Task<ulong> Count(IQueryable<EventStoreEvent> queryable, CancellationToken ct)
+    public async Task<ulong> Count(CancellationToken cancellationToken)
     {
-        return queryable.LongCountAsync(ct)
-            .ContinueWith(t => (ulong)t.Result, TaskContinuationOptions.OnlyOnRanToCompletion);
+        return (ulong)await _context.QueryEvents().LongCountAsync(cancellationToken);
     }
 
-    public Task<ulong> Count(CancellationToken cancellationToken)
+    public async Task<ulong> CountByEventType(Type[] eventTypes, CancellationToken cancellationToken)
     {
-        return Count(_context.QueryEvents(), cancellationToken);
-    }
+        var types = eventTypes
+            .Select(t => _eventTypeMap.GetTypeNames(t)[^1])
+            .Distinct()
+            .ToList();
 
-    public Task<ulong> CountByEventType(Type[] eventTypes, CancellationToken cancellationToken)
-    {
-        var types = eventTypes.SelectMany(_eventTypeMap.GetTypeNames).Distinct().ToList();
-        var query = _context.QueryEvents().Where(e => e.EventTypes.Any(t => types.Contains(t)));
-        return Count(query, cancellationToken);
+        var query = _context.Provider.CountByEventType(types);
+        return (ulong)await query.SingleAsync(cancellationToken);
     }
 }

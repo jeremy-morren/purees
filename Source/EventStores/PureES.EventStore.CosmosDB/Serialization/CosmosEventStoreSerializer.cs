@@ -16,12 +16,12 @@ internal class CosmosEventStoreSerializer
 
     public EventEnvelope Deserialize(CosmosEvent cosmosEvent)
     {
-        if (cosmosEvent.EventType.Count == 0 || cosmosEvent.Created.Kind != DateTimeKind.Utc)
+        if (cosmosEvent.EventTypes.Length == 0 || cosmosEvent.Created.Kind != DateTimeKind.Utc)
             throw new InvalidOperationException($"Invalid event record {cosmosEvent.Id}");
         
         var metadata = cosmosEvent.Metadata?.Deserialize(_options.MetadataType, _options.JsonSerializerOptions);
         
-        var eventType = _typeMap.GetCLRType(cosmosEvent.EventType[^1]);
+        var eventType = _typeMap.GetCLRType(cosmosEvent.EventTypes[^1]);
         var @event = cosmosEvent.Event?.Deserialize(eventType, _options.JsonSerializerOptions) 
                      ?? throw new InvalidOperationException($"Event data is null for event {cosmosEvent.Id}");
         return new EventEnvelope(cosmosEvent.EventStreamId,

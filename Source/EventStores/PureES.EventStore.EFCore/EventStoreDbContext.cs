@@ -78,8 +78,6 @@ internal class EventStoreDbContext : DbContext
             entity.Property(e => e.StreamPos)
                 .IsRequired()
                 .ValueGeneratedNever();
-            
-            entity.OwnsOne(e => e.EventTypes).ToJson();
 
             entity.Property(e => e.EventType)
                 .IsRequired()

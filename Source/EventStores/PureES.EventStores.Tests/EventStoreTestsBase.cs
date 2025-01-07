@@ -550,9 +550,9 @@ public abstract class EventStoreTestsBase
         await store.Create(stream, events, CancellationToken);
         await store.Create(streamDerived, eventsDerived, CancellationToken);
         
+        (await store.CountByEventType([typeof(EventDerived)], CancellationToken)).ShouldBe((ulong)count);
         (await store.CountByEventType([typeof(Event)], CancellationToken))
             .ShouldBe((ulong)count  * 2, "Count events should include derived types");
-        (await store.CountByEventType([typeof(EventDerived)], CancellationToken)).ShouldBe((ulong)count);
         (await store.CountByEventType([typeof(Event), typeof(EventDerived)], CancellationToken)).ShouldBe((ulong)count * 2);
     }
 

@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Collections.Immutable;
+using System.Text.Json;
 using Microsoft.Extensions.Options;
 
 namespace PureES.EventStore.EFCore;
@@ -23,7 +24,7 @@ internal class EfCoreEventSerializer
             StreamId = streamId,
             StreamPos = streamPos,
             // Clone the list to avoid issues with EF Core
-            EventTypes = _map.GetTypeNames(@event.Event.GetType()).ToList(),
+            EventTypes = _map.GetTypeNames(@event.Event.GetType()),
             Data = JsonSerializer.SerializeToElement(@event.Event, _jsonOptions),
             Metadata = @event.Metadata != null 
                 ? JsonSerializer.SerializeToElement(@event.Metadata, _jsonOptions) 

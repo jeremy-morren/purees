@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Collections.Immutable;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using JetBrains.Annotations;
 
@@ -12,7 +13,7 @@ namespace PureES.EventStore.Marten;
 public record MartenEvent(
     string StreamId, 
     int StreamPosition,
-    List<string> EventTypes,
+    ImmutableArray<string> EventTypes,
     JsonElement? Event,
     JsonElement? Metadata)
 {

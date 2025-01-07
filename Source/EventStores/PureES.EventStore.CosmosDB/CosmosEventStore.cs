@@ -763,6 +763,9 @@ internal class CosmosEventStore : IEventStore
     private HashSet<string> GetTypeNames(Type[] eventTypes)
     {
         ArgumentNullException.ThrowIfNull(eventTypes);
-        return eventTypes.SelectMany(_typeMap.GetTypeNames).Distinct().ToHashSet();
+        return eventTypes
+            .SelectMany(t => _typeMap.GetTypeNames(t))
+            .Distinct()
+            .ToHashSet();
     }
 }

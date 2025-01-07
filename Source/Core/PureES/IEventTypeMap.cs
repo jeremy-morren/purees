@@ -1,5 +1,7 @@
 ﻿// ReSharper disable InconsistentNaming
 
+using System.Collections.Immutable;
+
 namespace PureES;
 
 [PublicAPI]
@@ -10,11 +12,8 @@ public interface IEventTypeMap
     ///     <paramref name="eventType" /> for persistence
     /// </summary>
     /// <param name="eventType">The event type</param>
-    /// <returns>Type names with full hierarchy (base type first)</returns>
-    /// <remarks>
-    /// Return type is List for performance reasons but SHOULD NOT be modified. 
-    /// </remarks>
-    List<string> GetTypeNames(Type eventType);
+    /// <returns>Type names with full hierarchy (base type first, actual type last)</returns>
+    ImmutableArray<string> GetTypeNames(Type eventType);
 
     /// <summary>
     ///     Gets a CLR type from the provided <paramref name="typeName" />
