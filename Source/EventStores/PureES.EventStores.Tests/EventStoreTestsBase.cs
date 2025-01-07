@@ -135,6 +135,37 @@ public abstract class EventStoreTestsBase
         await Assert.AllAsync(Enumerable.Range(15, 5), async i =>
             (await store.Exists(i.ToString(), CancellationToken)).ShouldBeFalse());
     }
+    
+    [Fact]
+    public async Task Submit_Transaction_With_Single_Error_Should_Throw_That_Error()
+    {
+        await using var harness = await CreateHarness();
+        var store = harness.EventStore;
+
+        const string streamId = nameof(Submit_Transaction_With_Single_Error_Should_Throw_That_Error);
+        await store.Create(streamId, NewEvent(), CancellationToken);
+        
+        var transaction = new EventsTransaction();
+        transaction.Add(streamId, null, NewEvent());
+        
+        var exists = await Assert.ThrowsAsync<StreamAlreadyExistsException>(() =>
+            store.SubmitTransaction(transaction.ToUncommittedTransaction(), CancellationToken));
+        exists.StreamId.ShouldBe(streamId);
+        
+        transaction.Clear();
+        transaction.Add(streamId, 1, NewEvent());
+        var wrongRevision = await Assert.ThrowsAsync<WrongStreamRevisionException>(() =>
+            store.SubmitTransaction(transaction.ToUncommittedTransaction(), CancellationToken));
+        wrongRevision.StreamId.ShouldBe(streamId);
+        wrongRevision.ExpectedRevision.ShouldBe(1ul);
+        wrongRevision.ActualRevision.ShouldBe(0ul);
+        
+        transaction.Clear();
+        transaction.Add("NotFound", 2, NewEvent());
+        var notFound = await Assert.ThrowsAsync<StreamNotFoundException>(() =>
+            store.SubmitTransaction(transaction.ToUncommittedTransaction(), CancellationToken));
+        notFound.StreamId.ShouldBe("NotFound");
+    }
 
     [Fact]
     public async Task Create_Single_Existing_Should_Throw()

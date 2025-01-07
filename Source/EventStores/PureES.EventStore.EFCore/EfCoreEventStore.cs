@@ -121,9 +121,64 @@ internal class EfCoreEventStore<TContext> : IEventStore
         return Append(streamId, [@event], cancellationToken);
     }
 
-    public Task SubmitTransaction(IReadOnlyDictionary<string, UncommittedEventsList> transaction, CancellationToken cancellationToken)
+    public async Task SubmitTransaction(IReadOnlyDictionary<string, UncommittedEventsList> transaction, CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        ArgumentNullException.ThrowIfNull(transaction);
+        
+        //Get actual revisions for all streams
+        var revisions = await _context.QueryEvents()
+            .Where(e => transaction.Keys.Contains(e.StreamId))
+            .GroupBy(e => e.StreamId)
+            .Select(g => new
+            {
+                StreamId = g.Key,
+                Revision = g.Max(e => e.StreamPos)
+            })
+            .ToDictionaryAsync(g => g.StreamId, g => g.Revision, cancellationToken);
+        
+        //Check if all streams are at the expected revision
+        var list = new List<EventStoreEvent>();
+        var exceptions = new List<Exception>();
+        foreach (var (streamId, stream) in transaction)
+        {
+            if (revisions.TryGetValue(streamId, out var actual))
+            {
+                //Stream exists, check revision matches
+                if (stream.ExpectedRevision == null)
+                    exceptions.Add(new StreamAlreadyExistsException(streamId));
+                else if ((ulong)actual != stream.ExpectedRevision.Value)
+                    exceptions.Add(
+                        new WrongStreamRevisionException(streamId, stream.ExpectedRevision.Value, (ulong)actual));
+                else
+                    //Stream exists and revision matches, append events
+                    list.AddRange(stream.Events.Select(x => _serializer.Serialize(streamId, ++actual, x)));
+            }
+            else
+            {
+                //Stream does not exist, check revision matches
+                if (stream.ExpectedRevision != null)
+                {
+                    exceptions.Add(new StreamNotFoundException(streamId));
+                }
+                else
+                {
+                    //Stream does not exist and revision matches, create stream
+                    var r = 0;
+                    list.AddRange(stream.Events.Select(x => _serializer.Serialize(streamId, r++, x)));
+                }
+            }
+        }
+
+        switch (exceptions.Count)
+        {
+            case 1:
+                throw exceptions[0];
+            case > 1:
+                throw new EventsTransactionException(exceptions);
+        }
+        
+        //No exceptions, write events
+        await _context.WriteEvents(list, cancellationToken);
     }
     
     #region Read All
