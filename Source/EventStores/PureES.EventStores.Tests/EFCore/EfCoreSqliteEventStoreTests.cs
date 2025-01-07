@@ -3,12 +3,14 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using PureES.EventStore.EFCore;
+using PureES.EventStore.EFCore.Models;
+
 // ReSharper disable MethodHasAsyncOverload
 // ReSharper disable UseAwaitUsing
 
 namespace PureES.EventStores.Tests.EFCore;
 
-public class EfCoreSqliteEventStoreTests : EventStoreTestsBase
+public class EfCoreSqliteEventStoreTests(ITestOutputHelper output) : EventStoreTestsBase
 {
     [Fact]
     public async Task EventsShouldSetTimestamp()
@@ -26,7 +28,7 @@ public class EfCoreSqliteEventStoreTests : EventStoreTestsBase
         var events = Enumerable.Range(0, 10)
             .Select(i => CreateEvent($"test-{i / 2}", i % 2))
             .ToList();
-
+        
         var inserted = await context.WriteEvents(events, default);
         inserted.Should().HaveCount(10);
         inserted.ShouldAllBe(i => i.Timestamp != default);
@@ -34,7 +36,7 @@ public class EfCoreSqliteEventStoreTests : EventStoreTestsBase
 
         var query = context.QueryEvents().ToList();
         query.Should().HaveSameCount(inserted);
-        query.ShouldAllBe(q => q.EventTypes.Length == 1);
+        query.Should().AllSatisfy(e => e.EventTypes.ShouldHaveSingleItem().ShouldNotBeNull());
     }
 
     [Fact]
@@ -68,7 +70,7 @@ public class EfCoreSqliteEventStoreTests : EventStoreTestsBase
     {
         StreamId = stream,
         StreamPos = position,
-        EventTypes = ["TestEvent"],
+        EventTypes = ["TestEvent" ],
         Data = JsonSerializer.SerializeToElement(new Dictionary<string, string>()),
         Metadata = JsonSerializer.SerializeToElement(new Dictionary<string, string>()),
     };

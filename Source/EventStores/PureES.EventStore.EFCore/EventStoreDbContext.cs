@@ -1,7 +1,6 @@
-﻿using System.Text.Json;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using PureES.EventStore.EFCore.Models;
 using PureES.EventStore.EFCore.Providers;
 
 namespace PureES.EventStore.EFCore;
@@ -52,15 +51,8 @@ internal class EventStoreDbContext : DbContext
     /// <summary>
     /// Writes the events and returns the events written (with timestamps set)
     /// </summary>
-    public Task<List<EventStoreEvent>> WriteEvents(IEnumerable<EventStoreEvent> events, CancellationToken ct)
-    {
-        return Provider.WriteEvents(events, ct);
-    }
-    
-    public IAsyncEnumerable<EventEnvelope> ReadEvents(IQueryable<EventStoreEvent> query, EfCoreEventSerializer serializer, CancellationToken ct)
-    {
-        return Provider.ReadEvents(query, serializer, ct);
-    }
+    public Task<List<EventStoreEvent>> WriteEvents(IEnumerable<EventStoreEvent> events, CancellationToken ct) => 
+        Provider.WriteEvents(events, ct);
 
     public IQueryable<EventStoreEvent> QueryEvents() => Set<EventStoreEvent>().AsNoTracking();
 

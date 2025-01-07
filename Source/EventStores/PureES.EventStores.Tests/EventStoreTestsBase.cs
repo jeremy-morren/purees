@@ -482,7 +482,7 @@ public abstract class EventStoreTestsBase
             await store.Create($"{i}-derived-{nameof(ReadByEventType)}", eventsDerived, CancellationToken);
         }
 
-        var forwards =await store.ReadByEventType(Direction.Forwards, [typeof(Event)], CancellationToken).ToListAsync();
+        var forwards = await store.ReadByEventType(Direction.Forwards, [typeof(Event)], CancellationToken).ToListAsync();
         
         forwards.ShouldNotBeEmpty();
         forwards.Should().HaveCount(count * count * 2, "Read by event type should include derived types");

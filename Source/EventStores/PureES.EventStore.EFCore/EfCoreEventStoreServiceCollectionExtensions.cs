@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using PureES.EventStore.EFCore.Models;
 
 namespace PureES.EventStore.EFCore;
 

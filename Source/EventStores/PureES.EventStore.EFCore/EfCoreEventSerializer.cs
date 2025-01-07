@@ -1,6 +1,7 @@
 ﻿using System.Collections.Immutable;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
+using PureES.EventStore.EFCore.Models;
 
 namespace PureES.EventStore.EFCore;
 

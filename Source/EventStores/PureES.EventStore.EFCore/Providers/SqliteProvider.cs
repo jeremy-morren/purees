@@ -2,11 +2,13 @@
 using System.Data.Common;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using PureES.EventStore.EFCore.Models;
 
 namespace PureES.EventStore.EFCore.Providers;
 
@@ -20,19 +22,21 @@ internal class SqliteProvider(EventStoreDbContext context) : IEfCoreProvider
         var jsonOpts = JsonSerializerOptions.Default;
 
         builder.Property(e => e.EventTypes)
-            .HasConversion(t => JsonSerializer.Serialize(t, jsonOpts),
-                s => JsonSerializer.Deserialize<ImmutableArray<string>>(s, jsonOpts))
+            .HasConversion(
+                x => JsonSerializer.Serialize(x, jsonOpts),
+                x => JsonSerializer.Deserialize<ImmutableArray<string>>(x, jsonOpts))
             .IsRequired();
 
         builder.Property(e => e.Data)
             .HasConversion(
-                e => JsonSerializer.Serialize(e, jsonOpts),
-                s => JsonSerializer.Deserialize<JsonElement>(s, jsonOpts))
+                x => JsonSerializer.Serialize(x, jsonOpts),
+                x => JsonSerializer.Deserialize<JsonElement>(x, jsonOpts))
             .IsRequired();
         
         builder.Property(e => e.Metadata)
-            .HasConversion(e => e != null ? JsonSerializer.Serialize(e, jsonOpts) : null,
-                s => s != null ? JsonSerializer.Deserialize<JsonElement>(s, jsonOpts) : null);
+            .HasConversion(
+                x => x != null ? JsonSerializer.Serialize(x, jsonOpts) : null,
+                x => x != null ? JsonSerializer.Deserialize<JsonElement>(x, jsonOpts) : null);
     }
 
     public Task<List<EventStoreEvent>> WriteEvents(IEnumerable<EventStoreEvent> events, CancellationToken ct)
@@ -44,71 +48,108 @@ internal class SqliteProvider(EventStoreDbContext context) : IEfCoreProvider
 
         return context.WriteAndSaveChanges(list, ct);
     }
-
-    public async IAsyncEnumerable<EventEnvelope> ReadEvents(
-        IQueryable<EventStoreEvent> query, 
-        EfCoreEventSerializer serializer, 
-        [EnumeratorCancellation] CancellationToken ct)
-    {
-        var q =
-            from x in query
-            select new
-            {
-                x.StreamId,
-                x.StreamPos,
-                x.Timestamp,
-                x.EventType,
-                x.Data,
-                x.Metadata
-            };
-        await using var command = q.CreateDbCommand();
-        await using var reader = await command.ExecuteReaderAsync(ct);
-        
-        while (await reader.ReadAsync(ct))
-        {
-            var streamId = reader.GetString(0);
-            var streamPos = reader.GetInt32(1);
-            var timestamp = UtcDateConverter.Parse(reader.GetString(2));
-            var eventType = reader.GetString(3);
-            var data = reader.GetString(4);
-            var metadata = reader.IsDBNull(5) ? null : reader.GetString(5);
-            yield return new EventEnvelope(streamId, 
-                (ulong)streamPos, 
-                timestamp.UtcDateTime, 
-                serializer.DeserializeEvent(streamId, streamPos, eventType, data),
-                serializer.DeserializeMetadata(streamId, streamPos, metadata));
-        }
-    }
-
+    
     public bool IsUniqueConstraintFailedException(DbException e)
     {
         const int errorCode = 1555; // UNIQUE constraint failed
         return e.GetType().FullName == "Microsoft.Data.Sqlite.SqliteException" 
                && ((dynamic)e).SqliteExtendedErrorCode == errorCode;
     }
+
+    private static IQueryable<object> SelectColumns(IQueryable<EventStoreEvent> query) =>
+        from x in query
+        select new
+        {
+            x.StreamId,
+            x.StreamPos,
+            x.Timestamp,
+            x.EventType,
+            x.Data,
+            x.Metadata
+        };
+
+    public IAsyncEnumerable<EventEnvelope> ReadEvents(
+        IQueryable<EventStoreEvent> queryable,
+        EfCoreEventSerializer serializer,
+        CancellationToken ct)
+    {
+        var command = SelectColumns(queryable).CreateDbCommand();
+        return ReadEvents(command, serializer, ct);
+    }
     
+    public async IAsyncEnumerable<EventEnvelope> ReadEvents(
+        DbCommand command,
+        EfCoreEventSerializer serializer, 
+        [EnumeratorCancellation] CancellationToken ct)
+    {
+        await using (command)
+        {
+            //Columns from SelectColumns
+            await using var reader = await command.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                var streamId = reader.GetString(0);
+                var streamPos = reader.GetInt32(1);
+                var timestamp = UtcDateConverter.Parse(reader.GetString(2));
+                var eventType = reader.GetString(3);
+                var data = reader.GetString(4);
+                var metadata = reader.IsDBNull(5) ? null : reader.GetString(5);
+                yield return new EventEnvelope(streamId, 
+                    (ulong)streamPos, 
+                    timestamp.UtcDateTime, 
+                    serializer.DeserializeEvent(streamId, streamPos, eventType, data),
+                    serializer.DeserializeMetadata(streamId, streamPos, metadata));
+            }
+        }
+    }
+
+
     #region Queryable Helpers
 
     public IQueryable<long> CountByEventType(List<string> eventTypes)
     {
-        var eventEntity = GetEventEntity();
-        var table = eventEntity.GetTableName()!;
-        var property = eventEntity.FindProperty(nameof(EventStoreEvent.EventTypes))!;
-        var column = property.GetColumnName();
-        
-        var sql = $"SELECT COUNT(1) as value FROM [{table}] WHERE EXISTS (SELECT 1 FROM json_each([{column}]) WHERE value IN (select value from json_each(@p0)))";
+        var table = GetEventEntity().GetTableName()!;
+        var sql = $"SELECT COUNT(1) as value FROM \"{table}\" {CreateEventTypeFilter()}";
         return context.Database.SqlQueryRaw<long>(sql, JsonSerializer.Serialize(eventTypes));
     }
-    
-    public IQueryable<EventStoreEvent> ReadMany(List<string> streamIds)
+
+    public DbCommand FilterByEventType(IQueryable<EventStoreEvent> query, List<string> eventTypes, ulong? maxCount)
+    {
+        var command = SelectColumns(query).CreateDbCommand();
+        
+        //Insert the filter before order by
+        var index = command.CommandText.IndexOf("ORDER BY", StringComparison.OrdinalIgnoreCase);
+        var sb = new StringBuilder();
+        sb.AppendLine(command.CommandText[..index]);
+        sb.AppendLine(CreateEventTypeFilter());
+        sb.AppendLine(command.CommandText[index..]);
+
+        if (maxCount.HasValue)
+        {
+            sb.AppendLine("LIMIT @p1");
+            AddParameter("@p1", maxCount.Value);
+        }
+
+        command.CommandText = sb.ToString();
+        
+        AddParameter("@p0", JsonSerializer.Serialize(eventTypes));
+
+        return command;
+        
+        void AddParameter(string name, object value)
+        {
+            var p = command.CreateParameter();
+            p.ParameterName = name;
+            p.Value = value;
+            command.Parameters.Add(p);
+        }
+    }
+
+    private string CreateEventTypeFilter()
     {
         var eventEntity = GetEventEntity();
-        var table = eventEntity.GetTableName()!;
-        var streamId = eventEntity.FindProperty(nameof(EventStoreEvent.StreamId))!;
-        var column = streamId.GetColumnName();
-        
-        var sql = $"SELECT * FROM [{table}] t INNER JOIN (select value from json_each(@p0)) as ids ON t.[{column}] = ids.value";
-        return context.Set<EventStoreEvent>().FromSqlRaw(sql, JsonSerializer.Serialize(streamIds));
+        var column = eventEntity.FindProperty(nameof(EventStoreEvent.EventTypes))!.GetColumnName();
+        return $" WHERE EXISTS (SELECT 1 FROM json_each(\"{column}\") WHERE value IN (select value from json_each(@p0)))";
     }
 
     private IEntityType GetEventEntity() => context.Model.FindEntityType(typeof(EventStoreEvent))!;

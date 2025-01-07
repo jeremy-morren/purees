@@ -1,8 +1,8 @@
 ﻿using System.Data.Common;
 using System.Linq.Async;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices.JavaScript;
 using Microsoft.EntityFrameworkCore;
+using PureES.EventStore.EFCore.Models;
 
 namespace PureES.EventStore.EFCore;
 
@@ -22,8 +22,19 @@ internal class EfCoreEventStore<TContext> : IEventStore
         _eventTypeMap = eventTypeMap;
     }
     
-    private IAsyncEnumerable<EventEnvelope> ReadEvents(IQueryable<EventStoreEvent> queryable, CancellationToken ct) =>
-        _context.ReadEvents(queryable, _serializer, ct);
+    #region Provider
+    
+    private IAsyncEnumerable<EventEnvelope> ReadEvents(IQueryable<EventStoreEvent> queryable, CancellationToken ct)
+    {
+        return _context.Provider.ReadEvents(queryable, _serializer, ct);
+    }
+    
+    private IAsyncEnumerable<EventEnvelope> ReadEvents(DbCommand command, CancellationToken ct)
+    {
+        return _context.Provider.ReadEvents(command, _serializer, ct);
+    }
+    
+    #endregion
 
     public Task<bool> Exists(string streamId, CancellationToken cancellationToken)
     {
@@ -319,7 +330,9 @@ internal class EfCoreEventStore<TContext> : IEventStore
     {
         ArgumentNullException.ThrowIfNull(streams);
 
-        var query = _context.Provider.ReadMany(streams.ToList());
+        var query = _context.QueryEvents()
+            .Where(e => streams.Contains(e.StreamId));
+        
         query = direction switch
         {
             Direction.Forwards => query
@@ -349,15 +362,43 @@ internal class EfCoreEventStore<TContext> : IEventStore
     
     #region Read by event type
 
-    public IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction, Type[] eventTypes, CancellationToken cancellationToken)
-    {
-        throw new NotImplementedException();
-    }
-
-    public IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction, Type[] eventTypes, ulong maxCount,
+    public IAsyncEnumerable<EventEnvelope> ReadByEventType(
+        Direction direction, 
+        Type[] eventTypes, 
         CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
+        return ReadByEventTypeInternal(direction, eventTypes, null, cancellationToken);
+    }
+
+    public IAsyncEnumerable<EventEnvelope> ReadByEventType(
+        Direction direction, 
+        Type[] eventTypes, 
+        ulong maxCount,
+        CancellationToken cancellationToken)
+    {
+        return ReadByEventTypeInternal(direction, eventTypes, maxCount, cancellationToken);
+    }
+    
+    private IAsyncEnumerable<EventEnvelope> ReadByEventTypeInternal(
+        Direction direction, 
+        Type[] eventTypes, 
+        ulong? maxCount,
+        CancellationToken cancellationToken)
+    {
+        var query = _context.QueryEvents();
+        query = direction switch
+        {
+            Direction.Forwards => query.OrderBy(e => e.Timestamp)
+                .ThenBy(e => e.StreamId)
+                .ThenBy(e => e.StreamPos),
+            Direction.Backwards => query.OrderByDescending(e => e.Timestamp)
+                .ThenByDescending(e => e.StreamId)
+                .ThenByDescending(e => e.StreamPos),
+            _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
+        };
+        
+        var command = _context.Provider.FilterByEventType(query, GetEventTypeNames(eventTypes), maxCount);
+        return ReadEvents(command, cancellationToken);
     }
     
     #endregion
@@ -369,12 +410,13 @@ internal class EfCoreEventStore<TContext> : IEventStore
 
     public async Task<ulong> CountByEventType(Type[] eventTypes, CancellationToken cancellationToken)
     {
-        var types = eventTypes
+        var query = _context.Provider.CountByEventType(GetEventTypeNames(eventTypes));
+        return (ulong)await query.SingleAsync(cancellationToken);
+    }
+    
+    private List<string> GetEventTypeNames(Type[] eventTypes) =>
+        eventTypes
             .Select(t => _eventTypeMap.GetTypeNames(t)[^1])
             .Distinct()
             .ToList();
-
-        var query = _context.Provider.CountByEventType(types);
-        return (ulong)await query.SingleAsync(cancellationToken);
-    }
 }

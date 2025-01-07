@@ -1,7 +1,7 @@
 ﻿using System.Collections.Immutable;
 using System.Text.Json;
 
-namespace PureES.EventStore.EFCore;
+namespace PureES.EventStore.EFCore.Models;
 
 /// <summary>
 /// An event stored in the event store
