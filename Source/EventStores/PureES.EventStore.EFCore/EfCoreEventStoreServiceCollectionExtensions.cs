@@ -27,8 +27,10 @@ public static class EfCoreEventStoreServiceCollectionExtensions
             .Configure(configureOptions ?? (_ => { }));
 
         services.AddTransient<EventStoreDbContext<TContext>>();
-        services.AddTransient<IEventStore, EfCoreEventStore<TContext>>();
         services.AddTransient<EfCoreEventSerializer>();
+        
+        services.AddTransient<IEventStore, EfCoreEventStore<TContext>>();
+        services.AddTransient<IEfCoreEventStore, EfCoreEventStore<TContext>>();
         
         return services;
     }

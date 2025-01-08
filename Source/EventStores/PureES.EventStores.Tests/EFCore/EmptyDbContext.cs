@@ -2,9 +2,9 @@
 
 namespace PureES.EventStores.Tests.EFCore;
 
-public class NoOpDbContext : DbContext
+public class EmptyDbContext : DbContext
 {
-    public NoOpDbContext(DbContextOptions options)
+    public EmptyDbContext(DbContextOptions options)
         : base(options)
     {
     }

@@ -23,21 +23,29 @@ public class EfCoreNpgsqlEventStoreTests : EventStoreTestsBase
     }
 
     [Fact]
-    public void CreateDatabase()
+    public async Task CreateScriptShouldBeIdempotent()
     {
+        var schema = nameof(CreateScriptShouldBeIdempotent).ToLowerInvariant();
+        
+        await Execute($"DROP SCHEMA IF EXISTS \"{schema}\" CASCADE");
+        
         var services = new ServiceCollection();
 
-        services.AddDbContext<NoOpDbContext>(b =>
-        {
-            b.UseNpgsql($"{ConnString};Database={DbName}");
-        });
+        services.AddDbContext<EmptyDbContext>(b => b.UseNpgsql($"{ConnString};Database={DbName}"));
         
-        services.AddEfCoreEventStore<NoOpDbContext>(o => o.Schema = "write_data");
+        services.AddEfCoreEventStore<EmptyDbContext>(o => o.Schema = schema);
+        
+        services.AddPureES().AddBasicEventTypeMap();
         
         var sp = services.BuildServiceProvider();
+
+        var store = sp.GetRequiredService<IEfCoreEventStore>();
+        var script = store.GenerateIdempotentCreateScript();
+        await Execute(script);
+        await Execute(script); //Should not throw
         
-        using var context = sp.GetRequiredService<EventStoreDbContext<NoOpDbContext>>();
-        _output.WriteLine(context.Database.GenerateCreateScript());
+        //Read events should succeed
+        (await store.ReadAll().ToListAsync()).ShouldBeEmpty();
     }
     
     private const string ConnString = "Host=localhost;Username=postgres;Password=postgres";
@@ -49,9 +57,9 @@ public class EfCoreNpgsqlEventStoreTests : EventStoreTestsBase
         
         var services = new ServiceCollection();
         
-        services.AddDbContext<NoOpDbContext>(builder => builder.UseNpgsql($"{ConnString};Database={DbName}"));
+        services.AddDbContext<EmptyDbContext>(builder => builder.UseNpgsql($"{ConnString};Database={DbName}"));
         
-        services.AddEfCoreEventStore<NoOpDbContext>(o => o.Schema = schema);
+        services.AddEfCoreEventStore<EmptyDbContext>(o => o.Schema = schema);
 
         services.AddPureES().AddBasicEventTypeMap();
         
@@ -63,7 +71,7 @@ public class EfCoreNpgsqlEventStoreTests : EventStoreTestsBase
         var harness = new NpgsqlEventStoreTestHarness(sp, schema);
         await harness.DropSchema(); //Drop the schema to ensure a clean slate
 
-        using (var context = sp.GetRequiredService<EventStoreDbContext<NoOpDbContext>>())
+        using (var context = sp.GetRequiredService<EventStoreDbContext<EmptyDbContext>>())
         {
             var script = context.Database.GenerateCreateScript();
             await Execute(script);

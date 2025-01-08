@@ -23,5 +23,6 @@ internal class PostgresProvider(EventStoreDbContext context) : IEfCoreProvider
         return e.GetType().FullName == "Npgsql.PostgresException" && e.SqlState == "23505";
     }
 
+    // Response is a UTC datetime (no conversion needed)
     public DateTime ReadTimestamp(DbDataReader reader, int ordinal) => reader.GetDateTime(ordinal);
 }

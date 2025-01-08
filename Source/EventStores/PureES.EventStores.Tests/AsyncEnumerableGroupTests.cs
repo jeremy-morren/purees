@@ -143,7 +143,6 @@ public class AsyncEnumerableGroupTests
         asyncGrouped[1].Key.ShouldBe("b");
     }
     
-    
     [Fact]
     [SuppressMessage("ReSharper", "MethodSupportsCancellation")]
     [SuppressMessage("ReSharper", "MethodHasAsyncOverload")]

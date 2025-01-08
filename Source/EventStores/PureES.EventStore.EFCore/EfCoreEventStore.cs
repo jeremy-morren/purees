@@ -4,10 +4,11 @@ using System.Linq.Async;
 using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore;
 using PureES.EventStore.EFCore.Models;
+using PureES.EventStore.EFCore.Providers;
 
 namespace PureES.EventStore.EFCore;
 
-internal class EfCoreEventStore<TContext> : IEventStore
+internal class EfCoreEventStore<TContext> : IEfCoreEventStore
     where TContext : DbContext
 {
     private readonly EventStoreDbContext<TContext> _context;
@@ -63,6 +64,8 @@ internal class EfCoreEventStore<TContext> : IEventStore
     
     #endregion
 
+    #region Read
+    
     public Task<bool> Exists(string streamId, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(streamId);
@@ -92,6 +95,10 @@ internal class EfCoreEventStore<TContext> : IEventStore
             throw new WrongStreamRevisionException(streamId, expectedRevision, actual);
         return actual;
     }
+    
+    #endregion
+    
+    #region Create/Append
 
     public async Task<ulong> Create(string streamId, IEnumerable<UncommittedEvent> events, CancellationToken cancellationToken)
     {
@@ -205,6 +212,8 @@ internal class EfCoreEventStore<TContext> : IEventStore
         //No exceptions, write events
         await _context.WriteEvents(list, cancellationToken);
     }
+    
+    #endregion
     
     #region Read All
     
@@ -509,4 +518,10 @@ internal class EfCoreEventStore<TContext> : IEventStore
     }
     
     #endregion
+
+    public string GenerateIdempotentCreateScript()
+    {
+        var script = _context.Database.GenerateCreateScript();
+        return SqlRegexes.ReplaceCreateWithCreateIfNotExists(script);
+    }
 }

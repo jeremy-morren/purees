@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -51,6 +52,43 @@ public class EfCoreSqliteEventStoreTests(ITestOutputHelper output) : EventStoreT
         Metadata = JsonSerializer.SerializeToElement(new Dictionary<string, string>()),
     };
 
+    
+    [Fact]
+    [SuppressMessage("ReSharper", "AccessToDisposedClosure")]
+    public async Task CreateScriptShouldBeIdempotent()
+    {
+        var services = new ServiceCollection();
+        
+        using var conn = new SqliteConnection("Data Source=:memory:");
+        conn.Open();
+        
+        services.AddDbContext<EmptyDbContext>(b => b.UseSqlite(conn));
+        
+        services.AddEfCoreEventStore<EmptyDbContext>();
+        
+        services.AddPureES().AddBasicEventTypeMap();
+        
+        var sp = services.BuildServiceProvider();
+
+        var store = sp.GetRequiredService<IEfCoreEventStore>();
+        var script = store.GenerateIdempotentCreateScript();
+        Execute(script);
+        Execute(script); //Should not throw
+        
+        //Read events should succeed
+        (await store.ReadAll().ToListAsync()).ShouldBeEmpty();
+
+        return;
+        
+        void Execute(string sql)
+        {
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = sql;
+            cmd.ExecuteNonQuery();
+        }
+    }
+
+    
     protected override Task<EventStoreTestHarness> CreateStore(string testName, Action<IServiceCollection> configureServices, CancellationToken ct)
     {
         var services = new ServiceCollection();
@@ -60,9 +98,9 @@ public class EfCoreSqliteEventStoreTests(ITestOutputHelper output) : EventStoreT
         
         services.AddSingleton(connection); //Dispose will be called by the container
 
-        services.AddDbContext<NoOpDbContext>(builder => builder.UseSqlite(connection));
+        services.AddDbContext<EmptyDbContext>(builder => builder.UseSqlite(connection));
 
-        services.AddEfCoreEventStore<NoOpDbContext>();
+        services.AddEfCoreEventStore<EmptyDbContext>();
 
         services.AddPureES().AddBasicEventTypeMap();
         
@@ -70,7 +108,7 @@ public class EfCoreSqliteEventStoreTests(ITestOutputHelper output) : EventStoreT
 
         var sp = services.BuildServiceProvider();
 
-        using (var context = sp.GetRequiredService<EventStoreDbContext<NoOpDbContext>>())
+        using (var context = sp.GetRequiredService<EventStoreDbContext<EmptyDbContext>>())
             context.Database.EnsureCreated();
 
         return Task.FromResult(new EventStoreTestHarness(sp, sp.GetRequiredService<IEventStore>()));
