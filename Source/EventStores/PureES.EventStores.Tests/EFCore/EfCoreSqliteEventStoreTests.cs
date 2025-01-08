@@ -2,6 +2,7 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using PureES.EventStore.EFCore;
 using PureES.EventStore.EFCore.Models;
 
@@ -22,8 +23,10 @@ public class EfCoreSqliteEventStoreTests(ITestOutputHelper output) : EventStoreT
             .UseSqlite(connection)
             .Options;
         
-        await using var context = new EventStoreDbContext(options);
+        await using var context = new EventStoreDbContext(options, Options.Create(new EfCoreEventStoreOptions()));
         context.Database.EnsureCreated();
+
+        output.WriteLine(context.Database.GenerateCreateScript());
 
         var events = Enumerable.Range(0, 10)
             .Select(i => CreateEvent($"test-{i / 2}", i % 2))
@@ -39,38 +42,11 @@ public class EfCoreSqliteEventStoreTests(ITestOutputHelper output) : EventStoreT
         query.Should().AllSatisfy(e => e.EventTypes.ShouldHaveSingleItem().ShouldNotBeNull());
     }
 
-    [Fact]
-    public async Task EventsTypesShouldBeWritten()
-    {
-        using var connection = new SqliteConnection("Data Source=:memory:");
-        connection.Open();
-        
-        var options = new DbContextOptionsBuilder<EventStoreDbContext>()
-            .UseSqlite(connection)
-            .Options;
-        
-        await using var context = new EventStoreDbContext(options);
-        context.Database.EnsureCreated();
-
-        var events = Enumerable.Range(0, 10)
-            .Select(i => CreateEvent($"test-{i / 2}", i % 2))
-            .ToList();
-
-        var inserted = await context.WriteEvents(events, default);
-        inserted.Should().HaveCount(10);
-        inserted.ShouldAllBe(i => i.EventTypes.Length == 1);
-        inserted.ShouldAllBe(i => i.Timestamp != default);
-        inserted.GroupBy(i => i.Timestamp).Should().HaveCount(1, "All timestamps should be the same");
-
-        var types = context.Database.SqlQueryRaw<string>("select EventTypes from EventStoreEvent").ToList();
-        types.Should().AllSatisfy(t => JsonSerializer.Deserialize<string[]>(t).ShouldHaveSingleItem());
-    }
-
     private static EventStoreEvent CreateEvent(string stream, int position) => new()
     {
         StreamId = stream,
-        StreamPos = position,
-        EventTypes = ["TestEvent" ],
+        StreamPos = (uint)position,
+        EventTypes = EventType.New(["TestEvent" ]),
         Data = JsonSerializer.SerializeToElement(new Dictionary<string, string>()),
         Metadata = JsonSerializer.SerializeToElement(new Dictionary<string, string>()),
     };

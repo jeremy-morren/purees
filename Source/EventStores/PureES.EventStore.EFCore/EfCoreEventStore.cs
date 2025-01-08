@@ -1,4 +1,5 @@
-﻿using System.Data.Common;
+﻿using System.Data;
+using System.Data.Common;
 using System.Linq.Async;
 using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore;
@@ -22,16 +23,42 @@ internal class EfCoreEventStore<TContext> : IEventStore
         _eventTypeMap = eventTypeMap;
     }
     
-    #region Provider
+    #region Deserialize
     
-    private IAsyncEnumerable<EventEnvelope> ReadEvents(IQueryable<EventStoreEvent> queryable, CancellationToken ct)
+    private async IAsyncEnumerable<EventEnvelope> ReadEvents(
+        IQueryable<EventStoreEvent> query, 
+        [EnumeratorCancellation] CancellationToken ct)
     {
-        return _context.Provider.ReadEvents(queryable, _serializer, ct);
-    }
-    
-    private IAsyncEnumerable<EventEnvelope> ReadEvents(DbCommand command, CancellationToken ct)
-    {
-        return _context.Provider.ReadEvents(command, _serializer, ct);
+        //Only select the columns we need
+        var src = 
+            from x in query
+            select new
+            {
+                x.StreamId,
+                x.StreamPos,
+                x.Timestamp,
+                x.EventType,
+                x.Data,
+                x.Metadata
+            };
+
+        await _context.Database.OpenConnectionAsync(ct);
+        await using var command = src.CreateDbCommand();
+        await using var reader = await command.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            var streamId = reader.GetString(0);
+            var streamPos = (uint)reader.GetInt32(1);
+            var timestamp = _context.Provider.ReadTimestamp(reader, 2);
+            var eventType = reader.GetString(3);
+            var data = reader.GetString(4);
+            var metadata = reader.IsDBNull(5) ? null : reader.GetString(5);
+            yield return new EventEnvelope(streamId, 
+                streamPos, 
+                timestamp, 
+                _serializer.DeserializeEvent(streamId, streamPos, eventType, data),
+                _serializer.DeserializeMetadata(streamId, streamPos, metadata));
+        }
     }
     
     #endregion
@@ -73,7 +100,7 @@ internal class EfCoreEventStore<TContext> : IEventStore
 
         try
         {
-            var r = 0;
+            var r = 0u;
             var list = events.Select(e => _serializer.Serialize(streamId, r++, e)).ToList();
             await _context.WriteEvents(list, cancellationToken);
             return (ulong)list.Count - 1;
@@ -96,19 +123,17 @@ internal class EfCoreEventStore<TContext> : IEventStore
         if (actual != expectedRevision)
             throw new WrongStreamRevisionException(streamId, expectedRevision, actual);
         
-        var r = (int)expectedRevision;
-        var list = events.Select(e => _serializer.Serialize(streamId, ++r, e));
+        var list = events.Select(e => _serializer.Serialize(streamId, (uint)++actual, e));
         await _context.WriteEvents(list, cancellationToken);
-        return (ulong)r;
+        return actual;
     }
 
     public async Task<ulong> Append(string streamId, IEnumerable<UncommittedEvent> events, CancellationToken cancellationToken)
     {
         var actual = await GetRevision(streamId, cancellationToken);
-        var r = (int)actual;
-        var list = events.Select(e => _serializer.Serialize(streamId, ++r, e));
+        var list = events.Select(e => _serializer.Serialize(streamId, (uint)++actual, e));
         await _context.WriteEvents(list, cancellationToken);
-        return (ulong)r;
+        return actual;
     }
 
     public Task<ulong> Append(string streamId, ulong expectedRevision, UncommittedEvent @event, CancellationToken cancellationToken)
@@ -146,9 +171,9 @@ internal class EfCoreEventStore<TContext> : IEventStore
                 //Stream exists, check revision matches
                 if (stream.ExpectedRevision == null)
                     exceptions.Add(new StreamAlreadyExistsException(streamId));
-                else if ((ulong)actual != stream.ExpectedRevision.Value)
+                else if (actual != stream.ExpectedRevision.Value)
                     exceptions.Add(
-                        new WrongStreamRevisionException(streamId, stream.ExpectedRevision.Value, (ulong)actual));
+                        new WrongStreamRevisionException(streamId, stream.ExpectedRevision.Value, actual));
                 else
                     //Stream exists and revision matches, append events
                     list.AddRange(stream.Events.Select(x => _serializer.Serialize(streamId, ++actual, x)));
@@ -163,7 +188,7 @@ internal class EfCoreEventStore<TContext> : IEventStore
                 else
                 {
                     //Stream does not exist and revision matches, create stream
-                    var r = 0;
+                    var r = 0u;
                     list.AddRange(stream.Events.Select(x => _serializer.Serialize(streamId, r++, x)));
                 }
             }
@@ -400,7 +425,7 @@ internal class EfCoreEventStore<TContext> : IEventStore
             _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
         };
         return ReadEvents(query, cancellationToken)
-            .GroupSequential(e => e.StreamId);
+            .GroupSequentialBy(e => e.StreamId);
     }
 
     public async IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(
@@ -440,7 +465,7 @@ internal class EfCoreEventStore<TContext> : IEventStore
         ulong? maxCount,
         CancellationToken cancellationToken)
     {
-        var query = _context.QueryEvents();
+        var query = FilterByEventType(eventTypes);
         query = direction switch
         {
             Direction.Forwards => query.OrderBy(e => e.Timestamp)
@@ -451,13 +476,27 @@ internal class EfCoreEventStore<TContext> : IEventStore
                 .ThenByDescending(e => e.StreamPos),
             _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
         };
+        if (maxCount.HasValue)
+            query = query.Take((int)maxCount.Value);
         
-        var command = _context.Provider.FilterByEventType(query, GetEventTypeNames(eventTypes), maxCount);
-        return ReadEvents(command, cancellationToken);
+        return ReadEvents(query, cancellationToken);
+    }
+
+    private IQueryable<EventStoreEvent> FilterByEventType(Type[] eventTypes)
+    {
+        ArgumentNullException.ThrowIfNull(eventTypes);
+        var names = eventTypes
+            .Select(t => _eventTypeMap.GetTypeNames(t)[^1])
+            .Distinct()
+            .ToList();
+        return _context.QueryEvents()
+            .Where(e => e.EventTypes.Any(t => names.Contains(t.TypeName)));
     }
     
     #endregion
 
+    #region Count
+    
     public async Task<ulong> Count(CancellationToken cancellationToken)
     {
         return (ulong)await _context.QueryEvents().LongCountAsync(cancellationToken);
@@ -465,13 +504,9 @@ internal class EfCoreEventStore<TContext> : IEventStore
 
     public async Task<ulong> CountByEventType(Type[] eventTypes, CancellationToken cancellationToken)
     {
-        var query = _context.Provider.CountByEventType(GetEventTypeNames(eventTypes));
-        return (ulong)await query.SingleAsync(cancellationToken);
+        var query = FilterByEventType(eventTypes);
+        return (ulong)await query.LongCountAsync(cancellationToken);
     }
     
-    private List<string> GetEventTypeNames(Type[] eventTypes) =>
-        eventTypes
-            .Select(t => _eventTypeMap.GetTypeNames(t)[^1])
-            .Distinct()
-            .ToList();
+    #endregion
 }

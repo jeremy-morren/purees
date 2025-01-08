@@ -32,7 +32,7 @@ public class AsyncEnumerableGroupTests
         });
 
         var asyncGrouped = await src.ToAsyncEnumerable()
-            .GroupSequential(x => x)
+            .GroupSequentialBy(x => x)
             .SelectAwait(async g => new
             {
                 g.Key,
@@ -54,7 +54,7 @@ public class AsyncEnumerableGroupTests
             .Should().BeEquivalentTo(src);
 
         var grouped = await src.ToAsyncEnumerable()
-            .GroupSequential()
+            .GroupSequentialBy(x => x)
             .SelectAwait(async g => await g.SingleAsync())
             .ToListAsync();
 
@@ -87,7 +87,7 @@ public class AsyncEnumerableGroupTests
         });
 
         var asyncGrouped = await src.ToAsyncEnumerable()
-            .GroupSequential()
+            .GroupSequentialBy(x => x)
             .SelectAwait(async g => new
             {
                 g.Key,
@@ -108,7 +108,7 @@ public class AsyncEnumerableGroupTests
             .ShouldBeEmpty();
 
         var asyncGrouped = await src.ToAsyncEnumerable()
-            .GroupSequential()
+            .GroupSequentialBy(x => x)
             .ToListAsync();
         
         asyncGrouped.ShouldBeEmpty();
@@ -118,15 +118,32 @@ public class AsyncEnumerableGroupTests
     public async Task ConstantSelectorShouldReturnSingleGroup()
     {
         var src = Enumerable.Range(0, 10).ToList();
-
+        
         var asyncGrouped = await src.ToAsyncEnumerable()
-            .GroupSequential(i => i % 2 == 0 ? "A" : "a", StringComparer.OrdinalIgnoreCase)
+            .GroupSequentialBy(_ => "A")
             .ToListAsync();
 
         asyncGrouped.ShouldHaveSingleItem()
             .Key.ShouldBe("A");
     }
 
+    [Fact]
+    public async Task GroupingShouldUseCustomEquality()
+    {
+        var src = new[] { "A", "a", "b", "B" };
+        
+        var asyncGrouped = await src.ToAsyncEnumerable()
+            .GroupSequentialBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .ToListAsync();
+        
+        asyncGrouped.Should().HaveCount(2);
+        
+        //Check key is the first value encountered
+        asyncGrouped[0].Key.ShouldBe("A");
+        asyncGrouped[1].Key.ShouldBe("b");
+    }
+    
+    
     [Fact]
     [SuppressMessage("ReSharper", "MethodSupportsCancellation")]
     [SuppressMessage("ReSharper", "MethodHasAsyncOverload")]
@@ -136,7 +153,7 @@ public class AsyncEnumerableGroupTests
         
         var cts = new CancellationTokenSource();
 
-        var enumerable = src.ToAsyncEnumerable().GroupSequential();
+        var enumerable = src.ToAsyncEnumerable().GroupSequentialBy(x => x);
         await using var enumerator = enumerable.GetAsyncEnumerator(cts.Token);
         (await enumerator.MoveNextAsync()).ShouldBeTrue();
         var group = enumerator.Current;

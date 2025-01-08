@@ -14,7 +14,7 @@ public static class EfCoreEventStoreServiceCollectionExtensions
     /// </summary>
     /// <param name="services">The service collection</param>
     /// <param name="configureOptions">Optional delegate to configure event store options</param>
-    /// <typeparam name="TContext">The <see cref="DbContext"/> whose options should be used</typeparam>
+    /// <typeparam name="TContext">The source <see cref="DbContext"/> whose options should be used</typeparam>
     /// <returns></returns>
     public static IServiceCollection AddEfCoreEventStore<TContext>(
         this IServiceCollection services,

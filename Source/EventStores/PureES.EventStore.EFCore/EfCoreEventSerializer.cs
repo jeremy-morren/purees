@@ -18,14 +18,14 @@ internal class EfCoreEventSerializer
         _map = map;
     }
     
-    public EventStoreEvent Serialize(string streamId, int streamPos, UncommittedEvent @event)
+    public EventStoreEvent Serialize(string streamId, uint streamPos, UncommittedEvent @event)
     {
         return new EventStoreEvent()
         {
             StreamId = streamId,
             StreamPos = streamPos,
             // Clone the list to avoid issues with EF Core
-            EventTypes = _map.GetTypeNames(@event.Event.GetType()),
+            EventTypes = EventType.New(@event.Event.GetType(), _map),
             Data = JsonSerializer.SerializeToElement(@event.Event, _jsonOptions),
             Metadata = @event.Metadata != null 
                 ? JsonSerializer.SerializeToElement(@event.Metadata, _jsonOptions) 
@@ -35,7 +35,7 @@ internal class EfCoreEventSerializer
     
     #region Deserialize
 
-    public object DeserializeEvent(string streamId, int streamPos, string eventType, string data)
+    public object DeserializeEvent(string streamId, uint streamPos, string eventType, string data)
     {
         var type = _map.GetCLRType(eventType);
         try
@@ -49,7 +49,7 @@ internal class EfCoreEventSerializer
         }
     }
     
-    public object? DeserializeMetadata(string streamId, int streamPos, string? metadata)
+    public object? DeserializeMetadata(string streamId, uint streamPos, string? metadata)
     {
         if (metadata == null)
             return null;

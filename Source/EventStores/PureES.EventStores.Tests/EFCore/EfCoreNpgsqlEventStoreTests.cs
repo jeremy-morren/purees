@@ -1,0 +1,127 @@
+﻿using System.Data;
+using System.Text.Json;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Npgsql;
+using PureES.EventStore.EFCore;
+using PureES.EventStore.EFCore.Models;
+
+// ReSharper disable MethodHasAsyncOverload
+// ReSharper disable UseAwaitUsing
+
+namespace PureES.EventStores.Tests.EFCore;
+
+public class EfCoreNpgsqlEventStoreTests : EventStoreTestsBase
+{
+    private readonly ITestOutputHelper _output;
+
+    public EfCoreNpgsqlEventStoreTests(ITestOutputHelper output)
+    {
+        _output = output;
+        EnsureDatabaseExists();
+    }
+
+    [Fact]
+    public void CreateDatabase()
+    {
+        var services = new ServiceCollection();
+
+        services.AddDbContext<NoOpDbContext>(b =>
+        {
+            b.UseNpgsql($"{ConnString};Database={DbName}");
+        });
+        
+        services.AddEfCoreEventStore<NoOpDbContext>(o => o.Schema = "write_data");
+        
+        var sp = services.BuildServiceProvider();
+        
+        using var context = sp.GetRequiredService<EventStoreDbContext<NoOpDbContext>>();
+        _output.WriteLine(context.Database.GenerateCreateScript());
+    }
+    
+    private const string ConnString = "Host=localhost;Username=postgres;Password=postgres";
+    private const string DbName = "purees_efcore_tests";
+    
+    protected override async Task<EventStoreTestHarness> CreateStore(string testName, Action<IServiceCollection> configureServices, CancellationToken ct)
+    {
+        var schema = new [] { '-', '.', '+'}.Aggregate(testName, (current, c) => current.Replace(c, '_')).ToLowerInvariant();
+        
+        var services = new ServiceCollection();
+        
+        services.AddDbContext<NoOpDbContext>(builder => builder.UseNpgsql($"{ConnString};Database={DbName}"));
+        
+        services.AddEfCoreEventStore<NoOpDbContext>(o => o.Schema = schema);
+
+        services.AddPureES().AddBasicEventTypeMap();
+        
+        configureServices(services);
+
+        var sp = services.BuildServiceProvider();
+
+        var store = sp.GetRequiredService<IEventStore>();
+        var harness = new NpgsqlEventStoreTestHarness(sp, schema);
+        await harness.DropSchema(); //Drop the schema to ensure a clean slate
+
+        using (var context = sp.GetRequiredService<EventStoreDbContext<NoOpDbContext>>())
+        {
+            var script = context.Database.GenerateCreateScript();
+            await Execute(script);
+        }
+
+        return new EventStoreTestHarness(harness, store);
+    }
+    
+    private class NpgsqlEventStoreTestHarness : IAsyncDisposable
+    {
+        private readonly IAsyncDisposable _services;
+        private readonly string _schema;
+
+        public NpgsqlEventStoreTestHarness(IAsyncDisposable services, string schema)
+        {
+            _services = services;
+            _schema = schema;
+        }
+        
+        public async ValueTask DisposeAsync()
+        {
+            await _services.DisposeAsync();
+            await DropSchema();
+        }
+
+        public Task DropSchema() => Execute($"DROP SCHEMA IF EXISTS \"{_schema}\" CASCADE");
+    }
+    
+    private static void EnsureDatabaseExists()
+    {
+        //Create database if it doesn't exist
+        try
+        {
+            ExecuteMaster($"CREATE DATABASE \"{DbName}\"");
+        }
+        catch (NpgsqlException e) when (e.SqlState == "42P04")
+        {
+            // Database already exists
+        }
+    }
+    
+    private static void ExecuteMaster(string sql)
+    {
+        using var conn = new NpgsqlConnection(ConnString);
+        if (conn.State != ConnectionState.Open)
+            conn.Open();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = sql;
+        cmd.ExecuteNonQuery();
+    }
+    
+    private static async Task Execute(string sql)
+    {
+        using var conn = new NpgsqlConnection($"{ConnString};Database={DbName}");
+        if (conn.State != ConnectionState.Open)
+            await conn.OpenAsync();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = sql;
+        await cmd.ExecuteNonQueryAsync();
+    }
+}

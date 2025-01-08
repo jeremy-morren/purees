@@ -15,29 +15,13 @@ internal static class AsyncEnumerableGroupExtensions
     /// <typeparam name="TKey"></typeparam>
     /// <returns></returns>
     [LinqTunnel]
-    public static IAsyncEnumerable<IAsyncGrouping<TKey, TElement>> GroupSequential<TElement, TKey>(
+    public static IAsyncEnumerable<IAsyncGrouping<TKey, TElement>> GroupSequentialBy<TElement, TKey>(
         this IAsyncEnumerable<TElement> source, 
         Func<TElement, TKey> keySelector,
         IEqualityComparer<TKey>? comparer = null)
     {
         var key = new GroupKey<TKey, TElement>(keySelector, comparer ?? EqualityComparer<TKey>.Default);
         return new GroupedSequentialAsyncEnumerable<TKey, TElement>(source, key);
-    }
-    
-    /// <summary>
-    /// Groups sequential elements with the same key
-    /// </summary>
-    /// <param name="source"></param>
-    /// <param name="comparer"></param>
-    /// <typeparam name="TElement"></typeparam>
-    /// <returns></returns>
-    [LinqTunnel]
-    public static IAsyncEnumerable<IAsyncGrouping<TElement, TElement>> GroupSequential<TElement>(
-        this IAsyncEnumerable<TElement> source, 
-        IEqualityComparer<TElement>? comparer = null)
-    {
-        var key = new GroupKey<TElement, TElement>(x => x, comparer ?? EqualityComparer<TElement>.Default);
-        return new GroupedSequentialAsyncEnumerable<TElement, TElement>(source, key);
     }
     
     private class GroupedSequentialAsyncEnumerable<TKey, TElement> : IAsyncEnumerable<IAsyncGrouping<TKey, TElement>>

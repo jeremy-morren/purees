@@ -1,9 +1,11 @@
 ﻿using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using JetBrains.Annotations;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace PureES.EventStores.Tests;
 
+[UsedImplicitly(ImplicitUseTargetFlags.WithInheritors)]
 public abstract class EventStoreTestsBase
 {
     protected abstract Task<EventStoreTestHarness> CreateStore(string testName, 
@@ -28,6 +30,8 @@ public abstract class EventStoreTestsBase
     [Fact]
     public async Task Create()
     {
+        var start = DateTime.UtcNow;
+        
         await using var harness = await CreateHarness();
         var store = harness.EventStore;
         const string stream = nameof(Create);
@@ -47,6 +51,13 @@ public abstract class EventStoreTestsBase
         
         (await store.ReadAll(Direction.Forwards, CancellationToken).GroupBy(s => s.Timestamp).CountAsync())
             .ShouldBe(1, "Created events should have the same timestamp");
+
+        var ts = await store.ReadAll(Direction.Forwards, CancellationToken)
+            .GroupBy(s => s.Timestamp)
+            .Select(s => s.Key)
+            .SingleAsync();
+        ts.Kind.ShouldBe(DateTimeKind.Utc);
+        ts.Should().BeAfter(start).And.BeBefore(DateTime.UtcNow, "Timestamp should be set to now");
     }
     
     [Fact]
@@ -63,7 +74,7 @@ public abstract class EventStoreTestsBase
         (await store.Exists(stream, CancellationToken)).ShouldBeTrue();
         (await store.GetRevision(stream, CancellationToken)).ShouldBe(revision);
         
-        await AssertEqual(new [] { @event }, d => store.Read(d, stream, CancellationToken));
+        await AssertEqual([@event], d => store.Read(d, stream, CancellationToken));
         (await store.GetRevision(stream, CancellationToken)).ShouldBe(revision);
     }
 
@@ -218,7 +229,6 @@ public abstract class EventStoreTestsBase
         await AssertEqual(events, d => store.Read(d, stream, CancellationToken));
         (await store.GetRevision(stream, CancellationToken)).ShouldBe((ulong)events.Count - 1);
         
-        
         (await store.ReadAll(Direction.Forwards, CancellationToken)
                 .Skip(5)
                 .GroupBy(s => s.Timestamp)
@@ -241,8 +251,8 @@ public abstract class EventStoreTestsBase
         
         await Assert.ThrowsAsync<StreamNotFoundException>(() =>
             useOptimisticConcurrency
-                ? store.Append(stream, 0, new [] { NewEvent() }, CancellationToken)
-                : store.Append(stream, new [] { NewEvent() }, CancellationToken));
+                ? store.Append(stream, 0, [NewEvent()], CancellationToken)
+                : store.Append(stream, [NewEvent()], CancellationToken));
     }
 
     [Fact]
@@ -342,22 +352,10 @@ public abstract class EventStoreTestsBase
         await AssertEqual(events.Take(3), store.ReadSlice(stream, 0, 2, CancellationToken));
         
         await AssertEqual(events.Skip(4).Take(2), store.ReadSlice(stream, 4, 5, CancellationToken));
-        
+
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => 
             store.ReadSlice(stream, 3, 2, CancellationToken)
                 .ToListAsync().AsTask());
-
-        async Task AssertWrongVersion(Func<Direction, IAsyncEnumerable<EventEnvelope>> getEvents)
-        {
-            var ex = await Assert.ThrowsAsync<WrongStreamRevisionException>(async () =>
-                await getEvents(Direction.Forwards).CountAsync());
-            ex.ActualRevision.ShouldBe(revision);
-            
-            ex = await Assert.ThrowsAsync<WrongStreamRevisionException>(async () => 
-                await getEvents(Direction.Backwards).CountAsync());
-            
-            ex.ActualRevision.ShouldBe(revision);
-        }
 
         await AssertWrongVersion(d => 
             store.Read(d, stream, RandVersion(events.Count + 1), CancellationToken));
@@ -382,6 +380,20 @@ public abstract class EventStoreTestsBase
         
         await AssertWrongVersion(_ => 
             store.ReadSlice(stream, RandVersion(events.Count + 1), CancellationToken));
+        
+        return;
+        
+        async Task AssertWrongVersion(Func<Direction, IAsyncEnumerable<EventEnvelope>> getEvents)
+        {
+            var ex = await Assert.ThrowsAsync<WrongStreamRevisionException>(async () =>
+                await getEvents(Direction.Forwards).CountAsync());
+            ex.ActualRevision.ShouldBe(revision);
+            
+            ex = await Assert.ThrowsAsync<WrongStreamRevisionException>(async () => 
+                await getEvents(Direction.Backwards).CountAsync());
+            
+            ex.ActualRevision.ShouldBe(revision);
+        }
     }
     
     [Fact]
@@ -548,6 +560,9 @@ public abstract class EventStoreTestsBase
             .ShouldHaveSingleItem();
         (await store.ReadByEventType(Direction.Backwards, [typeof(EventDerived)], 1, CancellationToken).ToListAsync())
             .ShouldHaveSingleItem();
+
+        (await store.ReadByEventType(Direction.Forwards, [], CancellationToken).ToListAsync()).ShouldBeEmpty();
+        (await store.ReadByEventType(Direction.Forwards, [], 1, CancellationToken).ToListAsync()).ShouldBeEmpty();
     }
     
     [Fact]
@@ -585,6 +600,8 @@ public abstract class EventStoreTestsBase
         (await store.CountByEventType([typeof(Event)], CancellationToken))
             .ShouldBe((ulong)count  * 2, "Count events should include derived types");
         (await store.CountByEventType([typeof(Event), typeof(EventDerived)], CancellationToken)).ShouldBe((ulong)count * 2);
+        
+        (await store.CountByEventType([], CancellationToken)).ShouldBe(0ul);
     }
 
     [Fact]
@@ -631,7 +648,7 @@ public abstract class EventStoreTestsBase
         var asyncResult = await store.ReadMany(Direction.Forwards, half.ToAsyncEnumerable(), CancellationToken)
             .SelectAwait(s => s.ToListAsync())
             .ToListAsync();
-        Assert.All(new [] { syncResult, asyncResult }, result =>
+        Assert.All([syncResult, asyncResult], result =>
         {
             
             result.ShouldNotBeEmpty();
@@ -649,7 +666,7 @@ public abstract class EventStoreTestsBase
         asyncResult = await store.ReadMany(Direction.Backwards, half.ToAsyncEnumerable(), CancellationToken)
             .SelectAwait(s => s.ToListAsync())
             .ToListAsync();
-        Assert.All(new [] { syncResult, asyncResult }, result =>
+        Assert.All([syncResult, asyncResult], result =>
         {
             result.ShouldNotBeEmpty();
             Assert.All(result, stream =>
@@ -705,7 +722,7 @@ public abstract class EventStoreTestsBase
         var asyncResult = await store.ReadMany(Direction.Forwards, half.ToAsyncEnumerable(), CancellationToken)
             .SelectAwait(l => l.ToListAsync())
             .ToListAsync();
-        Assert.All(new [] { syncResult, asyncResult }, result =>
+        Assert.All([syncResult, asyncResult], result =>
         {
             result.ShouldNotBeEmpty();
             result.Count.ShouldBe(5);
@@ -718,7 +735,7 @@ public abstract class EventStoreTestsBase
         asyncResult = await store.ReadMany(Direction.Backwards, half.ToAsyncEnumerable(), CancellationToken)
             .SelectAwait(l => l.ToListAsync())
             .ToListAsync();
-        Assert.All(new [] { syncResult, asyncResult }, result =>
+        Assert.All([syncResult, asyncResult], result =>
         {
             result.ShouldNotBeEmpty();
             result.Count.ShouldBe(5);
@@ -761,7 +778,7 @@ public abstract class EventStoreTestsBase
         };
     }
     
-    protected static UncommittedEvent NewEventDerived()
+    private static UncommittedEvent NewEventDerived()
     {
         var id = Guid.NewGuid();
         return new UncommittedEvent(new EventDerived(id))
@@ -770,9 +787,9 @@ public abstract class EventStoreTestsBase
         };
     }
 
-    public record Event(Guid Id);
+    protected record Event(Guid Id);
     
-    public record EventDerived(Guid Id) : Event(Id);
+    private record EventDerived(Guid Id) : Event(Id);
 
-    protected record Metadata;
+    private record Metadata;
 }

@@ -21,6 +21,11 @@ public class EfCoreEventStoreOptions
     /// Type to deserialize metadata as
     /// </summary>
     public Type MetadataType { get; set; } = typeof(JsonElement);
+    
+    /// <summary>
+    /// Database schema to use, if provider supports schemas
+    /// </summary>
+    public string? Schema { get; set; }
 
     internal bool Validate()
     {

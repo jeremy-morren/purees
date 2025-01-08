@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.Extensions.Options;
 using PureES.EventStore.EFCore.Models;
 using PureES.EventStore.EFCore.Providers;
 
@@ -7,12 +8,14 @@ namespace PureES.EventStore.EFCore;
 
 internal class EventStoreDbContext : DbContext
 {
-    private readonly DbContextOptions _options;
+    private readonly DbContextOptions _dbContextOptions;
+    private readonly IOptions<EfCoreEventStoreOptions> _storeOptions;
 
-    public EventStoreDbContext(DbContextOptions options)
-        : base(options)
+    public EventStoreDbContext(DbContextOptions dbContextOptions, IOptions<EfCoreEventStoreOptions> storeOptions)
+        : base(dbContextOptions)
     {
-        _options = options;
+        _dbContextOptions = dbContextOptions;
+        _storeOptions = storeOptions;
     }
     
     #region Provider
@@ -28,21 +31,31 @@ internal class EventStoreDbContext : DbContext
         return Database.ProviderName switch
         {
             "Microsoft.EntityFrameworkCore.Sqlite" => new SqliteProvider(this),
+            "Npgsql.EntityFrameworkCore.PostgreSQL" => new PostgresProvider(this),
             null => throw new InvalidOperationException("Database provider not set"),
             _ => throw new NotImplementedException($"Database provider {Database.ProviderName} not supported")
-            
-            // "Npgsql.EntityFrameworkCore.PostgreSQL" => "transaction_timestamp() at time zone 'utc'",
-            // "Microsoft.EntityFrameworkCore.SqlServer" => "GETUTCDATE()",
         };
     }
     
+    /// <summary>
+    /// Cache key to use for model caching
+    /// </summary>
+    /// <returns></returns>
+    public (string? Provider, string? Schema) GetModelCacheKey() => (Database.ProviderName, _storeOptions.Value.Schema);
+
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+    {
+        optionsBuilder.ReplaceService<IModelCacheKeyFactory, ProviderModelCacheKeyFactory>();
+    }
+
     #endregion
     
     #region Events
     
     public async Task<List<EventStoreEvent>> WriteAndSaveChanges(List<EventStoreEvent> events, CancellationToken ct)
     {
-        await using var context = new EventStoreDbContext(_options);
+        //Create a new context to avoid issues with tracking
+        await using var context = new EventStoreDbContext(_dbContextOptions, _storeOptions);
         context.Set<EventStoreEvent>().AddRange(events);
         await context.SaveChangesAsync(ct);
         return events;
@@ -58,6 +71,9 @@ internal class EventStoreDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        if (_storeOptions.Value.Schema != null)
+            modelBuilder.HasDefaultSchema(_storeOptions.Value.Schema);
+        
         modelBuilder.Entity<EventStoreEvent>(entity =>
         {
             entity.HasKey(e => new { e.StreamId, e.StreamPos });
@@ -75,6 +91,22 @@ internal class EventStoreDbContext : DbContext
                 .IsRequired()
                 .HasMaxLength(4096);
 
+            entity.OwnsMany(e => e.EventTypes, b =>
+            {
+                b.Property(x => x.TypeName)
+                    .IsRequired()
+                    .HasMaxLength(4096);
+                
+                //Event type filters use an exists query
+                //Index on composite key and value
+                //Composite key uses shadow properties
+                b.HasIndex(
+                    $"{nameof(EventStoreEvent)}{nameof(EventStoreEvent.StreamId)}",
+                    $"{nameof(EventStoreEvent)}{nameof(EventStoreEvent.StreamPos)}",
+                    nameof(EventType.TypeName));
+
+            });
+
             Provider.ConfigureEntity(entity);
         });
     }
@@ -88,16 +120,19 @@ internal class EventStoreDbContext : DbContext
 internal class EventStoreDbContext<TContext> : EventStoreDbContext
     where TContext : DbContext
 {
-    public EventStoreDbContext(DbContextOptions<TContext> options)
-        : base(CloneOptions(options))
+    public EventStoreDbContext(
+        DbContextOptions<TContext> options, 
+        IOptions<EfCoreEventStoreOptions> storeOptions)
+        : base(CreateOptions(options), storeOptions)
     {
     }
     
-    private static DbContextOptions<EventStoreDbContext> CloneOptions(DbContextOptions<TContext> options)
+    private static DbContextOptions<EventStoreDbContext> CreateOptions(DbContextOptions<TContext> options)
     {
         var builder = new DbContextOptionsBuilder<EventStoreDbContext>();
         foreach (var extension in options.Extensions)
             ((IDbContextOptionsBuilderInfrastructure)builder).AddOrUpdateExtension(extension);
+        
         return builder.Options;
     }
 }
