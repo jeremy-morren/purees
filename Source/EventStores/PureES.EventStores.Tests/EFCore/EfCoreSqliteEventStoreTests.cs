@@ -48,7 +48,7 @@ public class EfCoreSqliteEventStoreTests(ITestOutputHelper output) : EventStoreT
         StreamId = stream,
         StreamPos = (uint)position,
         EventTypes = EventType.New(["TestEvent" ]),
-        Data = JsonSerializer.SerializeToElement(new Dictionary<string, string>()),
+        Event = JsonSerializer.SerializeToElement(new Dictionary<string, string>()),
         Metadata = JsonSerializer.SerializeToElement(new Dictionary<string, string>()),
     };
 

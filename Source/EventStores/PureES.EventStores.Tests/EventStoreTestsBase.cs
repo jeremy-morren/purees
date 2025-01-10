@@ -285,6 +285,21 @@ public abstract class EventStoreTestsBase
     }
 
     [Fact]
+    public async Task Create_Append_With_Null_Metadata_Should_Succeed()
+    {
+        await using var harness = await CreateHarness();
+        var store = harness.EventStore;
+        
+        const string stream = nameof(Create_Append_With_Null_Metadata_Should_Succeed);
+        
+        await store.Create(stream, NewEvent(false), CancellationToken);
+        await store.Append(stream, NewEvent(false), CancellationToken);
+
+        (await store.ReadAll(CancellationToken).ToListAsync())
+            .Should().HaveCount(2).And.AllSatisfy(e => e.Metadata.ShouldBeNull());
+    }
+
+    [Fact]
     public async Task Read_Invalid_Stream_Should_Throw()
     {
         await using var harness = await CreateHarness();
@@ -769,12 +784,12 @@ public abstract class EventStoreTestsBase
 
     private static ulong RandVersion(int? min = null) => (ulong) Random.Shared.Next(min + 1 ?? 0, int.MaxValue - 1);
 
-    protected static UncommittedEvent NewEvent()
+    protected static UncommittedEvent NewEvent(bool includeMetadata = true)
     {
         var id = Guid.NewGuid();
         return new UncommittedEvent(new Event(id))
         {
-            Metadata = new Metadata()
+            Metadata = includeMetadata ? new Metadata() : null
         };
     }
     

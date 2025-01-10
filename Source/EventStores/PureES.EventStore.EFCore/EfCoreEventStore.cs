@@ -30,6 +30,8 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore
         IQueryable<EventStoreEvent> query, 
         [EnumeratorCancellation] CancellationToken ct)
     {
+        var provider = _context.Provider;
+        
         //Only select the columns we need
         var src = 
             from x in query
@@ -39,7 +41,7 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore
                 x.StreamPos,
                 x.Timestamp,
                 x.EventType,
-                x.Data,
+                x.Event,
                 x.Metadata
             };
 
@@ -50,14 +52,14 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore
         {
             var streamId = reader.GetString(0);
             var streamPos = (uint)reader.GetInt32(1);
-            var timestamp = _context.Provider.ReadTimestamp(reader, 2);
+            var timestamp = provider.ReadTimestamp(reader, 2);
             var eventType = reader.GetString(3);
-            var data = reader.GetString(4);
+            var @event = reader.GetString(4);
             var metadata = reader.IsDBNull(5) ? null : reader.GetString(5);
             yield return new EventEnvelope(streamId, 
                 streamPos, 
                 timestamp, 
-                _serializer.DeserializeEvent(streamId, streamPos, eventType, data),
+                _serializer.DeserializeEvent(streamId, streamPos, eventType, @event),
                 _serializer.DeserializeMetadata(streamId, streamPos, metadata));
         }
     }

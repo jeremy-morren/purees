@@ -24,7 +24,7 @@ internal class SqliteProvider(EventStoreDbContext context) : IEfCoreProvider
         
         var jsonOpts = JsonSerializerOptions.Default;
 
-        builder.Property(e => e.Data)
+        builder.Property(e => e.Event)
             .HasConversion(
                 x => JsonSerializer.Serialize(x, jsonOpts),
                 x => JsonSerializer.Deserialize<JsonElement>(x, jsonOpts))

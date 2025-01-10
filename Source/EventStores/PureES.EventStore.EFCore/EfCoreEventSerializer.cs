@@ -1,4 +1,5 @@
 ﻿using System.Collections.Immutable;
+using System.Data.Common;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
 using PureES.EventStore.EFCore.Models;
@@ -26,7 +27,7 @@ internal class EfCoreEventSerializer
             StreamPos = streamPos,
             // Clone the list to avoid issues with EF Core
             EventTypes = EventType.New(@event.Event.GetType(), _map),
-            Data = JsonSerializer.SerializeToElement(@event.Event, _jsonOptions),
+            Event = JsonSerializer.SerializeToElement(@event.Event, _jsonOptions),
             Metadata = @event.Metadata != null 
                 ? JsonSerializer.SerializeToElement(@event.Metadata, _jsonOptions) 
                 : null,
@@ -35,12 +36,12 @@ internal class EfCoreEventSerializer
     
     #region Deserialize
 
-    public object DeserializeEvent(string streamId, uint streamPos, string eventType, string data)
+    public object DeserializeEvent(string streamId, uint streamPos, string eventType, string json)
     {
         var type = _map.GetCLRType(eventType);
         try
         {
-            return JsonSerializer.Deserialize(data, type, _jsonOptions)
+            return JsonSerializer.Deserialize(json, type, _jsonOptions)
                    ?? throw new Exception($"Event {streamId}/{streamPos} data is null");
         }
         catch (JsonException e)
@@ -49,19 +50,33 @@ internal class EfCoreEventSerializer
         }
     }
     
-    public object? DeserializeMetadata(string streamId, uint streamPos, string? metadata)
+    public object DeserializeEvent(string streamId, uint streamPos, string eventType, byte[] json)
     {
-        if (metadata == null)
+        var type = _map.GetCLRType(eventType);
+        try
+        {
+            return JsonSerializer.Deserialize(json, type, _jsonOptions)
+                   ?? throw new Exception($"Event {streamId}/{streamPos} data is null");
+        }
+        catch (JsonException e)
+        {
+            throw new Exception($"Failed to deserialize event {streamId}/{streamPos} to {type}", e);
+        }
+    }
+    
+    public object? DeserializeMetadata(string streamId, uint streamPos, string? json)
+    {
+        if (json == null)
             return null;
         try
         {
-            return JsonSerializer.Deserialize(metadata, _metadataType, _jsonOptions);
+            return JsonSerializer.Deserialize(json, _metadataType, _jsonOptions);
         }
         catch (JsonException e)
         {
             throw new Exception($"Failed to deserialize metadata for event {streamId}/{streamPos} to {_metadataType}", e);
         }
     }
-    
+
     #endregion
 }

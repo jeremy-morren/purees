@@ -41,6 +41,7 @@ public class EfCoreNpgsqlEventStoreTests : EventStoreTestsBase
 
         var store = sp.GetRequiredService<IEfCoreEventStore>();
         var script = store.GenerateIdempotentCreateScript();
+        _output.WriteLine(script);
         await Execute(script);
         await Execute(script); //Should not throw
         

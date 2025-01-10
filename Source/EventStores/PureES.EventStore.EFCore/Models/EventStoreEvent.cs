@@ -45,7 +45,7 @@ internal record EventStoreEvent
     /// <summary>
     /// Event data
     /// </summary>
-    public required JsonElement Data { get; init; }
+    public required JsonElement Event { get; init; }
     
     /// <summary>
     /// Event metadata, if any
