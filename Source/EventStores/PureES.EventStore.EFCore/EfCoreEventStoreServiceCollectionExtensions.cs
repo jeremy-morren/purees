@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using PureES.EventStore.EFCore.Models;
+using PureES.EventStore.EFCore.Subscriptions;
 
 namespace PureES.EventStore.EFCore;
 
@@ -16,7 +17,7 @@ public static class EfCoreEventStoreServiceCollectionExtensions
     /// <param name="configureOptions">Optional delegate to configure event store options</param>
     /// <typeparam name="TContext">The source <see cref="DbContext"/> whose options should be used</typeparam>
     /// <returns></returns>
-    public static IServiceCollection AddEfCoreEventStore<TContext>(
+    public static PureESEfCoreBuilder AddEfCoreEventStore<TContext>(
         this IServiceCollection services,
         Action<EfCoreEventStoreOptions>? configureOptions = null)
         where TContext : DbContext
@@ -31,7 +32,27 @@ public static class EfCoreEventStoreServiceCollectionExtensions
         
         services.AddTransient<IEventStore, EfCoreEventStore<TContext>>();
         services.AddTransient<IEfCoreEventStore, EfCoreEventStore<TContext>>();
-        
-        return services;
+
+        return new PureESEfCoreBuilder(services);
+    }
+}
+
+public class PureESEfCoreBuilder
+{
+    private readonly IServiceCollection _services;
+
+    public PureESEfCoreBuilder(IServiceCollection services)
+    {
+        _services = services ?? throw new ArgumentNullException(nameof(services));
+    }
+
+    /// <summary>
+    /// Adds a subscription to all events
+    /// </summary>
+    public PureESEfCoreBuilder AddSubscriptionToAll()
+    {
+        _services.AddHostedService<EfCoreEventStoreSubscriptionToAll>();
+
+        return this;
     }
 }

@@ -61,12 +61,6 @@ internal class EventStoreDbContext : DbContext
         return events;
     }
 
-    /// <summary>
-    /// Writes the events and returns the events written (with timestamps set)
-    /// </summary>
-    public Task<List<EventStoreEvent>> WriteEvents(IEnumerable<EventStoreEvent> events, CancellationToken ct) => 
-        Provider.WriteEvents(events, ct);
-
     public IQueryable<EventStoreEvent> QueryEvents() => Set<EventStoreEvent>().AsNoTracking();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

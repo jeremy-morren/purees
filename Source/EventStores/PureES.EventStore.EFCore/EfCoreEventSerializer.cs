@@ -34,23 +34,9 @@ internal class EfCoreEventSerializer
         };
     }
     
-    #region Deserialize
+    #region Deserialize string
 
     public object DeserializeEvent(string streamId, uint streamPos, string eventType, string json)
-    {
-        var type = _map.GetCLRType(eventType);
-        try
-        {
-            return JsonSerializer.Deserialize(json, type, _jsonOptions)
-                   ?? throw new Exception($"Event {streamId}/{streamPos} data is null");
-        }
-        catch (JsonException e)
-        {
-            throw new Exception($"Failed to deserialize event {streamId}/{streamPos} to {type}", e);
-        }
-    }
-    
-    public object DeserializeEvent(string streamId, uint streamPos, string eventType, byte[] json)
     {
         var type = _map.GetCLRType(eventType);
         try
@@ -71,6 +57,39 @@ internal class EfCoreEventSerializer
         try
         {
             return JsonSerializer.Deserialize(json, _metadataType, _jsonOptions);
+        }
+        catch (JsonException e)
+        {
+            throw new Exception($"Failed to deserialize metadata for event {streamId}/{streamPos} to {_metadataType}", e);
+        }
+    }
+
+    #endregion
+
+    #region Deserialize Element
+
+
+    public object DeserializeEvent(string streamId, uint streamPos, string eventType, JsonElement json)
+    {
+        var type = _map.GetCLRType(eventType);
+        try
+        {
+            return json.Deserialize(type, _jsonOptions)
+                   ?? throw new Exception($"Event {streamId}/{streamPos} data is null");
+        }
+        catch (JsonException e)
+        {
+            throw new Exception($"Failed to deserialize event {streamId}/{streamPos} to {type}", e);
+        }
+    }
+
+    public object? DeserializeMetadata(string streamId, uint streamPos, JsonElement? json)
+    {
+        if (json == null)
+            return null;
+        try
+        {
+            return json.Value.Deserialize(_metadataType, _jsonOptions);
         }
         catch (JsonException e)
         {

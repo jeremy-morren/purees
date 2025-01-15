@@ -12,7 +12,7 @@ using PureES.EventStore.EFCore.Models;
 
 namespace PureES.EventStores.Tests.EFCore;
 
-public class EfCoreNpgsqlEventStoreTests : EventStoreTestsBase
+public class EfCoreNpgsqlEventStoreTests : EfCoreEventStoreTestsBase
 {
     private readonly ITestOutputHelper _output;
 
@@ -59,8 +59,9 @@ public class EfCoreNpgsqlEventStoreTests : EventStoreTestsBase
         var services = new ServiceCollection();
         
         services.AddDbContext<EmptyDbContext>(builder => builder.UseNpgsql($"{ConnString};Database={DbName}"));
-        
-        services.AddEfCoreEventStore<EmptyDbContext>(o => o.Schema = schema);
+
+        services.AddEfCoreEventStore<EmptyDbContext>(o => o.Schema = schema)
+            .AddSubscriptionToAll();
 
         services.AddPureES().AddBasicEventTypeMap();
         
@@ -81,12 +82,12 @@ public class EfCoreNpgsqlEventStoreTests : EventStoreTestsBase
         return new EventStoreTestHarness(harness, store);
     }
     
-    private class NpgsqlEventStoreTestHarness : IAsyncDisposable
+    private class NpgsqlEventStoreTestHarness : IAsyncDisposable, IServiceProvider
     {
-        private readonly IAsyncDisposable _services;
+        private readonly ServiceProvider _services;
         private readonly string _schema;
 
-        public NpgsqlEventStoreTestHarness(IAsyncDisposable services, string schema)
+        public NpgsqlEventStoreTestHarness(ServiceProvider services, string schema)
         {
             _services = services;
             _schema = schema;
@@ -99,6 +100,7 @@ public class EfCoreNpgsqlEventStoreTests : EventStoreTestsBase
         }
 
         public Task DropSchema() => Execute($"DROP SCHEMA IF EXISTS \"{_schema}\" CASCADE");
+        public object? GetService(Type serviceType) => _services.GetService(serviceType);
     }
     
     private static void EnsureDatabaseExists()

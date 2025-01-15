@@ -3,8 +3,10 @@ using System.Data.Common;
 using System.Linq.Async;
 using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 using PureES.EventStore.EFCore.Models;
 using PureES.EventStore.EFCore.Providers;
+using PureES.EventStore.EFCore.Subscriptions;
 
 namespace PureES.EventStore.EFCore;
 
@@ -14,14 +16,18 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore
     private readonly EventStoreDbContext<TContext> _context;
     private readonly EfCoreEventSerializer _serializer;
     private readonly IEventTypeMap _eventTypeMap;
+    private readonly List<IEfCoreEventStoreSubscription> _subscriptions;
 
-    public EfCoreEventStore(EventStoreDbContext<TContext> context, 
+    public EfCoreEventStore(
+        EventStoreDbContext<TContext> context,
+        IEventTypeMap eventTypeMap,
         EfCoreEventSerializer serializer,
-        IEventTypeMap eventTypeMap)
+        IEnumerable<IHostedService>? hostedServices = null)
     {
         _context = context;
         _serializer = serializer;
         _eventTypeMap = eventTypeMap;
+        _subscriptions = hostedServices?.OfType<IEfCoreEventStoreSubscription>().ToList() ?? [];
     }
     
     #region Deserialize
@@ -102,6 +108,13 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore
     
     #region Create/Append
 
+    private async Task WriteEvents(IEnumerable<EventStoreEvent> events, CancellationToken ct)
+    {
+        var result = await _context.Provider.WriteEvents(events, ct);
+        foreach (var subscription in _subscriptions)
+            subscription.OnEventsWritten(result);
+    }
+
     public async Task<ulong> Create(string streamId, IEnumerable<UncommittedEvent> events, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(streamId);
@@ -111,7 +124,7 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore
         {
             var r = 0u;
             var list = events.Select(e => _serializer.Serialize(streamId, r++, e)).ToList();
-            await _context.WriteEvents(list, cancellationToken);
+            await WriteEvents(list, cancellationToken);
             return (ulong)list.Count - 1;
         }
         catch (DbUpdateException ex) when 
@@ -133,7 +146,7 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore
             throw new WrongStreamRevisionException(streamId, expectedRevision, actual);
         
         var list = events.Select(e => _serializer.Serialize(streamId, (uint)++actual, e));
-        await _context.WriteEvents(list, cancellationToken);
+        await WriteEvents(list, cancellationToken);
         return actual;
     }
 
@@ -141,7 +154,7 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore
     {
         var actual = await GetRevision(streamId, cancellationToken);
         var list = events.Select(e => _serializer.Serialize(streamId, (uint)++actual, e));
-        await _context.WriteEvents(list, cancellationToken);
+        await WriteEvents(list, cancellationToken);
         return actual;
     }
 
@@ -212,7 +225,7 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore
         }
         
         //No exceptions, write events
-        await _context.WriteEvents(list, cancellationToken);
+        await WriteEvents(list, cancellationToken);
     }
     
     #endregion

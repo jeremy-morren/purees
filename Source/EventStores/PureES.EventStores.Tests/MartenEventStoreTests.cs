@@ -18,6 +18,7 @@ public class MartenEventStoreTests : EventStoreTestsBase
     [Fact]
     public async Task Subscription_To_All_Should_Handle_All_Events()
     {
+        var start = DateTime.UtcNow;
         var handler = new Mock<IEventHandler>();
 
         var list = new List<EventEnvelope>();
@@ -75,7 +76,7 @@ public class MartenEventStoreTests : EventStoreTestsBase
                 g.Should().HaveCount(10);
             
             g.Should().BeInAscendingOrder(e => e.StreamPosition);
-            Assert.All(g, e => e.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromMinutes(1)));
+            Assert.All(g, e => e.Timestamp.Should().BeOnOrAfter(start).And.BeBefore(DateTime.UtcNow));
         });
     }
     

@@ -20,5 +20,6 @@
     
     <ItemGroup>
       <ProjectReference Include="..\..\Core\PureES\PureES.csproj" />
+      <ProjectReference Include="..\..\EventBus\PureES.EventBus\PureES.EventBus.csproj" />
     </ItemGroup>
 </Project>

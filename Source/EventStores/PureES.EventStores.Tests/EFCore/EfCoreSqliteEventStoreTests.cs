@@ -12,7 +12,7 @@ using PureES.EventStore.EFCore.Models;
 
 namespace PureES.EventStores.Tests.EFCore;
 
-public class EfCoreSqliteEventStoreTests(ITestOutputHelper output) : EventStoreTestsBase
+public class EfCoreSqliteEventStoreTests(ITestOutputHelper output) : EfCoreEventStoreTestsBase
 {
     [Fact]
     public async Task EventsShouldSetTimestamp()
@@ -33,7 +33,7 @@ public class EfCoreSqliteEventStoreTests(ITestOutputHelper output) : EventStoreT
             .Select(i => CreateEvent($"test-{i / 2}", i % 2))
             .ToList();
         
-        var inserted = await context.WriteEvents(events, default);
+        var inserted = await context.Provider.WriteEvents(events, default);
         inserted.Should().HaveCount(10);
         inserted.ShouldAllBe(i => i.Timestamp != default);
         inserted.GroupBy(i => i.Timestamp).Should().HaveCount(1, "All timestamps should be the same");
@@ -100,9 +100,12 @@ public class EfCoreSqliteEventStoreTests(ITestOutputHelper output) : EventStoreT
 
         services.AddDbContext<EmptyDbContext>(builder => builder.UseSqlite(connection));
 
-        services.AddEfCoreEventStore<EmptyDbContext>();
+        services.AddEfCoreEventStore<EmptyDbContext>()
+            .AddSubscriptionToAll();
 
         services.AddPureES().AddBasicEventTypeMap();
+
+
         
         configureServices(services);
 
