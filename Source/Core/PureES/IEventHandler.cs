@@ -9,9 +9,9 @@ namespace PureES;
 public interface IEventHandler
 {
     /// <summary>
-    /// Gets the method that handles the event
+    /// Gets the method that handles the event (if this handler wraps a method)
     /// </summary>
-    MethodInfo Method { get; }
+    MethodInfo? Method { get; }
 
     /// <summary>
     /// The event handler priority (lower priority is executed first)
