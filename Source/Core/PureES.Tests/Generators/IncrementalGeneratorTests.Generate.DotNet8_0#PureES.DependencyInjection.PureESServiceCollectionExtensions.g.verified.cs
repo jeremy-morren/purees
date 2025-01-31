@@ -103,13 +103,13 @@ namespace PureES.DependencyInjection
                 serviceType: typeof(global::PureES.ICommandHandler<decimal>),
                 implementationType: typeof(global::PureES.CommandHandlers.decimalCommandHandler),
                 lifetime: ServiceLifetime.Transient));
-            if (registeredServices.Contains(typeof(global::PureES.ICommandHandler<ulong>)))
+            if (registeredServices.Contains(typeof(global::PureES.ICommandHandler<uint>)))
             {
-                services.RemoveAll(typeof(global::PureES.ICommandHandler<ulong>));
+                services.RemoveAll(typeof(global::PureES.ICommandHandler<uint>));
             }
             services.Add(new ServiceDescriptor(
-                serviceType: typeof(global::PureES.ICommandHandler<ulong>),
-                implementationType: typeof(global::PureES.CommandHandlers.ulongCommandHandler),
+                serviceType: typeof(global::PureES.ICommandHandler<uint>),
+                implementationType: typeof(global::PureES.CommandHandlers.uintCommandHandler),
                 lifetime: ServiceLifetime.Transient));
             if (registeredServices.Contains(typeof(global::PureES.ICommandHandler<ushort>)))
             {

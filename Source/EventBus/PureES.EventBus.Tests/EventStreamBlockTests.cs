@@ -16,7 +16,7 @@ public class EventStreamBlockTests
 
         var envelopes = Enumerable.Range(0, count)
             .Select(i => new EventEnvelope($"{i / streamSize}",
-                (ulong) (i % streamSize),
+                (uint) (i % streamSize),
                 DateTime.UtcNow,
                 new object(),
                 null))

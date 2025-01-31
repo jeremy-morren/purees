@@ -29,7 +29,7 @@ internal class InMemoryEventStoreSerializer
         
         return new EventEnvelope(
             record.StreamId,
-            (ulong)record.StreamPos,
+            (uint)record.StreamPos,
             record.Timestamp,
             @event,
             metadata);

@@ -19,7 +19,7 @@ public class EventEnvelope : IEventEnvelope
     }
 
     public EventEnvelope(string streamId, 
-        ulong streamPosition, 
+        uint streamPosition, 
         DateTime timestamp,
         object @event,
         object? metadata)
@@ -37,7 +37,7 @@ public class EventEnvelope : IEventEnvelope
     public string StreamId { get; }
 
     /// <summary>The position of the event within the stream</summary>
-    public ulong StreamPosition { get; }
+    public uint StreamPosition { get; }
 
     /// <summary>The UTC timestamp that the event was persisted</summary>
     public DateTime Timestamp { get; }
@@ -145,7 +145,7 @@ public class EventEnvelope<TEvent, TMetadata> : IEventEnvelope<TEvent, TMetadata
     /// <summary>
     ///     The position of the event within the stream
     /// </summary>
-    public ulong StreamPosition { get; }
+    public uint StreamPosition { get; }
 
     /// <summary>
     ///     The UTC timestamp that the event was persisted

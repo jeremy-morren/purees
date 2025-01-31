@@ -38,7 +38,7 @@ public abstract class EventStoreTestsBase
         var events = Enumerable.Range(0, 10)
             .Select(_ => NewEvent())
             .ToList();
-        var revision = (ulong) events.Count - 1;
+        var revision = (uint) events.Count - 1;
         (await store.Exists(stream, CancellationToken)).ShouldBeFalse();
 
         (await store.Create(stream, events, CancellationToken)).ShouldBe(revision);
@@ -47,7 +47,7 @@ public abstract class EventStoreTestsBase
         
         await AssertEqual(events, d => store.Read(d, stream, CancellationToken));
 
-        (await store.GetRevision(stream, CancellationToken)).ShouldBe((ulong)events.Count - 1);
+        (await store.GetRevision(stream, CancellationToken)).ShouldBe((uint)events.Count - 1);
         
         (await store.ReadAll(Direction.Forwards, CancellationToken).GroupBy(s => s.Timestamp).CountAsync())
             .ShouldBe(1, "Created events should have the same timestamp");
@@ -67,7 +67,7 @@ public abstract class EventStoreTestsBase
         var store = harness.EventStore;
         const string stream = nameof(Create_Single);
         var @event = NewEvent();
-        const ulong revision = 0;
+        const uint revision = 0;
         (await store.Exists(stream, CancellationToken)).ShouldBeFalse();
         (await store.Create(stream, @event, CancellationToken)).ShouldBe(revision);
 
@@ -95,7 +95,7 @@ public abstract class EventStoreTestsBase
         
         transaction.Clear();
         foreach (var i in Enumerable.Range(0, 5))
-            transaction.Add(i.ToString(), (ulong)i, Enumerable.Range(0, i + 1).Select(_ => NewEvent()));
+            transaction.Add(i.ToString(), (uint)i, Enumerable.Range(0, i + 1).Select(_ => NewEvent()));
         foreach (var i in Enumerable.Range(5, 5))
             transaction.Add(i.ToString(), null, Enumerable.Range(0, i + 1).Select(_ => NewEvent()));
 
@@ -105,7 +105,7 @@ public abstract class EventStoreTestsBase
         foreach (var i in Enumerable.Range(0, 5))
         {
             var count = (i + 1) * 2;
-            (await store.GetRevision(i.ToString(), CancellationToken)).ShouldBe((ulong)count - 1);
+            (await store.GetRevision(i.ToString(), CancellationToken)).ShouldBe((uint)count - 1);
             (await store.Read(Direction.Forwards, i.ToString(), CancellationToken).ToListAsync())
                 .Should().HaveCount(count);
             totalCount += count;
@@ -114,22 +114,22 @@ public abstract class EventStoreTestsBase
         foreach (var i in Enumerable.Range(5, 5))
         {
             var count = i + 1;
-            (await store.GetRevision(i.ToString(), CancellationToken)).ShouldBe((ulong)count - 1);
+            (await store.GetRevision(i.ToString(), CancellationToken)).ShouldBe((uint)count - 1);
             (await store.Read(Direction.Forwards, i.ToString(), CancellationToken).ToListAsync())
                 .Should().HaveCount(count);
             totalCount += count;
         }
         
         (await store.ReadAll(Direction.Forwards, CancellationToken).ToListAsync()).Should().HaveCount(totalCount);
-        (await store.Count(CancellationToken)).ShouldBe((ulong)totalCount);
+        (await store.Count(CancellationToken)).ShouldBe((uint)totalCount);
         
         transaction.Clear();
         foreach (var i in Enumerable.Range(0, 5))
-            transaction.Add(i.ToString(), (ulong)i, Enumerable.Range(0, i + 1).Select(_ => NewEvent()));
+            transaction.Add(i.ToString(), (uint)i, Enumerable.Range(0, i + 1).Select(_ => NewEvent()));
         foreach (var i in Enumerable.Range(5, 5))
             transaction.Add(i.ToString(), null, Enumerable.Range(0, i + 1).Select(_ => NewEvent()));
         foreach (var i in Enumerable.Range(10, 5))
-            transaction.Add(i.ToString(), (ulong)i + 1, Enumerable.Range(0, i + 1).Select(_ => NewEvent()));
+            transaction.Add(i.ToString(), (uint)i + 1, Enumerable.Range(0, i + 1).Select(_ => NewEvent()));
         
         foreach (var i in Enumerable.Range(15, 5)) //Valid, test atomicity
             transaction.Add(i.ToString(), null, Enumerable.Range(0, i + 1).Select(_ => NewEvent()));
@@ -168,8 +168,8 @@ public abstract class EventStoreTestsBase
         var wrongRevision = await Assert.ThrowsAsync<WrongStreamRevisionException>(() =>
             store.SubmitTransaction(transaction.ToUncommittedTransaction(), CancellationToken));
         wrongRevision.StreamId.ShouldBe(streamId);
-        wrongRevision.ExpectedRevision.ShouldBe(1ul);
-        wrongRevision.ActualRevision.ShouldBe(0ul);
+        wrongRevision.ExpectedRevision.ShouldBe(1u);
+        wrongRevision.ActualRevision.ShouldBe(0u);
         
         transaction.Clear();
         transaction.Add("NotFound", 2, NewEvent());
@@ -184,7 +184,7 @@ public abstract class EventStoreTestsBase
         await using var harness = await CreateHarness();
         var store = harness.EventStore;
         const string stream = nameof(Create_Existing_Should_Throw);
-        const ulong revision = 0;
+        const uint revision = 0;
         (await store.Create(stream, NewEvent(), CancellationToken)).ShouldBe(revision);
         
         await Assert.ThrowsAsync<StreamAlreadyExistsException>(() =>
@@ -201,7 +201,7 @@ public abstract class EventStoreTestsBase
             .Select(_ => NewEvent())
             .ToList();
 
-        (await store.Create(stream, events, CancellationToken)).ShouldBe((ulong) events.Count - 1);
+        (await store.Create(stream, events, CancellationToken)).ShouldBe((uint) events.Count - 1);
         
         var ex = await Assert.ThrowsAsync<StreamAlreadyExistsException>(() =>
             store.Create(stream, events, CancellationToken));
@@ -219,15 +219,15 @@ public abstract class EventStoreTestsBase
         var events = Enumerable.Range(0, 10)
             .Select(_ => NewEvent())
             .ToList();
-        (await store.Create(stream, events.Take(5), CancellationToken)).ShouldBe(4ul);
+        (await store.Create(stream, events.Take(5), CancellationToken)).ShouldBe(4u);
 
         if (useOptimisticConcurrency)
-            (await store.Append(stream, 4, events.Skip(5), CancellationToken)).ShouldBe(9ul);
+            (await store.Append(stream, 4, events.Skip(5), CancellationToken)).ShouldBe(9u);
         else
-            (await store.Append(stream, events.Skip(5), CancellationToken)).ShouldBe(9ul);
+            (await store.Append(stream, events.Skip(5), CancellationToken)).ShouldBe(9u);
         
         await AssertEqual(events, d => store.Read(d, stream, CancellationToken));
-        (await store.GetRevision(stream, CancellationToken)).ShouldBe((ulong)events.Count - 1);
+        (await store.GetRevision(stream, CancellationToken)).ShouldBe((uint)events.Count - 1);
         
         (await store.ReadAll(Direction.Forwards, CancellationToken)
                 .Skip(5)
@@ -264,7 +264,7 @@ public abstract class EventStoreTestsBase
         var events = Enumerable.Range(0, 10)
             .Select(_ => NewEvent())
             .ToList();
-        var revision = (ulong) events.Count - 1;
+        var revision = (uint) events.Count - 1;
         (await store.Create(stream, events, CancellationToken)).ShouldBe(revision);
         var ex = await Assert.ThrowsAsync<WrongStreamRevisionException>(() =>
             store.Append(stream, RandVersion(events.Count + 1), events, CancellationToken));
@@ -278,10 +278,10 @@ public abstract class EventStoreTestsBase
         var store = harness.EventStore;
         const string stream = nameof(Append_With_Invalid_Revision_Should_Throw);
         var @event = NewEvent();
-        (await store.Create(stream, @event, CancellationToken)).ShouldBe(0ul);
+        (await store.Create(stream, @event, CancellationToken)).ShouldBe(0u);
         var ex = await Assert.ThrowsAsync<WrongStreamRevisionException>(() =>
             store.Append(stream, 1, NewEvent(), CancellationToken));
-        ex.ActualRevision.ShouldBe(0ul);
+        ex.ActualRevision.ShouldBe(0u);
     }
 
     [Fact]
@@ -342,7 +342,7 @@ public abstract class EventStoreTestsBase
         var events = Enumerable.Range(0, 10)
             .Select(_ => NewEvent())
             .ToList();
-        var revision = (ulong) events.Count - 1;
+        var revision = (uint) events.Count - 1;
         (await store.Create(stream, events, CancellationToken)).ShouldBe(revision);
         (await store.GetRevision(stream, CancellationToken)).ShouldBe(revision);
 
@@ -391,7 +391,7 @@ public abstract class EventStoreTestsBase
             store.ReadSlice(stream, 1, RandVersion(events.Count + 1), CancellationToken));
         
         await AssertWrongVersion(_ => 
-            store.ReadSlice(stream, RandVersion(events.Count + 1), ulong.MaxValue, CancellationToken));
+            store.ReadSlice(stream, RandVersion(events.Count + 1), uint.MaxValue, CancellationToken));
         
         await AssertWrongVersion(_ => 
             store.ReadSlice(stream, RandVersion(events.Count + 1), CancellationToken));
@@ -431,7 +431,7 @@ public abstract class EventStoreTestsBase
             .Select(_ => NewEvent())
             .ToList();
         await store.Create(stream, events, CancellationToken);
-        var revision = (ulong) events.Count - 1;
+        var revision = (uint) events.Count - 1;
 
         (await store.GetRevision(stream, CancellationToken)).ShouldBe(revision);
         (await store.GetRevision(stream, revision, CancellationToken)).ShouldBe(revision);
@@ -460,7 +460,7 @@ public abstract class EventStoreTestsBase
         var events = Enumerable.Range(0, 10)
             .Select(_ => NewEvent())
             .ToList();
-        var revision = (ulong) events.Count - 1;
+        var revision = (uint) events.Count - 1;
         Assert.Equal(revision, await store.Create(stream, events, CancellationToken));
         Assert.Equal(revision, await store.GetRevision(stream, CancellationToken));
 
@@ -498,15 +498,15 @@ public abstract class EventStoreTestsBase
         const int count = 100;
         var events = Enumerable.Range(0, count).Select(_ => NewEvent()).ToList();
         
-        (await store.Create(stream, events.Take(count / 2), CancellationToken)).ShouldBe((ulong)count / 2 - 1);
-        (await store.Append(stream, events.Skip(count / 2), CancellationToken)).ShouldBe((ulong)count - 1);
+        (await store.Create(stream, events.Take(count / 2), CancellationToken)).ShouldBe((uint)count / 2 - 1);
+        (await store.Append(stream, events.Skip(count / 2), CancellationToken)).ShouldBe((uint)count - 1);
 
-        (await store.GetRevision(stream, CancellationToken)).ShouldBe((ulong)count - 1);
+        (await store.GetRevision(stream, CancellationToken)).ShouldBe((uint)count - 1);
         
         var list = await store.Read(Direction.Forwards, stream, CancellationToken).ToListAsync();
 
-        list[0].StreamPosition.ShouldBe(0ul);
-        list[^1].StreamPosition.ShouldBe((ulong)count - 1);
+        list[0].StreamPosition.ShouldBe(0u);
+        list[^1].StreamPosition.ShouldBe((uint)count - 1);
         list.Should().BeInAscendingOrder(s => s.StreamPosition);
         list.Should().BeInAscendingOrder(s => s.Timestamp);
         
@@ -515,8 +515,8 @@ public abstract class EventStoreTestsBase
         
         list = await store.Read(Direction.Backwards, stream, CancellationToken).ToListAsync();
 
-        list[0].StreamPosition.ShouldBe((ulong)count - 1);
-        list[^1].StreamPosition.ShouldBe(0ul);
+        list[0].StreamPosition.ShouldBe((uint)count - 1);
+        list[^1].StreamPosition.ShouldBe(0u);
         list.Should().BeInDescendingOrder(l => l.StreamPosition);
         list.Should().BeInDescendingOrder(e => e.Timestamp);
         
@@ -593,7 +593,7 @@ public abstract class EventStoreTestsBase
                 Enumerable.Range(0, count).Select(_ => NewEvent()),
                 CancellationToken);
 
-        (await store.Count(CancellationToken)).ShouldBe((ulong)count * count);
+        (await store.Count(CancellationToken)).ShouldBe((uint)count * count);
     }
     
     [Fact]
@@ -611,12 +611,12 @@ public abstract class EventStoreTestsBase
         await store.Create(stream, events, CancellationToken);
         await store.Create(streamDerived, eventsDerived, CancellationToken);
         
-        (await store.CountByEventType([typeof(EventDerived)], CancellationToken)).ShouldBe((ulong)count);
+        (await store.CountByEventType([typeof(EventDerived)], CancellationToken)).ShouldBe((uint)count);
         (await store.CountByEventType([typeof(Event)], CancellationToken))
-            .ShouldBe((ulong)count  * 2, "Count events should include derived types");
-        (await store.CountByEventType([typeof(Event), typeof(EventDerived)], CancellationToken)).ShouldBe((ulong)count * 2);
+            .ShouldBe((uint)count  * 2, "Count events should include derived types");
+        (await store.CountByEventType([typeof(Event), typeof(EventDerived)], CancellationToken)).ShouldBe((uint)count * 2);
         
-        (await store.CountByEventType([], CancellationToken)).ShouldBe(0ul);
+        (await store.CountByEventType([], CancellationToken)).ShouldBe(0u);
     }
 
     [Fact]
@@ -782,7 +782,7 @@ public abstract class EventStoreTestsBase
         });
     }
 
-    private static ulong RandVersion(int? min = null) => (ulong) Random.Shared.Next(min + 1 ?? 0, int.MaxValue - 1);
+    private static uint RandVersion(int? min = null) => (uint) Random.Shared.Next(min + 1 ?? 0, int.MaxValue - 1);
 
     protected static UncommittedEvent NewEvent(bool includeMetadata = true)
     {

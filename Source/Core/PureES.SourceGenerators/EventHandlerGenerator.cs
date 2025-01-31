@@ -6,12 +6,14 @@ namespace PureES.SourceGenerators;
 internal class EventHandlerGenerator
 {
     private readonly EventHandler _handler;
+    private readonly bool _enableAppInsights;
 
     private readonly IndentedWriter _w = new();
 
-    private EventHandlerGenerator(EventHandler handler)
+    private EventHandlerGenerator(EventHandler handler, bool enableAppInsights = true)
     {
         _handler = handler ?? throw new ArgumentNullException(nameof(handler));
+        _enableAppInsights = enableAppInsights;
     }
 
     public static string Generate(EventHandler handler, out string filename)
@@ -54,6 +56,8 @@ internal class EventHandlerGenerator
     {
         _w.WriteLine($"private readonly {LoggerType} _logger;");
         _w.WriteLine($"private readonly global::{PureESSymbols.EventHandlerOptions} _options;");
+        if (_enableAppInsights)
+            _w.WriteLine($"private readonly {AppInsightsHelpers.AppInsightsClient} _telemetryClient;");
     
         for (var i = 0; i < _handler.Services.Length; i++)
             _w.WriteLine($"private readonly {_handler.Services[i].CSharpName} _service{i};");
@@ -63,18 +67,23 @@ internal class EventHandlerGenerator
         _w.WriteMethodAttributes();
         _w.Write($"public {GetClassName(_handler)}(");
         
-        _w.WriteParameters(_handler.Services.Select((s,i) => $"{s.CSharpName} service{i}"),
-            new []
-            {
+        _w.WriteParameters(
+            _handler.Services.Select((s,i) => $"{s.CSharpName} service{i}"),
+            [
                 $"{_handler.Parent.CSharpName} parent",
-                $"{OptionsType} options",
-                $"{LoggerType} logger = null"
-            });
+                    $"{OptionsType} options",
+                    $"{LoggerType} logger = null"
+            ],
+            _enableAppInsights ? [$"{AppInsightsHelpers.AppInsightsClient} telemetryClient = null"] : []
+            );
         _w.WriteRawLine(')');
         _w.PushBrace();
     
         _w.WriteLine("this._options = options?.Value.EventHandlers ?? throw new ArgumentNullException(nameof(options));");
         _w.WriteLine($"this._logger = logger ?? {NullLoggerInstance};");
+
+        if (_enableAppInsights)
+            _w.WriteLine("this._telemetryClient = telemetryClient;");
     
         for (var i = 0; i < _handler.Services.Length; i++)
             _w.WriteLine($"this._service{i} = service{i} ?? throw new ArgumentNullException(nameof(service{i}));");
@@ -137,6 +146,12 @@ internal class EventHandlerGenerator
                 "throw new ArgumentOutOfRangeException($\"Unknown event type {@event.Event.GetType()}\", nameof(@event));");
         
         WriteStartActivity();
+
+        if (_enableAppInsights)
+        {
+            _w.WriteLine("try");
+            _w.PushBrace();
+        }
         
         BeginLogScope(_handler);
         
@@ -146,7 +161,13 @@ internal class EventHandlerGenerator
             _w.WriteLine($"return Task.{nameof(Task.CompletedTask)};");
         
         _w.PopBrace(); //Log scope
-        
+
+        if (_enableAppInsights)
+        {
+            _w.PopBrace(); //try
+            _w.WriteStatement("finally", TrackAppInsightsEvent);
+        }
+
         _w.PopBrace(); //Activity
         
         _w.PopBrace(); //Method
@@ -154,9 +175,9 @@ internal class EventHandlerGenerator
     
     private void WriteHandle()
     {
-        _w.WriteLine($"var ct = new CancellationTokenSource(_options.Timeout).Token;");
-        
-        var method = $"\"{_handler.Method.Name}\"";
+        _w.WriteLine("var ct = new CancellationTokenSource(_options.Timeout).Token;");
+
+        var method = _handler.Method.Name.ToStringLiteral();
         
         _w.WriteLine($"var start = {GeneratorHelpers.GetTimestamp};");
         
@@ -241,19 +262,22 @@ internal class EventHandlerGenerator
         _w.WriteLine($"using (var activity = new {ExternalTypes.Activity}({ActivitySource.ToStringLiteral()}))");
         
         _w.PushBrace();
-        
-        _w.WriteLine($"activity.SetTag(\"StreamId\", @event.StreamId);");
-        _w.WriteLine($"activity.SetTag(\"StreamPosition\", @event.StreamPosition);");
-        
-        var friendlyName = _handler.EventType?.CSharpName.Replace("global::", string.Empty);
-        _w.WriteLine(friendlyName != null
-            ? $"activity.SetTag(\"EventType\", {friendlyName.ToStringLiteral()});"
-            : "activity.SetTag(\"EventType\", null);");
+
+        var tags = new[]
+        {
+            ("StreamId", "@event.StreamId"),
+            ("StreamPosition", "@event.StreamPosition"),
+            ("HandlerClass", _handler.Parent.FullName.ToStringLiteral()),
+            ("HandlerMethod", _handler.Method.Name.ToStringLiteral()),
+            ("EventType", _handler.EventType?.FullName.ToStringLiteral())
+        };
+        foreach (var (key, value) in tags)
+            if (value != null)
+                _w.WriteLine($"activity.SetTag({key.ToStringLiteral()}, {value});");
         
         _w.WriteLine($"{ExternalTypes.Activity}.Current = activity;");
         _w.WriteLine("activity.Start();");
     }
-
 
     private void BeginLogScope(EventHandler handler)
     {
@@ -264,7 +288,7 @@ internal class EventHandlerGenerator
         {
             ("EventType", "EventType"),
             ("EventHandlerParent", "ParentType"),
-            ("EventHandler", $"\"{handler.Method.Name}\""),
+            ("EventHandler", handler.Method.Name.ToStringLiteral()),
             ("StreamId", "@event.StreamId"),
             ("StreamPosition", "@event.StreamPosition"),
         };
@@ -274,6 +298,19 @@ internal class EventHandlerGenerator
         _w.WriteLine("}))");
         _w.Pop();
         _w.PushBrace();
+    }
+
+    private void TrackAppInsightsEvent()
+    {
+        var properties = new Dictionary<string, string?>()
+        {
+            { "StreamId", "@event.StreamId" },
+            { "StreamPosition", "@event.StreamPosition" },
+            { "HandlerClass", _handler.Parent.FullName.ToStringLiteral() },
+            { "HandlerMethod", _handler.Method.Name.ToStringLiteral() },
+            { "EventType", _handler.EventType?.FullName.ToStringLiteral() }
+        };
+        AppInsightsHelpers.TrackEvent(_w, properties);
     }
     
     #region Helpers

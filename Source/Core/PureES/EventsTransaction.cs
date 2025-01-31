@@ -19,7 +19,7 @@ public class EventsTransaction : IEventsTransaction
     /// or <see langword="null" /> if the stream is to be created.
     /// </param>
     /// <param name="events">Stream events.</param>
-    public void Add(string streamId, ulong? revision, IEnumerable<object> @events)
+    public void Add(string streamId, uint? revision, IEnumerable<object> @events)
     {
         Add(streamId, new EventsList(revision, events));
     }
@@ -33,7 +33,7 @@ public class EventsTransaction : IEventsTransaction
     /// or <see langword="null" /> if the stream is to be created.
     /// </param>
     /// <param name="events">Stream events.</param>
-    public void Add(string streamId, ulong? revision, params object[] @events)
+    public void Add(string streamId, uint? revision, params object[] @events)
     {
         Add(streamId, new EventsList(revision, events));
     }
@@ -47,7 +47,7 @@ public class EventsTransaction : IEventsTransaction
     /// or <see langword="null" /> if the stream is to be created.
     /// </param>
     /// <param name="events">Stream events.</param>
-    public void Add<T>(string streamId, ulong? revision, T[] @events)
+    public void Add<T>(string streamId, uint? revision, T[] @events)
     {
         Add(streamId, new EventsList(revision, events.Cast<object>()));
     }
@@ -61,7 +61,7 @@ public class EventsTransaction : IEventsTransaction
     /// or <see langword="null" /> if the stream is to be created.
     /// </param>
     /// <param name="events">Stream events.</param>
-    public void AddOrAppend(string streamId, ulong? revision, params object[] @events)
+    public void AddOrAppend(string streamId, uint? revision, params object[] @events)
     {
         if (_dictionary.TryGetValue(streamId, out var list))
         {

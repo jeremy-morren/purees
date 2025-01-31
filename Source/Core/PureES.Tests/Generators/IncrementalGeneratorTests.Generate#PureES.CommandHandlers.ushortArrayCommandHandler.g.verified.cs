@@ -78,7 +78,7 @@ namespace PureES.CommandHandlers
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        public async global::System.Threading.Tasks.Task<ulong> Handle(ushort[] command, CancellationToken cancellationToken)
+        public async global::System.Threading.Tasks.Task<uint> Handle(ushort[] command, CancellationToken cancellationToken)
         {
             if (command == null)
             {
@@ -112,7 +112,7 @@ namespace PureES.CommandHandlers
                     }))
                 {
                     var result = global::PureES.Tests.Models.TestAggregate.DerivedTransaction(command);
-                    var revision = ulong.MaxValue;
+                    var revision = uint.MaxValue;
                     if (result != null)
                     {
                         var transaction = new global::System.Collections.Generic.Dictionary<string, global::PureES.UncommittedEventsList>();
@@ -120,7 +120,7 @@ namespace PureES.CommandHandlers
                         {
                             if (pair.Key == streamId)
                             {
-                                revision = pair.Value.ExpectedRevision.HasValue ? pair.Value.ExpectedRevision.Value + (ulong)pair.Value.Count : (ulong)(pair.Value.Count - 1);
+                                revision = pair.Value.ExpectedRevision.HasValue ? pair.Value.ExpectedRevision.Value + (uint)pair.Value.Count : (uint)(pair.Value.Count - 1);
                             }
                             if (pair.Value.Count > 0)
                             {

@@ -78,7 +78,7 @@ namespace PureES.CommandHandlers
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        public async global::System.Threading.Tasks.Task<ulong> Handle(ushort command, CancellationToken cancellationToken)
+        public async global::System.Threading.Tasks.Task<uint> Handle(ushort command, CancellationToken cancellationToken)
         {
             this._logger.Log(
                 logLevel: global::Microsoft.Extensions.Logging.LogLevel.Debug,
@@ -124,7 +124,7 @@ namespace PureES.CommandHandlers
                             if (pair.Key == streamId)
                             {
                                 transaction.Add(pair.Key, new global::PureES.UncommittedEventsList(currentRevision, pair.Value));
-                                revision = currentRevision + (ulong)pair.Value.Count;
+                                revision = currentRevision + (uint)pair.Value.Count;
                             }
                             else
                             {

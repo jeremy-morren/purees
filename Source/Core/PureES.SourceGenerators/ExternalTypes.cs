@@ -1,4 +1,7 @@
-﻿namespace PureES.SourceGenerators;
+﻿using Microsoft.ApplicationInsights;
+using Microsoft.ApplicationInsights.DataContracts;
+
+namespace PureES.SourceGenerators;
 
 /// <summary>
 /// Map of types from outside assembly

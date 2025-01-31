@@ -10,6 +10,7 @@ internal class PostgresProvider(EventStoreDbContext context) : IEfCoreProvider
     public void ConfigureEntity(EntityTypeBuilder<EventStoreEvent> builder)
     {
         builder.Property(e => e.Timestamp)
+            .HasColumnType("timestamp with time zone")
             .HasDefaultValueSql("transaction_timestamp()");
     }
 

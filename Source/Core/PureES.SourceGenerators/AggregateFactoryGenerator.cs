@@ -99,7 +99,7 @@ internal class AggregateFactoryGenerator
                 
                 WriteWhenSwitch(_aggregate.When.Where(w => !w.IsUpdate).ToList(), "CreateWhen");
                 
-                _w.WriteLine($"return new {RehydratedAggregate}(current, 0ul);");
+                _w.WriteLine($"return new {RehydratedAggregate}(current, 0u);");
             });
         
         //Update when

@@ -78,7 +78,7 @@ namespace PureES.CommandHandlers
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        public async global::System.Threading.Tasks.Task<ulong> Handle(short command, CancellationToken cancellationToken)
+        public async global::System.Threading.Tasks.Task<uint> Handle(short command, CancellationToken cancellationToken)
         {
             this._logger.Log(
                 logLevel: global::Microsoft.Extensions.Logging.LogLevel.Debug,
@@ -119,7 +119,7 @@ namespace PureES.CommandHandlers
                         {
                             if (pair.Key == streamId)
                             {
-                                revision = pair.Value.ExpectedRevision.HasValue ? pair.Value.ExpectedRevision.Value + (ulong)pair.Value.Count : (ulong)(pair.Value.Count - 1);
+                                revision = pair.Value.ExpectedRevision.HasValue ? pair.Value.ExpectedRevision.Value + (uint)pair.Value.Count : (uint)(pair.Value.Count - 1);
                             }
                             if (pair.Value.Count > 0)
                             {

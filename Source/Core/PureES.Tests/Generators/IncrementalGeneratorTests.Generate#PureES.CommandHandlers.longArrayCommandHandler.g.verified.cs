@@ -123,7 +123,7 @@ namespace PureES.CommandHandlers
                         {
                             if (pair.Key == streamId)
                             {
-                                revision = pair.Value.ExpectedRevision.HasValue ? pair.Value.ExpectedRevision.Value + (ulong)pair.Value.Count : (ulong)(pair.Value.Count - 1);
+                                revision = pair.Value.ExpectedRevision.HasValue ? pair.Value.ExpectedRevision.Value + (uint)pair.Value.Count : (uint)(pair.Value.Count - 1);
                             }
                             if (pair.Value.Count > 0)
                             {

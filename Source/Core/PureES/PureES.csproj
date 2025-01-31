@@ -28,5 +28,10 @@
     <ItemGroup>
         <InternalsVisibleTo Include="$(AssemblyName).Tests" />
     </ItemGroup>
+
+    <!-- Enable a property called PureESEnableApplicationInsights to enable Application Insights -->
+    <ItemGroup>
+        <CompilerVisibleProperty Include="PureESEnableApplicationInsights" />
+    </ItemGroup>
     
 </Project>

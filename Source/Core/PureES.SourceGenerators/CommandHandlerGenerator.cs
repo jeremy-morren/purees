@@ -47,7 +47,7 @@ internal class CommandHandlerGenerator
         
         _w.WriteMethodAttributes();
         
-        var returnType = _handler.ResultType != null ? _handler.ResultType.CSharpName : "ulong";
+        var returnType = _handler.ResultType != null ? _handler.ResultType.CSharpName : "uint";
         returnType = TypeNameHelpers.GetGenericTypeName(typeof(Task<>), returnType);
         _w.WriteStatement(
             $"public async {returnType} Handle({_handler.Command.CSharpName} command, CancellationToken cancellationToken)",
@@ -165,7 +165,7 @@ internal class CommandHandlerGenerator
             
             WriteInvoke();
 
-            _w.WriteLine(_handler.IsUpdate ? "var revision = currentRevision;" : "var revision = ulong.MaxValue;");
+            _w.WriteLine(_handler.IsUpdate ? "var revision = currentRevision;" : "var revision = uint.MaxValue;");
 
             var result = _handler.ResultType != null ? "result?.Event" : "result";
             
@@ -318,7 +318,7 @@ internal class CommandHandlerGenerator
         {
             //If stream is current stream, manually calculate return revision
             _w.WriteStatement("if (pair.Key == streamId)", 
-                "revision = pair.Value.ExpectedRevision.HasValue ? pair.Value.ExpectedRevision.Value + (ulong)pair.Value.Count : (ulong)(pair.Value.Count - 1);");
+                "revision = pair.Value.ExpectedRevision.HasValue ? pair.Value.ExpectedRevision.Value + (uint)pair.Value.Count : (uint)(pair.Value.Count - 1);");
             
             _w.WriteStatement("if (pair.Value.Count > 0)", 
                 $"transaction.Add(pair.Key, new {list}(pair.Value.ExpectedRevision, pair.Value));");

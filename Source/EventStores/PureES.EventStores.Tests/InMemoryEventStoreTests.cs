@@ -36,7 +36,7 @@ public class InMemoryEventStoreTests : EventStoreTestsBase
         
         await subscription.StartAsync(default); //noop
         
-        (await store.Create(streamId, Enumerable.Range(0, 10).Select(_ => NewEvent()), default)).ShouldBe(9ul);
+        (await store.Create(streamId, Enumerable.Range(0, 10).Select(_ => NewEvent()), default)).ShouldBe(9u);
 
         var transaction = new EventsTransaction();
         foreach (var i in Enumerable.Range(0, 10))
@@ -76,7 +76,7 @@ public class InMemoryEventStoreTests : EventStoreTestsBase
         {
             (await harness.EventStore.Create($"{streamId}-{i}", 
                 Enumerable.Range(0, 10).Select(_ => NewEvent()), 
-                default)).ShouldBe(9ul);
+                default)).ShouldBe(9u);
         }
 
         var store = new ServiceCollection()
@@ -114,7 +114,7 @@ public class InMemoryEventStoreTests : EventStoreTestsBase
         {
             (await store.Create($"{streamId}-{i}", 
                 Enumerable.Range(0, 10).Select(_ => NewEvent()), 
-                default)).ShouldBe(9ul);
+                default)).ShouldBe(9u);
         }
 
         var serialized = store.Serialize();

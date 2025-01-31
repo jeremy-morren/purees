@@ -43,19 +43,19 @@ internal class InMemoryEventStore : IInMemoryEventStore
     
     #region Revision
 
-    public Task<ulong> GetRevision(string streamId, CancellationToken _) =>
+    public Task<uint> GetRevision(string streamId, CancellationToken _) =>
         _events.TryGetRevision(streamId, out var revision)
             ? Task.FromResult(revision)
-            : Task.FromException<ulong>(new StreamNotFoundException(streamId));
+            : Task.FromException<uint>(new StreamNotFoundException(streamId));
 
-    public Task<ulong> GetRevision(string streamId, ulong expectedRevision, CancellationToken _)
+    public Task<uint> GetRevision(string streamId, uint expectedRevision, CancellationToken _)
     {
         if (!_events.TryGetRevision(streamId, out var actual))
-            return Task.FromException<ulong>(new StreamNotFoundException(streamId));
+            return Task.FromException<uint>(new StreamNotFoundException(streamId));
         
         return actual == expectedRevision
             ? Task.FromResult(expectedRevision)
-            : Task.FromException<ulong>(new WrongStreamRevisionException(streamId, expectedRevision, actual));
+            : Task.FromException<uint>(new WrongStreamRevisionException(streamId, expectedRevision, actual));
     }
 
     public Task<bool> Exists(string streamId, CancellationToken _) => Task.FromResult(_events.Exists(streamId));
@@ -90,15 +90,15 @@ internal class InMemoryEventStore : IInMemoryEventStore
             throw new ArgumentOutOfRangeException(nameof(events));
     }
 
-    public Task<ulong> Create(string streamId, IEnumerable<UncommittedEvent> events, CancellationToken _)
+    public Task<uint> Create(string streamId, IEnumerable<UncommittedEvent> events, CancellationToken _)
     {
-        ulong revision;
+        uint revision;
         CreateRecords(streamId, events, out var records);
         
         lock (_events)
         {
             if (_events.Exists(streamId))
-                return Task.FromException<ulong>(new StreamAlreadyExistsException(streamId));
+                return Task.FromException<uint>(new StreamAlreadyExistsException(streamId));
             _events = _events.Append(streamId, records, out revision);
         }
 
@@ -106,28 +106,28 @@ internal class InMemoryEventStore : IInMemoryEventStore
         return Task.FromResult(revision);
     }
 
-    public Task<ulong> Create(string streamId, UncommittedEvent @event, CancellationToken _)
+    public Task<uint> Create(string streamId, UncommittedEvent @event, CancellationToken _)
     {
         if (@event == null) throw new ArgumentNullException(nameof(@event));
         
         return Create(streamId, [@event], _);
     }
 
-    public Task<ulong> Append(string streamId, 
-        ulong expectedRevision, 
+    public Task<uint> Append(string streamId, 
+        uint expectedRevision, 
         IEnumerable<UncommittedEvent> events,
         CancellationToken _)
     {
-        ulong revision;
+        uint revision;
         CreateRecords(streamId, events, out var records);
         
         lock (_events)
         {
             if (!_events.TryGetRevision(streamId, out var actual))
-                return Task.FromException<ulong>(new StreamNotFoundException(streamId));
+                return Task.FromException<uint>(new StreamNotFoundException(streamId));
             
             if (actual != expectedRevision)
-                return Task.FromException<ulong>(new WrongStreamRevisionException(streamId, 
+                return Task.FromException<uint>(new WrongStreamRevisionException(streamId, 
                     expectedRevision, actual));
 
             _events = _events.Append(streamId, records, out revision);
@@ -137,15 +137,15 @@ internal class InMemoryEventStore : IInMemoryEventStore
         return Task.FromResult(revision);
     }
     
-    public Task<ulong> Append(string streamId, IEnumerable<UncommittedEvent> events, CancellationToken _)
+    public Task<uint> Append(string streamId, IEnumerable<UncommittedEvent> events, CancellationToken _)
     {
-        ulong revision;
+        uint revision;
         CreateRecords(streamId, events, out var records);
         
         lock (_events)
         {
             if (!_events.Exists(streamId))
-                return Task.FromException<ulong>(new StreamNotFoundException(streamId));
+                return Task.FromException<uint>(new StreamNotFoundException(streamId));
             
             _events = _events.Append(streamId, records, out revision);
         }
@@ -154,14 +154,14 @@ internal class InMemoryEventStore : IInMemoryEventStore
         return Task.FromResult(revision);
     }
 
-    public Task<ulong> Append(string streamId, ulong expectedRevision, UncommittedEvent @event, CancellationToken _)
+    public Task<uint> Append(string streamId, uint expectedRevision, UncommittedEvent @event, CancellationToken _)
     {
         if (@event == null) throw new ArgumentNullException(nameof(@event));
         
         return Append(streamId, expectedRevision, new [] { @event }, _);
     }
 
-    public Task<ulong> Append(string streamId, UncommittedEvent @event, CancellationToken _)
+    public Task<uint> Append(string streamId, UncommittedEvent @event, CancellationToken _)
     {
         if (@event == null) throw new ArgumentNullException(nameof(@event));
         
@@ -240,7 +240,7 @@ internal class InMemoryEventStore : IInMemoryEventStore
         ToAsyncEnumerable(_events.ReadAll(direction));
 
     public IAsyncEnumerable<EventEnvelope> ReadAll(Direction direction, 
-        ulong maxCount, 
+        uint maxCount, 
         CancellationToken cancellationToken)
     {
         return ToAsyncEnumerable(_events.ReadAll(direction, maxCount));
@@ -253,7 +253,7 @@ internal class InMemoryEventStore : IInMemoryEventStore
         return ToAsyncEnumerable(_events.ReadStream(direction, streamId, out var _));
     }
 
-    public IAsyncEnumerable<EventEnvelope> Read(Direction direction, string streamId, ulong expectedRevision, CancellationToken _)
+    public IAsyncEnumerable<EventEnvelope> Read(Direction direction, string streamId, uint expectedRevision, CancellationToken _)
     {
         if (streamId == null) throw new ArgumentNullException(nameof(streamId));
         
@@ -267,8 +267,8 @@ internal class InMemoryEventStore : IInMemoryEventStore
 
     public IAsyncEnumerable<EventEnvelope> Read(Direction direction, 
         string streamId, 
-        ulong startRevision, 
-        ulong expectedRevision,
+        uint startRevision, 
+        uint expectedRevision,
         CancellationToken cancellationToken = default)
     {
         if (streamId == null) throw new ArgumentNullException(nameof(streamId));
@@ -294,7 +294,7 @@ internal class InMemoryEventStore : IInMemoryEventStore
 
     public IAsyncEnumerable<EventEnvelope> ReadPartial(Direction direction, 
         string streamId,
-        ulong count, 
+        uint count, 
         CancellationToken _)
     {
         if (streamId == null) throw new ArgumentNullException(nameof(streamId));
@@ -310,8 +310,8 @@ internal class InMemoryEventStore : IInMemoryEventStore
     }
 
     public IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId, 
-        ulong startRevision, 
-        ulong endRevision,
+        uint startRevision, 
+        uint endRevision,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(streamId);
@@ -327,7 +327,7 @@ internal class InMemoryEventStore : IInMemoryEventStore
         return ToAsyncEnumerable(stream.Take((int)endRevision + 1).Skip((int)startRevision));
     }
 
-    public IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId, ulong startRevision, CancellationToken cancellationToken = default)
+    public IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId, uint startRevision, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(streamId);
 
@@ -390,7 +390,7 @@ internal class InMemoryEventStore : IInMemoryEventStore
 
     public IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction, 
         Type[] eventTypes,
-        ulong maxCount,
+        uint maxCount,
         CancellationToken cancellationToken)
     {
         var types = GetTypeNames(eventTypes);
@@ -404,14 +404,14 @@ internal class InMemoryEventStore : IInMemoryEventStore
     
     #region Count
 
-    public Task<ulong> CountByEventType(Type[] eventTypes, CancellationToken cancellationToken)
+    public Task<uint> CountByEventType(Type[] eventTypes, CancellationToken cancellationToken)
     {
         var types = GetTypeNames(eventTypes);
         var count = _events.Count(r => r.TypeContains(types));
-        return Task.FromResult((ulong)count);
+        return Task.FromResult((uint)count);
     }
     
-    public Task<ulong> Count(CancellationToken cancellationToken) => Task.FromResult((ulong)_events.Count);
+    public Task<uint> Count(CancellationToken cancellationToken) => Task.FromResult((uint)_events.Count);
 
     public int GetCount() => _events.Count;
 

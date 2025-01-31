@@ -35,13 +35,13 @@ internal class MartenEventSerializer
         var @event = Deserialize(martenEvent.Event, eventType)
                      ?? throw new InvalidOperationException($"Event data is null for event {martenEvent.Id}");
         return new EventEnvelope(martenEvent.StreamId,
-            (ulong)martenEvent.StreamPosition,
+            (uint)martenEvent.StreamPosition,
             martenEvent.Timestamp.UtcDateTime,
             @event,
             metadata);
     }
 
-    public MartenEvent Serialize(UncommittedEvent @event, string streamId, ulong streamPosition)
+    public MartenEvent Serialize(UncommittedEvent @event, string streamId, uint streamPosition)
     {
         var e = JsonSerializer.SerializeToElement(@event.Event, _options.JsonSerializerOptions);
         var metadata = @event.Metadata != null 

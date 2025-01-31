@@ -27,7 +27,7 @@ internal class BasicAggregateStore<TAggregate> : IAggregateStore<TAggregate> whe
         return result.Aggregate;
     }
 
-    public async Task<TAggregate> Load(string streamId, ulong expectedRevision, CancellationToken cancellationToken)
+    public async Task<TAggregate> Load(string streamId, uint expectedRevision, CancellationToken cancellationToken)
     {
         var result = await _factory.Create(streamId,
             _eventStore.Read(Direction.Forwards, streamId, expectedRevision, cancellationToken), 
@@ -35,7 +35,7 @@ internal class BasicAggregateStore<TAggregate> : IAggregateStore<TAggregate> whe
         return result.Aggregate;
     }
 
-    public async Task<TAggregate> LoadAt(string streamId, ulong endRevision, CancellationToken cancellationToken)
+    public async Task<TAggregate> LoadAt(string streamId, uint endRevision, CancellationToken cancellationToken)
     {
         var result = await _factory.Create(streamId, 
             _eventStore.ReadSlice(streamId, 0, endRevision, cancellationToken),

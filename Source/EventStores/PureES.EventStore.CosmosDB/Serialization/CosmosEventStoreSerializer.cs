@@ -31,7 +31,7 @@ internal class CosmosEventStoreSerializer
             metadata);
     }
 
-    public CosmosEvent Serialize(UncommittedEvent @event, string streamId, ulong streamPosition, DateTimeOffset timestamp)
+    public CosmosEvent Serialize(UncommittedEvent @event, string streamId, uint streamPosition, DateTimeOffset timestamp)
     {
         var e = JsonSerializer.SerializeToElement(@event.Event, _options.JsonSerializerOptions);
         var metadata = @event.Metadata != null 

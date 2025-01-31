@@ -26,18 +26,18 @@ internal class CosmosEventStore : IEventStore
     #region Write
 
     private List<TransactionalBatch> CreateTransactions(string streamId,
-        ulong startRevision,
+        uint startRevision,
         Container container,
         IEnumerable<UncommittedEvent> events,
-        out ulong revision) =>
+        out uint revision) =>
         CreateTransactions(streamId, startRevision, container, events, _systemClock.UtcNow, out revision);
     
     private List<TransactionalBatch> CreateTransactions(string streamId,
-        ulong startRevision,
+        uint startRevision,
         Container container,
         IEnumerable<UncommittedEvent> events,
         DateTimeOffset timestamp,
-        out ulong revision)
+        out uint revision)
     {
         if (events == null) throw new ArgumentNullException(nameof(events));
         
@@ -119,7 +119,7 @@ internal class CosmosEventStore : IEventStore
     }
 
 
-    public async Task<ulong> Create(string streamId, IEnumerable<UncommittedEvent> events, CancellationToken cancellationToken)
+    public async Task<uint> Create(string streamId, IEnumerable<UncommittedEvent> events, CancellationToken cancellationToken)
     {
         var container = _client.GetContainer();
 
@@ -131,10 +131,10 @@ internal class CosmosEventStore : IEventStore
         return revision;
     }
 
-    public Task<ulong> Create(string streamId, UncommittedEvent @event, CancellationToken cancellationToken) => 
+    public Task<uint> Create(string streamId, UncommittedEvent @event, CancellationToken cancellationToken) => 
         Create(streamId, new[] {@event}, cancellationToken);
     
-    public async Task<ulong> Append(string streamId, ulong expectedRevision, IEnumerable<UncommittedEvent> events, CancellationToken cancellationToken)
+    public async Task<uint> Append(string streamId, uint expectedRevision, IEnumerable<UncommittedEvent> events, CancellationToken cancellationToken)
     {
         var container = _client.GetContainer();
         await CheckRevision(container, streamId, expectedRevision, cancellationToken);
@@ -148,13 +148,13 @@ internal class CosmosEventStore : IEventStore
     
     private static async Task CheckRevision(Container container, 
         string streamId,
-        ulong expectedRevision,
+        uint expectedRevision,
         CancellationToken cancellationToken)
     {
         var queryDef = new QueryDefinition(
                 "select TOP 1 value c.eventStreamPosition from c where c.eventStreamId = @streamId order by c.eventStreamPosition desc")
             .WithParameter("@streamId", streamId);
-        using var iterator = container.GetItemQueryIterator<ulong?>(queryDef,
+        using var iterator = container.GetItemQueryIterator<uint?>(queryDef,
             requestOptions: new QueryRequestOptions()
             {
                 PartitionKey = new PartitionKey(streamId)
@@ -165,7 +165,7 @@ internal class CosmosEventStore : IEventStore
             throw new WrongStreamRevisionException(streamId, expectedRevision, actual);
     }
 
-    public async Task<ulong> Append(string streamId, IEnumerable<UncommittedEvent> events, CancellationToken cancellationToken)
+    public async Task<uint> Append(string streamId, IEnumerable<UncommittedEvent> events, CancellationToken cancellationToken)
     {
         var container = _client.GetContainer();
         var revision = await GetRevision(streamId, cancellationToken);
@@ -177,11 +177,11 @@ internal class CosmosEventStore : IEventStore
         return revision;
     }
 
-    public Task<ulong> Append(string streamId, ulong expectedRevision, UncommittedEvent @event,
+    public Task<uint> Append(string streamId, uint expectedRevision, UncommittedEvent @event,
         CancellationToken cancellationToken)
         => Append(streamId, expectedRevision, new[] {@event}, cancellationToken);
 
-    public async Task<ulong> Append(string streamId, UncommittedEvent @event, CancellationToken cancellationToken)
+    public async Task<uint> Append(string streamId, UncommittedEvent @event, CancellationToken cancellationToken)
     {
         var container = _client.GetContainer();
         var revision = await GetRevision(streamId, cancellationToken) + 1;
@@ -203,7 +203,7 @@ internal class CosmosEventStore : IEventStore
 
         var query = new QueryDefinition(sql).WithParameter("@streams", transaction.Keys);
 
-        var current = new Dictionary<string, ulong>(capacity: transaction.Count);
+        var current = new Dictionary<string, uint>(capacity: transaction.Count);
         using (var iterator = container.GetItemQueryIterator<StreamPosition>(query))
             while (iterator.HasMoreResults)
                 foreach (var i in await iterator.ReadNextAsync(cancellationToken))
@@ -295,13 +295,13 @@ internal class CosmosEventStore : IEventStore
             });
     }
 
-    public async Task<ulong> GetRevision(string streamId, CancellationToken cancellationToken)
+    public async Task<uint> GetRevision(string streamId, CancellationToken cancellationToken)
     {
         var container = _client.GetContainer();
         var queryDef = new QueryDefinition(
                 "select TOP 1 value c.eventStreamPosition from c where c.eventStreamId = @streamId order by c.eventStreamPosition desc")
             .WithParameter("@streamId", streamId);
-        using var iterator = container.GetItemQueryIterator<ulong?>(queryDef,
+        using var iterator = container.GetItemQueryIterator<uint?>(queryDef,
             requestOptions: new QueryRequestOptions()
             {
                 PartitionKey = new PartitionKey(streamId)
@@ -310,7 +310,7 @@ internal class CosmosEventStore : IEventStore
         return result.Resource.FirstOrDefault() ?? throw new StreamNotFoundException(streamId);
     }
 
-    public async Task<ulong> GetRevision(string streamId, ulong expectedRevision, CancellationToken cancellationToken)
+    public async Task<uint> GetRevision(string streamId, uint expectedRevision, CancellationToken cancellationToken)
     {
         var actual = await GetRevision(streamId, cancellationToken);
         if (actual == expectedRevision) return actual;
@@ -340,7 +340,7 @@ internal class CosmosEventStore : IEventStore
     }
     
     public async IAsyncEnumerable<EventEnvelope> ReadAll(Direction direction, 
-        ulong maxCount,
+        uint maxCount,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var container = _client.GetContainer();
@@ -393,7 +393,7 @@ internal class CosmosEventStore : IEventStore
 
     public async IAsyncEnumerable<EventEnvelope> Read(Direction direction, 
         string streamId, 
-        ulong expectedRevision, 
+        uint expectedRevision, 
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         if (streamId == null) throw new ArgumentNullException(nameof(streamId));
@@ -410,7 +410,7 @@ internal class CosmosEventStore : IEventStore
         queryDef = queryDef.WithParameter("@streamId", streamId);
 
         using var iterator = CreateIterator(streamId, queryDef);
-        var revision = ulong.MaxValue;
+        var revision = uint.MaxValue;
         while (iterator.HasMoreResults)
         {
             var result = await iterator.ReadNextAsync(cancellationToken);
@@ -421,7 +421,7 @@ internal class CosmosEventStore : IEventStore
             }
         }
 
-        if (revision == ulong.MaxValue)
+        if (revision == uint.MaxValue)
             throw new StreamNotFoundException(streamId);
         if (expectedRevision != revision)
             throw new WrongStreamRevisionException(streamId, expectedRevision, revision);
@@ -429,8 +429,8 @@ internal class CosmosEventStore : IEventStore
 
     public async IAsyncEnumerable<EventEnvelope> Read(Direction direction, 
         string streamId,
-        ulong startRevision, 
-        ulong expectedRevision,
+        uint startRevision, 
+        uint expectedRevision,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         if (streamId == null) throw new ArgumentNullException(nameof(streamId));
@@ -471,7 +471,7 @@ internal class CosmosEventStore : IEventStore
 
     public async IAsyncEnumerable<EventEnvelope> ReadPartial(Direction direction,
         string streamId,
-        ulong count, 
+        uint count, 
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         if (streamId == null) throw new ArgumentNullException(nameof(streamId));
@@ -493,7 +493,7 @@ internal class CosmosEventStore : IEventStore
             .WithParameter("@count", count);
 
         using var iterator = CreateIterator(streamId, queryDef);
-        var read = 0ul;
+        var read = 0u;
         while (iterator.HasMoreResults)
         {
             var result = await iterator.ReadNextAsync(cancellationToken);
@@ -506,15 +506,15 @@ internal class CosmosEventStore : IEventStore
             }
         }
 
-        if (read == 0ul)
+        if (read == 0)
             throw new StreamNotFoundException(streamId);
         if (read < count)
             throw new WrongStreamRevisionException(streamId, count - 1, read - 1);
     }
 
     public async IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId,
-        ulong startRevision, 
-        ulong endRevision,
+        uint startRevision, 
+        uint endRevision,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         if (streamId == null) throw new ArgumentNullException(nameof(streamId));
@@ -532,7 +532,7 @@ internal class CosmosEventStore : IEventStore
 
         using var iterator = CreateIterator(streamId, queryDef);
         var exists = false;
-        ulong? actual = null;
+        uint? actual = null;
         while (iterator.HasMoreResults)
         {
             var result = await iterator.ReadNextAsync(cancellationToken);
@@ -556,7 +556,7 @@ internal class CosmosEventStore : IEventStore
     }
 
     public async IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId, 
-        ulong startRevision, 
+        uint startRevision, 
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         if (streamId == null) throw new ArgumentNullException(nameof(streamId));
@@ -570,7 +570,7 @@ internal class CosmosEventStore : IEventStore
 
         using var iterator = CreateIterator(streamId, queryDef);
         var exists = false;
-        ulong? actual = null;
+        uint? actual = null;
         while (iterator.HasMoreResults)
         {
             var result = await iterator.ReadNextAsync(cancellationToken);
@@ -705,7 +705,7 @@ internal class CosmosEventStore : IEventStore
     
     public async IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction, 
         Type[] eventTypes, 
-        ulong maxCount,
+        uint maxCount,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var container = _client.GetContainer();
@@ -735,25 +735,25 @@ internal class CosmosEventStore : IEventStore
     
     #region Count
     
-    public async Task<ulong> Count(CancellationToken cancellationToken)
+    public async Task<uint> Count(CancellationToken cancellationToken)
     {
         var container = _client.GetContainer();
 
         var queryDef = new QueryDefinition("select value count(1) from c");
 
-        using var iterator = container.GetItemQueryIterator<ulong>(queryDef);
+        using var iterator = container.GetItemQueryIterator<uint>(queryDef);
         var result = await iterator.ReadNextAsync(cancellationToken);
         return result.Single();
     }
     
-    public async Task<ulong> CountByEventType(Type[] eventTypes, CancellationToken cancellationToken)
+    public async Task<uint> CountByEventType(Type[] eventTypes, CancellationToken cancellationToken)
     {
         var container = _client.GetContainer();
 
         const string query = "select value count(1) from c where SetIntersect(c.eventTypes, @eventTypes)";
         var queryDef = new QueryDefinition(query).WithParameter("@eventType", GetTypeNames(eventTypes));
 
-        using var iterator = container.GetItemQueryIterator<ulong>(queryDef);
+        using var iterator = container.GetItemQueryIterator<uint>(queryDef);
         var result = await iterator.ReadNextAsync(cancellationToken);
         return result.Single();
     }

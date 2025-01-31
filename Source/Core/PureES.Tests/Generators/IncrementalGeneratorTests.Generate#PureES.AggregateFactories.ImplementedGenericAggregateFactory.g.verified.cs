@@ -16,6 +16,7 @@ using System.Linq;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
 
+#pragma warning disable CS0618 // Type or member is obsolete
 
 namespace PureES.AggregateFactories
 {
@@ -55,17 +56,17 @@ namespace PureES.AggregateFactories
                     }
                     catch (Exception ex)
                     {
-                        throw new global::PureES.RehydrationException(streamId, AggregateType, "PureES.Tests.Models.TestGenericAggregate<PureES.Tests.Models.ImplementedGenericAggregate, object, object>.When(object)", ex);
+                        throw new global::PureES.RehydrationException(enumerator.Current, AggregateType, "PureES.Tests.Models.TestGenericAggregate<PureES.Tests.Models.ImplementedGenericAggregate, object, object>.When(object)", ex);
                     }
                     break;
                 }
                 default:
                 {
                     var eventType = global::PureES.BasicEventTypeMap.GetTypeName(enumerator.Current.Event.GetType());
-                    throw new global::PureES.RehydrationException(streamId, AggregateType, $"No suitable CreateWhen method found for event '{eventType}'");
+                    throw new global::PureES.RehydrationException(enumerator.Current, AggregateType, $"No suitable CreateWhen method found for event '{eventType}'");
                 }
             }
-            return new global::PureES.RehydratedAggregate<global::PureES.Tests.Models.ImplementedGenericAggregate>(current, 0ul);
+            return new global::PureES.RehydratedAggregate<global::PureES.Tests.Models.ImplementedGenericAggregate>(current, 0u);
         }
 
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
@@ -82,7 +83,7 @@ namespace PureES.AggregateFactories
                     default:
                     {
                         var eventType = global::PureES.BasicEventTypeMap.GetTypeName(enumerator.Current.Event.GetType());
-                        throw new global::PureES.RehydrationException(streamId, AggregateType, $"No suitable UpdateWhen method found for event '{eventType}'");
+                        throw new global::PureES.RehydrationException(enumerator.Current, AggregateType, $"No suitable UpdateWhen method found for event '{eventType}'");
                     }
                 }
                 ++revision;

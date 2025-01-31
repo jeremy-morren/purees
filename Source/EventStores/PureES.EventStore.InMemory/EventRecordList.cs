@@ -21,20 +21,20 @@ internal class EventRecordList : IReadOnlyList<EventRecord>
     public bool Exists(string streamId) => _streams.ContainsKey(streamId);
 
     [Pure]
-    public bool TryGetRevision(string streamId, out ulong revision)
+    public bool TryGetRevision(string streamId, out uint revision)
     {
         if (_streams.TryGetValue(streamId, out var list))
         {
-            revision = (ulong)list.Count - 1;
+            revision = (uint)list.Count - 1;
             return true;
         }
 
-        revision = ulong.MaxValue;
+        revision = uint.MaxValue;
         return false;
     }
     
     [Pure]
-    public EventRecordList Append(string streamId, List<EventRecord> events, out ulong revision)
+    public EventRecordList Append(string streamId, List<EventRecord> events, out uint revision)
     {
         var stream = _streams.GetValueOrDefault(streamId) ?? ImmutableList<int>.Empty;
 
@@ -43,7 +43,7 @@ internal class EventRecordList : IReadOnlyList<EventRecord>
         
         stream = stream.AddRange(Enumerable.Range(_records.Count, events.Count));
         var records = _records.AddRange(events);
-        revision = (ulong)stream.Count - 1;
+        revision = (uint)stream.Count - 1;
 
         return new EventRecordList(records, _streams.SetItem(streamId, stream));
     }
@@ -65,14 +65,14 @@ internal class EventRecordList : IReadOnlyList<EventRecord>
     }
 
     [Pure]
-    public IEnumerable<EventRecord> ReadAll(Direction direction, ulong maxCount) =>
+    public IEnumerable<EventRecord> ReadAll(Direction direction, uint maxCount) =>
         ReadAll(direction).Take((int)maxCount);
     
-    public IEnumerable<EventRecord> ReadStream(Direction direction, string streamId, out ulong revision)
+    public IEnumerable<EventRecord> ReadStream(Direction direction, string streamId, out uint revision)
     {
         if (!_streams.TryGetValue(streamId, out var stream))
             throw new StreamNotFoundException(streamId);
-        revision = (ulong)stream.Count - 1;
+        revision = (uint)stream.Count - 1;
         var indexes = direction switch
         {
             Direction.Forwards => stream,

@@ -81,7 +81,7 @@ namespace PureES.CommandHandlers
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        public async global::System.Threading.Tasks.Task<ulong> Handle(global::PureES.Tests.Models.Commands.Update command, CancellationToken cancellationToken)
+        public async global::System.Threading.Tasks.Task<uint> Handle(global::PureES.Tests.Models.Commands.Update command, CancellationToken cancellationToken)
         {
             if (command == null)
             {

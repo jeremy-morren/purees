@@ -10,8 +10,8 @@ namespace PureES;
 public class WrongStreamRevisionException : Exception
 {
     public WrongStreamRevisionException(string streamId,
-        ulong expectedRevision,
-        ulong actualRevision,
+        uint expectedRevision,
+        uint actualRevision,
         Exception? innerException = null)
         : base(
             $"Operation failed due to WrongStreamRevision. Stream: '{streamId}', Expected revision: {expectedRevision}, Actual revision: {actualRevision}",
@@ -23,6 +23,6 @@ public class WrongStreamRevisionException : Exception
     }
 
     public string StreamId { get; }
-    public ulong ExpectedRevision { get; }
-    public ulong ActualRevision { get; }
+    public uint ExpectedRevision { get; }
+    public uint ActualRevision { get; }
 }

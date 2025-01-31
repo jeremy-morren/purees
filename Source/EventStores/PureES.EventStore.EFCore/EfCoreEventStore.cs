@@ -81,7 +81,7 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore
         return _context.QueryEvents().AnyAsync(e => e.StreamId == streamId, cancellationToken);
     }
 
-    public async Task<ulong> GetRevision(string streamId, CancellationToken cancellationToken)
+    public async Task<uint> GetRevision(string streamId, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(streamId);
         var pos = await _context.QueryEvents()
@@ -93,10 +93,10 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore
         
         if (pos == null)
             throw new StreamNotFoundException(streamId);
-        return (ulong)pos.Value;
+        return (uint)pos.Value;
     }
 
-    public async Task<ulong> GetRevision(string streamId, ulong expectedRevision, CancellationToken cancellationToken)
+    public async Task<uint> GetRevision(string streamId, uint expectedRevision, CancellationToken cancellationToken)
     {
         var actual = await GetRevision(streamId, cancellationToken);
         if (actual != expectedRevision)
@@ -115,7 +115,7 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore
             subscription.OnEventsWritten(result);
     }
 
-    public async Task<ulong> Create(string streamId, IEnumerable<UncommittedEvent> events, CancellationToken cancellationToken)
+    public async Task<uint> Create(string streamId, IEnumerable<UncommittedEvent> events, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(streamId);
         ArgumentNullException.ThrowIfNull(events);
@@ -125,7 +125,7 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore
             var r = 0u;
             var list = events.Select(e => _serializer.Serialize(streamId, r++, e)).ToList();
             await WriteEvents(list, cancellationToken);
-            return (ulong)list.Count - 1;
+            return (uint)list.Count - 1;
         }
         catch (DbUpdateException ex) when 
             (ex.InnerException is DbException dex && _context.Provider.IsUniqueConstraintFailedException(dex))
@@ -134,12 +134,12 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore
         }
     }
 
-    public Task<ulong> Create(string streamId, UncommittedEvent @event, CancellationToken cancellationToken)
+    public Task<uint> Create(string streamId, UncommittedEvent @event, CancellationToken cancellationToken)
     {
         return Create(streamId, [@event], cancellationToken);
     }
 
-    public async Task<ulong> Append(string streamId, ulong expectedRevision, IEnumerable<UncommittedEvent> events, CancellationToken cancellationToken)
+    public async Task<uint> Append(string streamId, uint expectedRevision, IEnumerable<UncommittedEvent> events, CancellationToken cancellationToken)
     {
         var actual = await GetRevision(streamId, cancellationToken);
         if (actual != expectedRevision)
@@ -150,7 +150,7 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore
         return actual;
     }
 
-    public async Task<ulong> Append(string streamId, IEnumerable<UncommittedEvent> events, CancellationToken cancellationToken)
+    public async Task<uint> Append(string streamId, IEnumerable<UncommittedEvent> events, CancellationToken cancellationToken)
     {
         var actual = await GetRevision(streamId, cancellationToken);
         var list = events.Select(e => _serializer.Serialize(streamId, (uint)++actual, e));
@@ -158,12 +158,12 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore
         return actual;
     }
 
-    public Task<ulong> Append(string streamId, ulong expectedRevision, UncommittedEvent @event, CancellationToken cancellationToken)
+    public Task<uint> Append(string streamId, uint expectedRevision, UncommittedEvent @event, CancellationToken cancellationToken)
     {
         return Append(streamId, expectedRevision, [@event], cancellationToken);
     }
 
-    public Task<ulong> Append(string streamId, UncommittedEvent @event, CancellationToken cancellationToken)
+    public Task<uint> Append(string streamId, UncommittedEvent @event, CancellationToken cancellationToken)
     {
         return Append(streamId, [@event], cancellationToken);
     }
@@ -249,7 +249,7 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore
         return ReadEvents(query, cancellationToken);
     }
 
-    public IAsyncEnumerable<EventEnvelope> ReadAll(Direction direction, ulong maxCount, CancellationToken cancellationToken)
+    public IAsyncEnumerable<EventEnvelope> ReadAll(Direction direction, uint maxCount, CancellationToken cancellationToken)
     {
         var query = ReadAll(direction).Take((int)maxCount);
         return ReadEvents(query, cancellationToken);
@@ -292,21 +292,21 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore
     public async IAsyncEnumerable<EventEnvelope> Read(
         Direction direction, 
         string streamId, 
-        ulong expectedRevision,
+        uint expectedRevision,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(streamId);
         
         var query = ReadStream(direction, streamId);
         
-        var actual = ulong.MaxValue;
+        var actual = uint.MaxValue;
         await foreach (var e in ReadEvents(query, cancellationToken))
         {
             yield return e;
             ++actual;
         }
 
-        if (actual == ulong.MaxValue)
+        if (actual == uint.MaxValue)
             throw new StreamNotFoundException(streamId);
         if (actual != expectedRevision)
             throw new WrongStreamRevisionException(streamId, expectedRevision, actual);
@@ -315,8 +315,8 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore
     public async IAsyncEnumerable<EventEnvelope> Read(
         Direction direction, 
         string streamId,
-        ulong startRevision, 
-        ulong expectedRevision,
+        uint startRevision, 
+        uint expectedRevision,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(streamId);
@@ -342,14 +342,14 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore
     public async IAsyncEnumerable<EventEnvelope> ReadPartial(
         Direction direction, 
         string streamId, 
-        ulong count,
+        uint count,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(streamId);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(count);
         
         var query = ReadStream(direction, streamId).Take((int)count);
-        var read = 0ul;
+        var read = 0u;
         await foreach (var e in ReadEvents(query, cancellationToken))
         {
             yield return e;
@@ -364,8 +364,8 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore
 
     public async IAsyncEnumerable<EventEnvelope> ReadSlice(
         string streamId, 
-        ulong startRevision, 
-        ulong endRevision,
+        uint startRevision, 
+        uint endRevision,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(streamId);
@@ -375,7 +375,7 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore
             .Where(e => e.StreamPos == 0 || (e.StreamPos >= (int)startRevision && e.StreamPos <= (int)endRevision));
         
         var exists = false;
-        ulong? actual = null;
+        uint? actual = null;
         await foreach (var e in ReadEvents(query, cancellationToken))
         {
             exists = true;
@@ -395,7 +395,7 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore
 
     public async IAsyncEnumerable<EventEnvelope> ReadSlice(
         string streamId, 
-        ulong startRevision, 
+        uint startRevision, 
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(streamId);
@@ -404,7 +404,7 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore
             .Where(e => e.StreamPos == 0 || e.StreamPos >= (int)startRevision);
         
         var exists = false;
-        ulong? actual = null;
+        uint? actual = null;
         await foreach (var e in ReadEvents(query, cancellationToken))
         {
             exists = true;
@@ -477,7 +477,7 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore
     public IAsyncEnumerable<EventEnvelope> ReadByEventType(
         Direction direction, 
         Type[] eventTypes, 
-        ulong maxCount,
+        uint maxCount,
         CancellationToken cancellationToken)
     {
         return ReadByEventTypeInternal(direction, eventTypes, maxCount, cancellationToken);
@@ -486,7 +486,7 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore
     private IAsyncEnumerable<EventEnvelope> ReadByEventTypeInternal(
         Direction direction, 
         Type[] eventTypes, 
-        ulong? maxCount,
+        uint? maxCount,
         CancellationToken cancellationToken)
     {
         var query = FilterByEventType(eventTypes);
@@ -521,15 +521,15 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore
 
     #region Count
     
-    public async Task<ulong> Count(CancellationToken cancellationToken)
+    public async Task<uint> Count(CancellationToken cancellationToken)
     {
-        return (ulong)await _context.QueryEvents().LongCountAsync(cancellationToken);
+        return (uint)await _context.QueryEvents().LongCountAsync(cancellationToken);
     }
 
-    public async Task<ulong> CountByEventType(Type[] eventTypes, CancellationToken cancellationToken)
+    public async Task<uint> CountByEventType(Type[] eventTypes, CancellationToken cancellationToken)
     {
         var query = FilterByEventType(eventTypes);
-        return (ulong)await query.LongCountAsync(cancellationToken);
+        return (uint)await query.LongCountAsync(cancellationToken);
     }
     
     #endregion

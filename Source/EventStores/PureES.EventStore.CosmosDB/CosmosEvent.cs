@@ -10,7 +10,7 @@ namespace PureES.EventStore.CosmosDB;
 internal record CosmosEvent(
     DateTime Created,
     string EventStreamId,
-    ulong EventStreamPosition,
+    uint EventStreamPosition,
     ImmutableArray<string> EventTypes,
     JsonElement? Event,
     JsonElement? Metadata)

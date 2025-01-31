@@ -86,7 +86,7 @@ namespace PureES.AggregateFactories
             {
                 throw new global::PureES.RehydrationException(streamId, AggregateType, "PureES.Tests.Models.TestAggregate.GlobalWhenAsync(PureES.EventEnvelope, Microsoft.Extensions.Logging.ILoggerFactory)", ex);
             }
-            return new global::PureES.RehydratedAggregate<global::PureES.Tests.Models.TestAggregate>(current, 0ul);
+            return new global::PureES.RehydratedAggregate<global::PureES.Tests.Models.TestAggregate>(current, 0u);
         }
 
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]

@@ -21,7 +21,7 @@ public class EventEnvelopeTests
     {
         Assert.Throws<ArgumentException>(() => new EventEnvelope(
             Guid.NewGuid().ToString(),
-            Rand.NextULong(),
+            Rand.Nextuint(),
             DateTime.Now,
             Events.Created.New(),
             Object));
@@ -29,7 +29,7 @@ public class EventEnvelopeTests
 
     private static EventEnvelope NewEnvelope() => new (
         Guid.NewGuid().ToString(),
-        Rand.NextULong(),
+        Rand.Nextuint(),
         DateTime.UtcNow,
         Events.Created.New(),
         Object);

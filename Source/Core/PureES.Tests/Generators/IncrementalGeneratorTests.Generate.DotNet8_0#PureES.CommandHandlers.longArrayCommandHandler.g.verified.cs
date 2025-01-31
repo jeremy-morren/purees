@@ -128,7 +128,7 @@ namespace PureES.CommandHandlers
                             if (pair.Key == streamId)
                             {
                                 transaction.Add(pair.Key, new global::PureES.UncommittedEventsList(currentRevision, pair.Value));
-                                revision = currentRevision + (ulong)pair.Value.Count;
+                                revision = currentRevision + (uint)pair.Value.Count;
                             }
                             else
                             {
