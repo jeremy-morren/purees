@@ -1,6 +1,4 @@
-﻿using System.Diagnostics;
-using Microsoft.ApplicationInsights.DataContracts;
-using PureES.SourceGenerators.Framework;
+﻿using PureES.SourceGenerators.Framework;
 
 namespace PureES.SourceGenerators;
 
@@ -20,32 +18,39 @@ internal static class AppInsightsHelpers
     /// <remarks>
     /// Assumes a field name <c>_telemetryClient</c> and an activity called <c>activity</c>
     /// </remarks>
-    public static void TrackEvent(IndentedWriter writer, Dictionary<string, string?> properties)
+    public static void TrackEvent(IndentedWriter writer, string name, Dictionary<string, string?> properties)
     {
         writer.WriteLine("activity.Stop();"); // Stop the activity so we get the duration
 
         writer.WriteStatement("if (_telemetryClient != null)", () =>
         {
-            writer.WriteLine($"var telemetry = new {AppInsightsEvent}()");
-            writer.PushBrace();
-
-            writer.WriteLine($"Name = activity.{nameof(Activity.Source)}.{nameof(ActivitySource.Name)},");
-            writer.WriteLine($"Timestamp = activity.{nameof(Activity.StartTimeUtc)},");
-            writer.WriteStatement("Metrics", () =>
+            WriteStatement($"var telemetry = new {AppInsightsEvent}()", ';', () =>
             {
-                writer.WriteLine(
-                    $"{{ \"duration\", activity.{nameof(Activity.Duration)}.{nameof(TimeSpan.TotalMilliseconds)} }},");
-            });
-            writer.WriteStatement("Properties = ", () =>
-            {
+                writer.WriteLine($"Name = {name.ToStringLiteral()},");
+                writer.WriteLine("Timestamp = activity.StartTimeUtc,");
 
-                foreach (var p in properties)
-                    if (p.Value != null)
-                        writer.WriteLine($"{{ {p.Key.ToStringLiteral()}, {p.Value} }},");
+                WriteStatement("Metrics = ", ',', () => writer.WriteLine(
+                    $"{{ \"duration\", activity.Duration.{nameof(TimeSpan.TotalMilliseconds)} }},"));
+
+                WriteStatement("Properties = ", ',', () =>
+                {
+                    foreach (var p in properties)
+                        if (p.Value != null)
+                            writer.WriteLine($"{{ {p.Key.ToStringLiteral()}, {p.Value} }},");
+                });
             });
-            writer.Pop();
-            writer.WriteLine("};");
             writer.WriteLine("_telemetryClient.TrackEvent(telemetry);");
         });
+
+        return;
+
+        void WriteStatement(string header, char endChar, Action action)
+        {
+            writer.WriteLine(header);
+            writer.PushBrace();
+            action();
+            writer.Pop();
+            writer.WriteLine($"}}{endChar}");
+        }
     }
 }

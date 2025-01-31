@@ -304,13 +304,10 @@ internal class EventHandlerGenerator
     {
         var properties = new Dictionary<string, string?>()
         {
-            { "StreamId", "@event.StreamId" },
-            { "StreamPosition", "@event.StreamPosition" },
-            { "HandlerClass", _handler.Parent.FullName.ToStringLiteral() },
-            { "HandlerMethod", _handler.Method.Name.ToStringLiteral() },
+            { "EventId", "$\"{@event.StreamId}/{@event.StreamPosition}\"" },
             { "EventType", _handler.EventType?.FullName.ToStringLiteral() }
         };
-        AppInsightsHelpers.TrackEvent(_w, properties);
+        AppInsightsHelpers.TrackEvent(_w, $"{_handler.Parent.FullName}.{_handler.Method.Name}", properties);
     }
     
     #region Helpers

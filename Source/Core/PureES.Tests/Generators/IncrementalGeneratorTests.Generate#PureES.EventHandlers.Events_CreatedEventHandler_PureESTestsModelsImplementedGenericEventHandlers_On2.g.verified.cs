@@ -194,20 +194,17 @@ namespace PureES.EventHandlers
                     {
                         var telemetry = new global::Microsoft.ApplicationInsights.DataContracts.EventTelemetry()
                         {
-                            Name = activity.Source.Name,
+                            Name = "PureES.Tests.Models.ImplementedGenericEventHandlers.On2",
                             Timestamp = activity.StartTimeUtc,
-                            Metrics
+                            Metrics = 
                             {
                                 { "duration", activity.Duration.TotalMilliseconds },
-                            }
+                            },
                             Properties = 
                             {
-                                { "StreamId", @event.StreamId },
-                                { "StreamPosition", @event.StreamPosition },
-                                { "HandlerClass", "PureES.Tests.Models.ImplementedGenericEventHandlers" },
-                                { "HandlerMethod", "On2" },
+                                { "EventId", $"{@event.StreamId}/{@event.StreamPosition}" },
                                 { "EventType", "PureES.Tests.Models.Events.Created" },
-                            }
+                            },
                         };
                         _telemetryClient.TrackEvent(telemetry);
                     }
