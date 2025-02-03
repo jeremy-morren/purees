@@ -88,13 +88,13 @@ public class InMemoryEventStoreTests : EventStoreTestsBase
         
         await store.Load(harness.EventStore.ReadAll(Direction.Forwards), default);
 
-        store.ReadAll().Should().HaveCount(100);
+        store.ReadAllSync().Should().HaveCount(100);
         Assert.All(Enumerable.Range(0, 10), i =>
         {
             var sId = $"{streamId}-{i}";
-            store.Exists(sId).ShouldBeTrue();
+            store.ExistsSync(sId).ShouldBeTrue();
             
-            var events = store.Read(sId).ToList();
+            var events = store.ReadSync(sId).ToList();
             events.Should().HaveCount(10);
             events.ShouldAllBe(e => e.StreamId == sId);
             events.Should().BeInAscendingOrder(e => e.StreamPosition);
@@ -128,15 +128,15 @@ public class InMemoryEventStoreTests : EventStoreTestsBase
 
         store.Deserialize(serialized);
 
-        store.ReadAll().Should().HaveCount(100);
+        store.ReadAllSync().Should().HaveCount(100);
         await Assert.AllAsync(Enumerable.Range(0, 10), async i =>
         {
             var sId = $"{streamId}-{i}";
-            store.Exists(sId).ShouldBeTrue();
+            store.ExistsSync(sId).ShouldBeTrue();
             (await store.Exists(sId, default)).ShouldBeTrue();
 
             var events = await store.Read(sId, default).ToListAsync();
-            store.Read(sId).Should().HaveCount(10);
+            store.ReadSync(sId).Should().HaveCount(10);
             events.Should().HaveCount(10);
             events.ShouldAllBe(e => e.StreamId == sId);
             events.Should().BeInAscendingOrder(e => e.StreamPosition);

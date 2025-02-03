@@ -222,13 +222,21 @@ internal class InMemoryEventStore : IInMemoryEventStore
     
     #region Read Sync
 
-    public IEnumerable<EventEnvelope> ReadAll() => _events.Select(_serializer.Deserialize);
-    
-    public IEnumerable<EventEnvelope> Read(string streamId) => 
-        _events.ReadStream(Direction.Forwards, streamId, out _).Select(_serializer.Deserialize);
-    
-    public bool Exists(string streamId) => _events.Exists(streamId);
-    
+    public IEnumerable<EventEnvelope> ReadAllSync() => _events.Select(_serializer.Deserialize);
+
+    public IEnumerable<EventEnvelope> ReadSync(Direction direction, string streamId) =>
+        _events.ReadStream(direction, streamId, out _).Select(_serializer.Deserialize);
+
+    public bool ExistsSync(string streamId) => _events.Exists(streamId);
+
+    public IEnumerable<EventEnvelope> ReadByEventTypeSync(Direction direction, Type[] eventTypes)
+    {
+        var types = GetTypeNames(eventTypes);
+        return _events.ReadAll(direction)
+            .Where(r => r.TypeContains(types))
+            .Select(_serializer.Deserialize);
+    }
+
     #endregion
     
     #region Read
@@ -382,10 +390,7 @@ internal class InMemoryEventStore : IInMemoryEventStore
         Type[] eventTypes,
         CancellationToken cancellationToken)
     {
-        var types = GetTypeNames(eventTypes);
-        var records = _events.ReadAll(direction)
-            .Where(r => r.TypeContains(types));
-        return ToAsyncEnumerable(records);
+        return ReadByEventTypeSync(direction, eventTypes).ToAsyncEnumerable();
     }
 
     public IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction, 
@@ -393,11 +398,7 @@ internal class InMemoryEventStore : IInMemoryEventStore
         uint maxCount,
         CancellationToken cancellationToken)
     {
-        var types = GetTypeNames(eventTypes);
-        var records = _events.ReadAll(direction)
-            .Where(r => r.TypeContains(types))
-            .Take((int)maxCount);
-        return ToAsyncEnumerable(records);
+        return ReadByEventTypeSync(direction, eventTypes).Take((int)maxCount).ToAsyncEnumerable();
     }
 
     #endregion
@@ -406,14 +407,18 @@ internal class InMemoryEventStore : IInMemoryEventStore
 
     public Task<uint> CountByEventType(Type[] eventTypes, CancellationToken cancellationToken)
     {
-        var types = GetTypeNames(eventTypes);
-        var count = _events.Count(r => r.TypeContains(types));
-        return Task.FromResult((uint)count);
+        return Task.FromResult(CountByEventTypeSync(eventTypes));
     }
     
-    public Task<uint> Count(CancellationToken cancellationToken) => Task.FromResult((uint)_events.Count);
+    public Task<uint> Count(CancellationToken cancellationToken) => Task.FromResult(GetCountSync());
 
-    public int GetCount() => _events.Count;
+    public uint CountByEventTypeSync(Type[] eventTypes)
+    {
+        var types = GetTypeNames(eventTypes);
+        return (uint)_events.Count(r => r.TypeContains(types));
+    }
+
+    public uint GetCountSync() => (uint)_events.Count;
 
     #endregion
 

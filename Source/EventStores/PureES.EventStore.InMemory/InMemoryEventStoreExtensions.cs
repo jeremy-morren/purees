@@ -1,5 +1,8 @@
-﻿namespace PureES.EventStore.InMemory;
+﻿using JetBrains.Annotations;
 
+namespace PureES.EventStore.InMemory;
+
+[PublicAPI]
 public static class InMemoryEventStoreExtensions
 {
     /// <summary>
@@ -8,4 +11,7 @@ public static class InMemoryEventStoreExtensions
     /// <returns></returns>
     public static Task LoadFrom(this IInMemoryEventStore destination, IEventStore source, CancellationToken ct) => 
         destination.Load(source.ReadAll(ct), ct);
+
+    public static IEnumerable<EventEnvelope> ReadSync(this IInMemoryEventStore eventStore, string streamId) =>
+        eventStore.ReadSync(Direction.Forwards, streamId);
 }

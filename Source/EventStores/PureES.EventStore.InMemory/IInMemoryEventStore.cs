@@ -10,23 +10,35 @@ public interface IInMemoryEventStore : IEventStore
     /// Gets the number of events in the store
     /// </summary>
     /// <returns></returns>
-    int GetCount();
+    uint GetCountSync();
     
     /// <summary>
     /// Reads all events as a synchronous operation
     /// </summary>
     /// <returns></returns>
-    IEnumerable<EventEnvelope> ReadAll();
+    IEnumerable<EventEnvelope> ReadAllSync();
 
     /// <summary>
     /// Reads stream events as a synchronous operation
     /// </summary>
-    IEnumerable<EventEnvelope> Read(string streamId);
+    IEnumerable<EventEnvelope> ReadSync(Direction direction, string streamId);
     
     /// <summary>
     /// Checks if a stream exists as a synchronous operation
     /// </summary>
-    bool Exists(string streamId);
+    bool ExistsSync(string streamId);
+
+    /// <summary>
+    /// Reads events by type as a synchronous operation
+    /// </summary>
+    IEnumerable<EventEnvelope> ReadByEventTypeSync(Direction direction, Type[] eventTypes);
+
+    /// <summary>
+    /// Counts the number of events by type as a synchronous operation
+    /// </summary>
+    uint CountByEventTypeSync(Type[] eventTypes);
+
+    #region Load
 
     /// <summary>
     /// Initializes the event store from the given envelopes.
@@ -39,4 +51,6 @@ public interface IInMemoryEventStore : IEventStore
 
     public JsonElement Serialize();
     public void Deserialize(JsonElement events);
+
+    #endregion
 }
