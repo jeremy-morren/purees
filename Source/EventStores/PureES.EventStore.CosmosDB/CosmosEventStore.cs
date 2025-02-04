@@ -97,7 +97,7 @@ internal class CosmosEventStore : IEventStore
         }
 
         if (transactionCount == 0)
-            throw new ArgumentException("Input is empty", nameof(@events)); //No events provided
+            throw new ArgumentException("Input is empty", nameof(events)); //No events provided
 
         transactions.Add(transaction); //The last transaction 
         --revision; //The revision will have advanced too far
@@ -190,9 +190,9 @@ internal class CosmosEventStore : IEventStore
         return revision;
     }
 
-    public async Task SubmitTransaction(IReadOnlyDictionary<string, UncommittedEventsList> transaction, CancellationToken cancellationToken)
+    public async Task SubmitTransaction(IReadOnlyList<UncommittedEventsList> transaction, CancellationToken cancellationToken)
     {
-        if (transaction == null) throw new ArgumentNullException(nameof(transaction));
+        ArgumentNullException.ThrowIfNull(transaction);
 
         if (transaction.Count == 0)
             return;
@@ -201,7 +201,8 @@ internal class CosmosEventStore : IEventStore
         
         const string sql = "select c.eventStreamId, max(c.eventStreamPosition) as position from c where ARRAY_CONTAINS(@streams, c.eventStreamId, false) group by c.eventStreamId";
 
-        var query = new QueryDefinition(sql).WithParameter("@streams", transaction.Keys);
+        var query = new QueryDefinition(sql)
+            .WithParameter("@streams", transaction.Select(s => s.StreamId));
 
         var current = new Dictionary<string, uint>(capacity: transaction.Count);
         using (var iterator = container.GetItemQueryIterator<StreamPosition>(query))
@@ -213,33 +214,33 @@ internal class CosmosEventStore : IEventStore
         var exceptions = new List<Exception>();
 
         var ts = _systemClock.UtcNow;
-        foreach (var (streamId, list) in transaction)
+        foreach (var (streamId, expectedRevision, events) in transaction)
         {
             if (current.TryGetValue(streamId, out var actual))
             {
-                if (list.ExpectedRevision == null)
+                if (expectedRevision == null)
                 {
                     exceptions.Add(new StreamAlreadyExistsException(streamId));
                 }
-                else if (list.ExpectedRevision != actual)
+                else if (expectedRevision != actual)
                 {
-                    exceptions.Add(new WrongStreamRevisionException(streamId, list.ExpectedRevision.Value, actual));
+                    exceptions.Add(new WrongStreamRevisionException(streamId, expectedRevision.Value, actual));
                 }
-                else if (list.Events.Count > 0)
+                else if (events.Count > 0)
                 {
-                    var transactions = CreateTransactions(streamId, actual + 1, container, list.Events, out _);
+                    var transactions = CreateTransactions(streamId, actual + 1, container, events, out _);
                     batches.Add(streamId, transactions);
                 }
             }
             else
             {
-                if (list.ExpectedRevision != null)
+                if (expectedRevision != null)
                 {
                     exceptions.Add(new StreamNotFoundException(streamId));
                 }
-                else if (list.Events.Count > 0)
+                else if (events.Count > 0)
                 {
-                    var transactions = CreateTransactions(streamId, 0, container, list.Events, ts, out _);
+                    var transactions = CreateTransactions(streamId, 0, container, events, ts, out _);
                     batches.Add(streamId, transactions);
                 }
             }

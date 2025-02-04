@@ -85,20 +85,20 @@ internal class CommandHandlerGenerator
         _w.WriteParameters(
             _handler.Services.Select((svc, i) => $"{svc.CSharpName} service{i}"),
             
-            _handler.StreamId == null ? new [] { $"{StreamIdSvc} getStreamId"} : Enumerable.Empty<string>(),
-            
-            //NB: These are last, so we can provide default values of null
-            new []
-            {
+            _handler.StreamId == null ? [$"{StreamIdSvc} getStreamId"] : [],
+
+            [
                 $"{EventStoreType} eventStore",
                 $"{AggregateStoreType} aggregateStore",
                 $"{EnumerableEventEnricherType} syncEnrichers",
                 $"{EnumerableAsyncEventEnricherType} asyncEnrichers",
                 $"{EnumerableValidatorType} syncValidators",
                 $"{EnumerableAsyncValidatorType} asyncValidators",
+
+                //NB: These are last, so we can provide default values of null
                 $"{ConcurrencyType} concurrency = null",
                 $"{LoggerType} logger = null"
-            });
+            ]);
 
         _w.WriteRawLine(')');
         _w.PushBrace();
@@ -177,7 +177,7 @@ internal class CommandHandlerGenerator
                     
                     _w.WriteStatement("if (transaction.Count > 0)", () =>
                     {
-                        WriteEnrich(true, "transaction.Values.SelectMany(p => p.Events)");
+                        WriteEnrich(true, "transaction.SelectMany(l => l)");
                         _w.WriteLine("await _eventStore.SubmitTransaction(transaction, cancellationToken);");
                     });
                 }
@@ -238,7 +238,7 @@ internal class CommandHandlerGenerator
         
         var parent = _handler.Method.IsStatic ? _aggregate.Type.CSharpName : "current";
         
-        _w.Write($"var result = {@await}{parent}.{_handler.Method.Name}(");
+        _w.Write($"var result = {await}{parent}.{_handler.Method.Name}(");
         var parameters = _handler.Method.Parameters
             .Select(p =>
             {
@@ -307,21 +307,18 @@ internal class CommandHandlerGenerator
     private void WriteCreateTransaction()
     {
         const string list = $"global::{PureESSymbols.UncommittedEventsList}";
-        
+
+        _w.WriteLine($"var transaction = new {TypeNameHelpers.GetGenericTypeName(typeof(List<>), list)}();");
+
         var source = _handler.ResultType != null ? "result.Event" : "result";
-        
-        var dictionary = TypeNameHelpers.GetGenericTypeName(typeof(Dictionary<,>), "string", list);
-        
-        _w.WriteLine($"var transaction = new {dictionary}();");
-        
         _w.WriteStatement($"foreach (var pair in {source})", () =>
         {
             //If stream is current stream, manually calculate return revision
             _w.WriteStatement("if (pair.Key == streamId)", 
                 "revision = pair.Value.ExpectedRevision.HasValue ? pair.Value.ExpectedRevision.Value + (uint)pair.Value.Count : (uint)(pair.Value.Count - 1);");
             
-            _w.WriteStatement("if (pair.Value.Count > 0)", 
-                $"transaction.Add(pair.Key, new {list}(pair.Value.ExpectedRevision, pair.Value));");
+            _w.WriteStatement("if (pair.Value.Count > 0)",
+                $"transaction.Add(new {list}(pair.Key, pair.Value.ExpectedRevision, pair.Value));");
         });
     }
     

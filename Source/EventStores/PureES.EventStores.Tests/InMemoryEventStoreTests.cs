@@ -135,7 +135,7 @@ public class InMemoryEventStoreTests : EventStoreTestsBase
             store.ExistsSync(sId).ShouldBeTrue();
             (await store.Exists(sId, default)).ShouldBeTrue();
 
-            var events = await store.Read(sId, default).ToListAsync();
+            var events = await store.Read(sId).ToListAsync();
             store.ReadSync(sId).Should().HaveCount(10);
             events.Should().HaveCount(10);
             events.ShouldAllBe(e => e.StreamId == sId);

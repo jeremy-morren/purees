@@ -168,10 +168,10 @@ internal class InMemoryEventStore : IInMemoryEventStore
         return Append(streamId, [ @event ], _);
     }
 
-    public Task SubmitTransaction(IReadOnlyDictionary<string, UncommittedEventsList> transaction, CancellationToken _)
+    public Task SubmitTransaction(IReadOnlyList<UncommittedEventsList> transaction, CancellationToken _)
     {
         if (transaction == null) throw new ArgumentNullException(nameof(transaction));
-        
+
         if (transaction.Count == 0)
             return Task.CompletedTask; //No events to submit
 
@@ -179,16 +179,16 @@ internal class InMemoryEventStore : IInMemoryEventStore
         lock (_events)
         {
             var exceptions = new List<Exception>();
-            foreach (var (streamId, list) in transaction)
+            foreach (var (streamId, expectedRevision, _) in transaction)
             {
                 if (_events.TryGetRevision(streamId, out var actual))
                 {
-                    if (list.ExpectedRevision == null)
+                    if (expectedRevision == null)
                         exceptions.Add(new StreamAlreadyExistsException(streamId));
-                    else if (actual != list.ExpectedRevision.Value)
-                        exceptions.Add(new WrongStreamRevisionException(streamId, list.ExpectedRevision.Value, actual));
+                    else if (actual != expectedRevision.Value)
+                        exceptions.Add(new WrongStreamRevisionException(streamId, expectedRevision.Value, actual));
                 }
-                else if (list.ExpectedRevision != null)
+                else if (expectedRevision != null)
                 {
                     exceptions.Add(new StreamNotFoundException(streamId));
                 }
@@ -205,9 +205,9 @@ internal class InMemoryEventStore : IInMemoryEventStore
 
             var ts = _clock.GetLocalNow();
             
-            foreach (var (streamId, list) in transaction)
+            foreach (var (streamId, _, events) in transaction)
             {
-                CreateRecords(streamId, list.Events, ts, out var records);
+                CreateRecords(streamId, events, ts, out var records);
                 _events = _events.Append(streamId, records, out var _);
                 allRecords.AddRange(records);
             }

@@ -165,8 +165,7 @@ internal class MartenEventStore : IEventStore
         return actual;
     }
 
-    public async Task SubmitTransaction(IReadOnlyDictionary<string, UncommittedEventsList> transaction, 
-        CancellationToken cancellationToken)
+    public async Task SubmitTransaction(IReadOnlyList<UncommittedEventsList> transaction, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(transaction);
 
@@ -181,7 +180,7 @@ internal class MartenEventStore : IEventStore
         var current = await session.QueryRaw(sql,
                 new Dictionary<string, object?>()
                 {
-                    {"ids", transaction.Keys.ToArray()}
+                    {"ids", transaction.Select(k => k.StreamId).ToList()}
                 },
                 r => new
                 {
@@ -191,28 +190,27 @@ internal class MartenEventStore : IEventStore
                 cancellationToken)
             .ToDictionaryAsync(g => g.Id, g => g.Position, cancellationToken);
         var exceptions = new List<Exception>();
-        foreach (var (streamId, list) in transaction)
+        foreach (var (streamId, expectedRevision, events) in transaction)
         {
             if (current.TryGetValue(streamId, out var actual))
             {
-                if (list.ExpectedRevision == null)
+                if (expectedRevision == null)
                     exceptions.Add(new StreamAlreadyExistsException(streamId));
-                else if (list.ExpectedRevision.Value != actual)
-                    exceptions.Add(new WrongStreamRevisionException(streamId, list.ExpectedRevision.Value, actual));
+                else if (expectedRevision.Value != actual)
+                    exceptions.Add(new WrongStreamRevisionException(streamId, expectedRevision.Value, actual));
                 else
-                    session.Insert(
-                        list.Events.Select(e => _serializer.Serialize(e, streamId, ++actual)));
+                    session.Insert(events.Select(e => _serializer.Serialize(e, streamId, ++actual)));
             }
             else
             {
-                if (list.ExpectedRevision != null)
+                if (expectedRevision != null)
                 {
                     exceptions.Add(new StreamNotFoundException(streamId));
                 }
                 else
                 {
                     uint pos = 0;
-                    var records = list.Events.Select(e => _serializer.Serialize(e, streamId, pos++));
+                    var records = events.Select(e => _serializer.Serialize(e, streamId, pos++));
                     session.Insert(records);
                 }
             }

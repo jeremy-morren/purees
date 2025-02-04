@@ -117,7 +117,7 @@ public interface IEventStore
     /// <param name="transaction">The event streams to append</param>
     /// <param name="cancellationToken"></param>
     /// <exception cref="EventsTransactionException">Multiple transactions were not valid</exception>
-    public Task SubmitTransaction(IReadOnlyDictionary<string, UncommittedEventsList> transaction, CancellationToken cancellationToken);
+    public Task SubmitTransaction(IReadOnlyList<UncommittedEventsList> transaction, CancellationToken cancellationToken);
 
     /// <summary>
     ///     Reads all events in chronological order

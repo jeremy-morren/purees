@@ -36,7 +36,7 @@ public class EventsList : IList<object>
     /// or <see langword="null" /> if the stream is to be created.
     /// </param>
     /// <param name="events">Events to add to the list.</param>
-    public EventsList(uint? expectedRevision, IEnumerable<object> @events)
+    public EventsList(uint? expectedRevision, IEnumerable<object> events)
         : this(expectedRevision)
     {
         AddRange(events);
@@ -65,7 +65,7 @@ public class EventsList : IList<object>
 
     public void Insert(int index, object item)
     {
-        if (item == null) throw new ArgumentNullException(nameof(item));
+        ArgumentNullException.ThrowIfNull(item);
         _events.Insert(index, item);
     }
 

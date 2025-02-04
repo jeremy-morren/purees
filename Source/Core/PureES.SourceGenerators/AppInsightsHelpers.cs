@@ -39,6 +39,13 @@ internal static class AppInsightsHelpers
                             writer.WriteLine($"{{ {p.Key.ToStringLiteral()}, {p.Value} }},");
                 });
             });
+            writer.WriteStatement("foreach (var tag in activity.Tags)", () =>
+            {
+                writer.WriteStatement("if (tag.Value != null)", () =>
+                {
+                    writer.WriteLine("telemetry.Properties[tag.Key] = tag.Value;");
+                });
+            });
             writer.WriteLine("_telemetryClient.TrackEvent(telemetry);");
         });
 

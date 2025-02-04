@@ -153,7 +153,7 @@ internal class EventHandlerGenerator
             _w.PushBrace();
         }
         
-        BeginLogScope(_handler);
+        BeginLogScope();
         
         WriteHandle();
         
@@ -175,6 +175,7 @@ internal class EventHandlerGenerator
     
     private void WriteHandle()
     {
+        const string getEventType = "@event.Event.GetType()";
         _w.WriteLine("var ct = new CancellationTokenSource(_options.Timeout).Token;");
 
         var method = _handler.Method.Name.ToStringLiteral();
@@ -186,7 +187,7 @@ internal class EventHandlerGenerator
             _w.WriteLogMessage("Debug", 
                 "null",
                 "Handling event {StreamId}/{StreamPosition}. Event Type: {@EventType}. Event handler {EventHandler} on {@EventHandlerParent}",
-                "@event.StreamId", "@event.StreamPosition", "EventType", method, "ParentType");
+                "@event.StreamId", "@event.StreamPosition", getEventType, method, "ParentType");
             
             var parent = _handler.Method.IsStatic ? _handler.Parent.CSharpName : "this._parent";
             
@@ -213,7 +214,7 @@ internal class EventHandlerGenerator
                 "@event.StreamId", 
                 "@event.StreamPosition",
                 $"elapsed.{nameof(TimeSpan.TotalMilliseconds)}",
-                "EventType",
+                getEventType,
                 method,
                 "ParentType");
         });
@@ -229,7 +230,7 @@ internal class EventHandlerGenerator
                 "@event.StreamId",
                 "@event.StreamPosition",
                 "GetElapsed(start)",
-                "EventType",
+                getEventType,
                 method,
                 "ParentType");
             _w.WriteStatement($"if ({propagate})", "throw;");
@@ -242,7 +243,7 @@ internal class EventHandlerGenerator
                 "@event.StreamId",
                 "@event.StreamPosition",
                 "GetElapsed(start)",
-                "EventType",
+                getEventType,
                 method,
                 "ParentType");
             _w.WriteStatement($"if ({propagate})", "throw;");
@@ -269,7 +270,8 @@ internal class EventHandlerGenerator
             ("StreamPosition", "@event.StreamPosition"),
             ("HandlerClass", _handler.Parent.FullName.ToStringLiteral()),
             ("HandlerMethod", _handler.Method.Name.ToStringLiteral()),
-            ("EventType", _handler.EventType?.FullName.ToStringLiteral())
+            ("HandlerEventType", _handler.EventType?.FullName.ToStringLiteral()),
+            ("EventType", EventTypeName),
         };
         foreach (var (key, value) in tags)
             if (value != null)
@@ -279,18 +281,19 @@ internal class EventHandlerGenerator
         _w.WriteLine("activity.Start();");
     }
 
-    private void BeginLogScope(EventHandler handler)
+    private void BeginLogScope()
     {
         _w.WriteLine($"using (_logger.BeginScope(new {ExternalTypes.LoggerScopeType}()");
         _w.Push();
         _w.PushBrace();
         var parameters = new []
         {
-            ("EventType", "EventType"),
-            ("EventHandlerParent", "ParentType"),
-            ("EventHandler", handler.Method.Name.ToStringLiteral()),
             ("StreamId", "@event.StreamId"),
             ("StreamPosition", "@event.StreamPosition"),
+            ("HandlerClass", _handler.Parent.FullName.ToStringLiteral()),
+            ("HandlerMethod", _handler.Method.Name.ToStringLiteral()),
+            ("HandlerEventType", _handler.EventType?.FullName.ToStringLiteral()),
+            ("EventType", EventTypeName)
         };
         foreach (var (key, value) in parameters)
             _w.WriteLine($"{{ {key.ToStringLiteral()}, {value} }},");
@@ -304,8 +307,7 @@ internal class EventHandlerGenerator
     {
         var properties = new Dictionary<string, string?>()
         {
-            { "EventId", "$\"{@event.StreamId}/{@event.StreamPosition}\"" },
-            { "EventType", _handler.EventType?.FullName.ToStringLiteral() }
+            { "EventId", "$\"{@event.StreamId}/{@event.StreamPosition}\"" }
         };
         AppInsightsHelpers.TrackEvent(_w, $"{_handler.Parent.FullName}.{_handler.Method.Name}", properties);
     }
@@ -356,6 +358,7 @@ internal class EventHandlerGenerator
 
     public const string Namespace = "PureES.EventHandlers";
     private const string ActivitySource = "PureES.EventHandlers.EventHandler";
+    private const string EventTypeName = "global::PureES.BasicEventTypeMap.GetTypeName(@event.Event.GetType())";
 
     #endregion
 }

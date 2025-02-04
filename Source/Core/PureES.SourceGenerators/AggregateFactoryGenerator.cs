@@ -184,11 +184,11 @@ internal class AggregateFactoryGenerator
     {
         _w.WriteStatement("try", () =>
         {
-            var @await = when.IsAsync ? "await " : string.Empty;
+            var await = when.IsAsync ? "await " : string.Empty;
 
             _w.Write(when.Method.IsStatic
-                ? $"current = {@await}{_aggregate.Type.CSharpName}.{when.Method.Name}("
-                : $"{@await}current.{when.Method.Name}(");
+                ? $"current = {await}{_aggregate.Type.CSharpName}.{when.Method.Name}("
+                : $"{await}current.{when.Method.Name}(");
 
             var parameters = when.Method.Parameters.Select(p =>
             {
