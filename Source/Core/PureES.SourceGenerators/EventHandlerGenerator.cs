@@ -6,14 +6,12 @@ namespace PureES.SourceGenerators;
 internal class EventHandlerGenerator
 {
     private readonly EventHandler _handler;
-    private readonly bool _enableAppInsights;
 
     private readonly IndentedWriter _w = new();
 
-    private EventHandlerGenerator(EventHandler handler, bool enableAppInsights = true)
+    private EventHandlerGenerator(EventHandler handler)
     {
         _handler = handler ?? throw new ArgumentNullException(nameof(handler));
-        _enableAppInsights = enableAppInsights;
     }
 
     public static string Generate(EventHandler handler, out string filename)
@@ -56,8 +54,6 @@ internal class EventHandlerGenerator
     {
         _w.WriteLine($"private readonly {LoggerType} _logger;");
         _w.WriteLine($"private readonly global::{PureESSymbols.EventHandlerOptions} _options;");
-        if (_enableAppInsights)
-            _w.WriteLine($"private readonly {AppInsightsHelpers.AppInsightsClient} _telemetryClient;");
     
         for (var i = 0; i < _handler.Services.Length; i++)
             _w.WriteLine($"private readonly {_handler.Services[i].CSharpName} _service{i};");
@@ -71,20 +67,15 @@ internal class EventHandlerGenerator
             _handler.Services.Select((s,i) => $"{s.CSharpName} service{i}"),
             [
                 $"{_handler.Parent.CSharpName} parent",
-                    $"{OptionsType} options",
-                    $"{LoggerType} logger = null"
-            ],
-            _enableAppInsights ? [$"{AppInsightsHelpers.AppInsightsClient} telemetryClient = null"] : []
-            );
+                $"{OptionsType} options",
+                $"{LoggerType} logger = null"
+            ]);
         _w.WriteRawLine(')');
         _w.PushBrace();
     
         _w.WriteLine("this._options = options?.Value.EventHandlers ?? throw new ArgumentNullException(nameof(options));");
         _w.WriteLine($"this._logger = logger ?? {NullLoggerInstance};");
 
-        if (_enableAppInsights)
-            _w.WriteLine("this._telemetryClient = telemetryClient;");
-    
         for (var i = 0; i < _handler.Services.Length; i++)
             _w.WriteLine($"this._service{i} = service{i} ?? throw new ArgumentNullException(nameof(service{i}));");
 
@@ -146,12 +137,6 @@ internal class EventHandlerGenerator
                 "throw new ArgumentOutOfRangeException($\"Unknown event type {@event.Event.GetType()}\", nameof(@event));");
         
         WriteStartActivity();
-
-        if (_enableAppInsights)
-        {
-            _w.WriteLine("try");
-            _w.PushBrace();
-        }
         
         BeginLogScope();
         
@@ -161,12 +146,6 @@ internal class EventHandlerGenerator
             _w.WriteLine($"return Task.{nameof(Task.CompletedTask)};");
         
         _w.PopBrace(); //Log scope
-
-        if (_enableAppInsights)
-        {
-            _w.PopBrace(); //try
-            _w.WriteStatement("finally", TrackAppInsightsEvent);
-        }
 
         _w.PopBrace(); //Activity
         
@@ -259,26 +238,33 @@ internal class EventHandlerGenerator
 
     private void WriteStartActivity()
     {
+        const string activityName = "HandleEvent";
+
         //Because this handler is called without a parent activity (i.e. not from a http request), we provide a parent activity here
-        _w.WriteLine($"using (var activity = new {ExternalTypes.Activity}({ActivitySource.ToStringLiteral()}))");
-        
+        _w.WriteLine($"using (var activity = {PureESSymbols.ActivitySource}.StartActivity({activityName.ToStringLiteral()}))");
         _w.PushBrace();
 
-        var tags = new[]
+        _w.WriteStatement("if (activity != null)", () =>
         {
-            ("StreamId", "@event.StreamId"),
-            ("StreamPosition", "@event.StreamPosition"),
-            ("HandlerClass", _handler.Parent.FullName.ToStringLiteral()),
-            ("HandlerMethod", _handler.Method.Name.ToStringLiteral()),
-            ("HandlerEventType", _handler.EventType?.FullName.ToStringLiteral()),
-            ("EventType", EventTypeName),
-        };
-        foreach (var (key, value) in tags)
-            if (value != null)
-                _w.WriteLine($"activity.SetTag({key.ToStringLiteral()}, {value});");
-        
-        _w.WriteLine($"{ExternalTypes.Activity}.Current = activity;");
-        _w.WriteLine("activity.Start();");
+            var name = $"{_handler.Parent.FullName}.{_handler.Method.Name}";
+            _w.WriteLine($"activity.DisplayName = {name.ToStringLiteral()};");
+
+            _w.WriteStatement("if (activity.IsAllDataRequested)", () =>
+            {
+                var tags = new[]
+                {
+                    ("StreamId", "@event.StreamId"),
+                    ("StreamPosition", "@event.StreamPosition"),
+                    ("HandlerClass", _handler.Parent.FullName.ToStringLiteral()),
+                    ("HandlerMethod", _handler.Method.Name.ToStringLiteral()),
+                    ("HandlerEventType", _handler.EventType?.FullName.ToStringLiteral()),
+                    ("EventType", EventTypeName),
+                };
+                foreach (var (key, value) in tags)
+                    if (value != null)
+                        _w.WriteLine($"activity?.SetTag({key.ToStringLiteral()}, {value});");
+            });
+        });
     }
 
     private void BeginLogScope()
@@ -301,15 +287,6 @@ internal class EventHandlerGenerator
         _w.WriteLine("}))");
         _w.Pop();
         _w.PushBrace();
-    }
-
-    private void TrackAppInsightsEvent()
-    {
-        var properties = new Dictionary<string, string?>()
-        {
-            { "EventId", "$\"{@event.StreamId}/{@event.StreamPosition}\"" }
-        };
-        AppInsightsHelpers.TrackEvent(_w, $"{_handler.Parent.FullName}.{_handler.Method.Name}", properties);
     }
     
     #region Helpers
@@ -357,7 +334,6 @@ internal class EventHandlerGenerator
     private static string OptionsType => ExternalTypes.IOptions(PureESSymbols.Options);
 
     public const string Namespace = "PureES.EventHandlers";
-    private const string ActivitySource = "PureES.EventHandlers.EventHandler";
     private const string EventTypeName = "global::PureES.BasicEventTypeMap.GetTypeName(@event.Event.GetType())";
 
     #endregion

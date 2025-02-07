@@ -1,4 +1,5 @@
-﻿using PureES.SourceGenerators.Framework;
+﻿using System.Xml;
+using PureES.SourceGenerators.Framework;
 using PureES.SourceGenerators.Models;
 
 // ReSharper disable StringLiteralTypo
@@ -160,7 +161,9 @@ internal class CommandHandlerGenerator
                     "var currentRevision = this._concurrency?.GetExpectedRevision(streamId, command) ?? await this._eventStore.GetRevision(streamId, cancellationToken);");
                 _w.WriteLine("var current = await _aggregateStore.Load(streamId, currentRevision, cancellationToken);");
             }
-            
+
+            WriteStartActivity();
+
             BeginLogScope();
             
             WriteInvoke();
@@ -213,6 +216,8 @@ internal class CommandHandlerGenerator
             _w.WriteLine(_handler.ResultType != null ? "return result?.Result;" : "return revision;");
             
             _w.PopBrace(); //Log scope
+
+            _w.PopBrace(); //Activity
         });
         _w.WriteStatement($"catch (global::{typeof(Exception).FullName} ex)", () =>
         {
@@ -336,19 +341,19 @@ internal class CommandHandlerGenerator
         _w.WriteLine($"using (_logger.BeginScope(new {ExternalTypes.LoggerScopeType}()");
         _w.Push();
         _w.PushBrace();
-        IEnumerable<(string,string)> parameters = new []
-        {
+        IEnumerable<(string,string)> parameters =
+        [
             ("Command", "CommandType"),
             ("Aggregate","AggregateType"),
-            ("Method", $"\"{_handler.Method.Name}\""),
+            ("Method", _handler.Method.Name.ToStringLiteral()),
             ("StreamId", "streamId")
-        };
+        ];
         
         if (_handler.IsUpdate)
-            parameters = parameters.Concat(new[]
-            {
+            parameters = parameters.Concat(
+            [
                 ("CurrentStreamRevision", "currentRevision")
-            });
+            ]);
         
         foreach (var (key, value) in parameters)
             _w.WriteLine($"{{ {key.ToStringLiteral()}, {value} }},");
@@ -357,6 +362,42 @@ internal class CommandHandlerGenerator
         _w.Pop();
         _w.PushBrace();
     }
+
+    private void WriteStartActivity()
+    {
+        const string activityNane = "HandleCommand";
+        _w.WriteLine($"using (var activity = {PureESSymbols.ActivitySource}.StartActivity({activityNane.ToStringLiteral()}))");
+        _w.PushBrace();
+
+        _w.WriteStatement("if (activity != null)", () =>
+        {
+            var name = $"{_aggregate.Type.FullName}.{_handler.Method.Name}";
+            _w.WriteLine($"activity.DisplayName = {name.ToStringLiteral()};");
+
+            _w.WriteStatement("if (activity.IsAllDataRequested)", () =>
+            {
+                IEnumerable<(string,string)> parameters =
+                [
+                    ("Command", "CommandType"),
+                    ("Aggregate","AggregateType"),
+                    ("Method", _handler.Method.Name.ToStringLiteral()),
+                    ("StreamId", "streamId")
+                ];
+
+                if (_handler.IsUpdate)
+                    parameters = parameters.Concat(
+                    [
+                        ("CurrentStreamRevision", "currentRevision")
+                    ]);
+
+                foreach (var (key, value) in parameters)
+                    _w.WriteLine($"activity.SetTag({key.ToStringLiteral()}, {value});");
+            });
+
+        });
+
+    }
+
 
     #region Types
 

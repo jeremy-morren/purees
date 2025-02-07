@@ -36,4 +36,6 @@ internal static class PureESSymbols
     public const string RehydrationException = "PureES.RehydrationException";
 
     public const string BasicEventTypeMap = "PureES.BasicEventTypeMap";
+
+    public const string ActivitySource = "PureES.PureESTracing.ActivitySource";
 }
