@@ -1,4 +1,6 @@
 ﻿using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using JetBrains.Annotations;
 
 namespace PureES.EventStore.Marten;
@@ -24,7 +26,9 @@ public class MartenEventStoreOptions
     /// </summary>
     public JsonSerializerOptions JsonSerializerOptions { get; set; } = new()
     {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        TypeInfoResolver = new DefaultJsonTypeInfoResolver(),
+        PropertyNamingPolicy = null,
+        Converters = { new JsonStringEnumConverter() }
     };
     
     public bool Validate()
@@ -39,5 +43,10 @@ public class MartenEventStoreOptions
     {
         if ((value is string str && string.IsNullOrWhiteSpace(str)) || value == null)
             throw new Exception($"{name} is required");
+    }
+
+    public void PostConfigure()
+    {
+        JsonSerializerOptions.MakeReadOnly();
     }
 }

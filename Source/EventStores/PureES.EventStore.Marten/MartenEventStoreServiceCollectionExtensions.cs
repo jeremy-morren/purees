@@ -16,7 +16,8 @@ public static class MartenEventStoreServiceCollectionExtensions
 
         configuration.Services.AddOptions<MartenEventStoreOptions>()
             .Configure(o => configureOptions?.Invoke(o))
-            .Validate(o => o.Validate());
+            .Validate(o => o.Validate())
+            .PostConfigure(o => o.PostConfigure());
 
         configuration.Services.AddSingleton<IConfigureMarten, EventStoreConfigureMarten>();
         configuration.Services.AddSingleton<IEventStore, MartenEventStore>();
