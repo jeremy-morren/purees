@@ -14,10 +14,11 @@ public class EventBusTests
         var executed1 = false;
         var executed2 = false;
 
+        //TODO: implement own version of IEventHandlerCollection
         var services = new EventHandlerServices(new Dictionary<Type, Action<EventEnvelope>[]>()
         {
             {
-                typeof(object), 
+                typeof(EventBusTests),
                 [
                     _ => executed1 = true,
                     _ => executed2 = true
@@ -74,5 +75,5 @@ public class EventBusTests
         Object,
         Object);
 
-    private static readonly object Object = new();
+    private static readonly EventBusTests Object = new();
 }

@@ -1,4 +1,5 @@
-﻿using PureAttribute = System.Diagnostics.Contracts.PureAttribute;
+﻿using IType = PureES.SourceGenerators.Symbols.IType;
+using PureAttribute = System.Diagnostics.Contracts.PureAttribute;
 
 namespace PureES.SourceGenerators;
 
@@ -60,7 +61,11 @@ internal static class PureESSymbolTypes
     }
 
     [Pure]
-    public static bool IsEventsTransaction(this IType type) => type.FullName == PureESSymbols.EventsTransaction;
+    public static bool IsEventsTransaction(this IType type)
+    {
+        return type.GetFullName(false) == PureESSymbols.EventsTransaction ||
+               type.ImplementedInterfaces.Any(i => i.GetFullName(false) == PureESSymbols.EventsTransaction);
+    }
 
     public static bool HasCommandAttribute(this IParameter parameter) => 
         parameter.Attributes.Contains(PureESSymbols.CommandAttribute);

@@ -1,4 +1,6 @@
 ﻿using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 
 namespace PureES.EventStore.InMemory;
 
@@ -8,9 +10,14 @@ public class InMemoryEventStoreOptions
     /// Gets or sets the JSON serializer options to use
     /// when deserializing events &amp; metadata
     /// </summary>
-    public JsonSerializerOptions JsonSerializerOptions { get; } = new()
+    public JsonSerializerOptions JsonOptions { get; } = new()
     {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        TypeInfoResolver = new DefaultJsonTypeInfoResolver(),
+        PropertyNamingPolicy = null,
+        Converters =
+        {
+            new JsonStringEnumConverter()
+        }
     };
 
     /// <summary>
@@ -18,9 +25,15 @@ public class InMemoryEventStoreOptions
     /// </summary>
     public Type MetadataType { get; set; } = typeof(JsonElement?);
 
-    public void Validate()
+    internal bool Validate()
     {
         if (MetadataType == null)
-            throw new Exception($"{nameof(MetadataType)} is required");
+            throw new Exception($"{nameof(InMemoryEventStoreOptions)}.{nameof(MetadataType)} is required");
+        return true;
+    }
+
+    internal void PostConfigure()
+    {
+        JsonOptions.MakeReadOnly();
     }
 }

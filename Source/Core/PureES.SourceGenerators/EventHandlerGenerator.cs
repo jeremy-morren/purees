@@ -1,19 +1,20 @@
 ﻿using PureES.SourceGenerators.Framework;
+using EventHandler = PureES.SourceGenerators.Models.EventHandler;
 
 namespace PureES.SourceGenerators;
 
 internal class EventHandlerGenerator
 {
-    private readonly Models.EventHandler _handler;
+    private readonly EventHandler _handler;
 
     private readonly IndentedWriter _w = new();
 
-    private EventHandlerGenerator(Models.EventHandler handler)
+    private EventHandlerGenerator(EventHandler handler)
     {
         _handler = handler ?? throw new ArgumentNullException(nameof(handler));
     }
 
-    public static string Generate(Models.EventHandler handler, out string filename)
+    public static string Generate(EventHandler handler, out string filename)
     {
         filename = $"{Namespace}.{GetClassName(handler)}";
         return new EventHandlerGenerator(handler).Generate();
@@ -30,8 +31,10 @@ internal class EventHandlerGenerator
             _w.WriteLine($"///<summary><c>{_handler.Parent.FullName}.{_handler.Method.Name}</c></summary>");
             
             _w.WriteClassAttributes();
+
+            var interfaces = string.Join(", ", GetInterfaces(_handler));
             
-            _w.WriteStatement($"internal class {GetClassName(_handler)} : {GetInterface(_handler.EventType)}", () =>
+            _w.WriteStatement($"internal class {GetClassName(_handler)} : {interfaces}", () =>
             {
                 WriteConstructor();
                 
@@ -40,12 +43,13 @@ internal class EventHandlerGenerator
                 GeneratorHelpers.WriteGetElapsed(_w, true);
                 
                 WriteInvoke();
+                WriteCanHandle();
             });
         });
         
         return _w.Value;
     }
-    
+
     private void WriteConstructor()
     {
         _w.WriteLine($"private readonly {LoggerType} _logger;");
@@ -59,19 +63,19 @@ internal class EventHandlerGenerator
         _w.WriteMethodAttributes();
         _w.Write($"public {GetClassName(_handler)}(");
         
-        _w.WriteParameters(_handler.Services.Select((s,i) => $"{s.CSharpName} service{i}"),
-            new []
-            {
+        _w.WriteParameters(
+            _handler.Services.Select((s,i) => $"{s.CSharpName} service{i}"),
+            [
                 $"{_handler.Parent.CSharpName} parent",
                 $"{OptionsType} options",
                 $"{LoggerType} logger = null"
-            });
+            ]);
         _w.WriteRawLine(')');
         _w.PushBrace();
     
         _w.WriteLine("this._options = options?.Value.EventHandlers ?? throw new ArgumentNullException(nameof(options));");
         _w.WriteLine($"this._logger = logger ?? {NullLoggerInstance};");
-    
+
         for (var i = 0; i < _handler.Services.Length; i++)
             _w.WriteLine($"this._service{i} = service{i} ?? throw new ArgumentNullException(nameof(service{i}));");
 
@@ -130,11 +134,11 @@ internal class EventHandlerGenerator
         if (_handler.EventType != null)
             //Validate correct event input
             _w.WriteStatement($"if (@event.Event is not {_handler.EventType.CSharpName})",
-                "throw new ArgumentException(nameof(@event));");
+                "throw new ArgumentOutOfRangeException($\"Unknown event type {@event.Event.GetType()}\", nameof(@event));");
         
-        WriteStartActivity();
+        StartActivity();
         
-        BeginLogScope(_handler);
+        BeginLogScope();
         
         WriteHandle();
         
@@ -142,36 +146,18 @@ internal class EventHandlerGenerator
             _w.WriteLine($"return Task.{nameof(Task.CompletedTask)};");
         
         _w.PopBrace(); //Log scope
-        
+
         _w.PopBrace(); //Activity
         
         _w.PopBrace(); //Method
     }
-
-    private void WriteStartActivity()
-    {
-        //Because this handler is called without a parent activity (i.e. not from a http request), we provide a parent activity here
-        _w.WriteLine($"using (var activity = new {ExternalTypes.Activity}(\"{ActivitySource}\"))");
-        
-        _w.PushBrace();
-        
-        _w.WriteLine($"activity.SetTag(\"StreamId\", @event.StreamId);");
-        _w.WriteLine($"activity.SetTag(\"StreamPosition\", @event.StreamPosition);");
-        
-        var friendlyName = _handler.EventType?.CSharpName.Replace("global::", string.Empty);
-        _w.WriteLine(friendlyName != null
-            ? $"activity.SetTag(\"EventType\", \"{friendlyName}\");"
-            : "activity.SetTag(\"EventType\", null);");
-        
-        _w.WriteLine($"{ExternalTypes.Activity}.Current = activity;");
-        _w.WriteLine("activity.Start();");
-    }
-
+    
     private void WriteHandle()
     {
-        _w.WriteLine($"var ct = new CancellationTokenSource(_options.Timeout).Token;");
-        
-        var method = $"\"{_handler.Method.Name}\"";
+        const string getEventType = "@event.Event.GetType()";
+        _w.WriteLine("var ct = new CancellationTokenSource(_options.Timeout).Token;");
+
+        var method = _handler.Method.Name.ToStringLiteral();
         
         _w.WriteLine($"var start = {GeneratorHelpers.GetTimestamp};");
         
@@ -180,7 +166,7 @@ internal class EventHandlerGenerator
             _w.WriteLogMessage("Debug", 
                 "null",
                 "Handling event {StreamId}/{StreamPosition}. Event Type: {@EventType}. Event handler {EventHandler} on {@EventHandlerParent}",
-                "@event.StreamId", "@event.StreamPosition", "EventType", method, "ParentType");
+                "@event.StreamId", "@event.StreamPosition", getEventType, method, "ParentType");
             
             var parent = _handler.Method.IsStatic ? _handler.Parent.CSharpName : "this._parent";
             
@@ -207,66 +193,90 @@ internal class EventHandlerGenerator
                 "@event.StreamId", 
                 "@event.StreamPosition",
                 $"elapsed.{nameof(TimeSpan.TotalMilliseconds)}",
-                "EventType",
+                getEventType,
                 method,
                 "ParentType");
         });
-        
+
         const string propagate = "_options.PropagateExceptions";
         const string logErrorLevel = $"{propagate} ? LogLevel.Information : LogLevel.Error";
-        
-        _w.WriteStatement($"catch (global::{typeof(OperationCanceledException).FullName} ex)", () =>
-        {
-            _w.WriteLogMessage(logErrorLevel, 
-                "ex",
-                "Timed out while handling event {StreamId}/{StreamPosition}. Elapsed: {Elapsed:0.0000}ms. Event Type: {@EventType}. Event handler {EventHandler} on {@EventHandlerParent}",
-                "@event.StreamId",
-                "@event.StreamPosition",
-                "GetElapsed(start)",
-                "EventType",
-                method,
-                "ParentType");
-            _w.WriteStatement($"if ({propagate})", "throw;");
-        });
+
         _w.WriteStatement("catch (global::System.Exception ex)", () =>
         {
-            _w.WriteLogMessage(logErrorLevel, 
+            _w.WriteLogMessage(logErrorLevel,
                 "ex",
                 "Error handling event {StreamId}/{StreamPosition}. Elapsed: {Elapsed:0.0000}ms. Event Type: {@EventType}. Event handler {EventHandler} on {@EventHandlerParent}",
                 "@event.StreamId",
                 "@event.StreamPosition",
                 "GetElapsed(start)",
-                "EventType",
+                getEventType,
                 method,
                 "ParentType");
+            ActivityHelpers.SetActivityError(_w, "ex");
             _w.WriteStatement($"if ({propagate})", "throw;");
         });
     }
 
-    private void BeginLogScope(Models.EventHandler handler)
+    private void WriteCanHandle()
     {
-        _w.WriteLine($"using (_logger.BeginScope(new {ExternalTypes.LoggerScopeType}()");
-        _w.Push();
-        _w.PushBrace();
-        var parameters = new []
-        {
-            ("EventType", "EventType"),
-            ("EventHandlerParent", "ParentType"),
-            ("EventHandler", $"\"{handler.Method.Name}\""),
-            ("StreamId", "@event.StreamId"),
-            ("StreamPosition", "@event.StreamPosition"),
-        };
-        foreach (var (key, value) in parameters)
-            _w.WriteLine($"{{ \"{key}\", {value} }},");
-        _w.Pop();
-        _w.WriteLine("}))");
-        _w.Pop();
-        _w.PushBrace();
+        _w.WriteMethodAttributes();
+        var check = _handler.EventType == null ? "true" : $"@event.Event is {_handler.EventType.CSharpName}";
+        _w.WriteLine($"public bool CanHandle(global::{PureESSymbols.EventEnvelope} @event) => {check};");
     }
+
+    private void StartActivity()
+    {
+        const string activityName = "HandleEvent";
+
+        var displayName =
+            $"{activityName} {ActivityHelpers.GetTypeDisplayName(_handler.Parent)}.{_handler.Method.Name}";
+        if (_handler.EventType != null)
+            displayName += $" ({ActivityHelpers.GetTypeDisplayName(_handler.EventType)})";
+        
+        ActivityHelpers.StartActivity(_w, activityName, displayName, GetTags());
+    }
+
+    private void BeginLogScope()
+    {
+        LoggingHelpers.BeginLogScope(_w, GetTags());
+    }
+
+    private IEnumerable<(string, string?)> GetTags() =>
+    [
+        ("StreamId", "@event.StreamId"),
+        ("StreamPosition", "@event.StreamPosition"),
+        ("HandlerClass", _handler.Parent.FullName.ToStringLiteral()),
+        ("HandlerMethod", _handler.Method.Name.ToStringLiteral()),
+        ("HandlerEventType", _handler.EventType?.FullName.ToStringLiteral()),
+        ("EventType", EventTypeName)
+    ];
     
     #region Helpers
     
-    public static string GetClassName(Models.EventHandler handler)
+    public static IEnumerable<string> GetInterfaces(EventHandler handler)
+    {
+        const string i = "global::PureES.IEventHandler";
+        if (handler.EventType == null)
+            //No event type
+            return [i];
+        
+        //Implement all types in the inheritance hierarchy
+        var types = GetBaseTypes(handler).Prepend(handler.EventType);
+        return types.Select(t => $"{i}<{t.CSharpName}>");
+    }
+    
+    private static IEnumerable<IType> GetBaseTypes(EventHandler handler)
+    {
+        var type = handler.EventType?.BaseType;
+        //NB: We don't handle object, instead users should handle EventEnvelope if they want to handle all events
+        while (type != null && type.CSharpName != "object")
+        {
+            yield return type;
+            type = type.BaseType;
+        }
+    }
+    
+    public static string GetClassName(EventHandler handler)
     {
         var name = handler.EventType != null ? TypeNameHelpers.SanitizeName(handler.EventType) : "CatchAll";
         
@@ -279,12 +289,6 @@ internal class EventHandlerGenerator
         return $"{name}EventHandler_{methodName}";
     }
 
-    public static string GetInterface(IType? eventType)
-    {
-        const string i = "global::PureES.IEventHandler";
-        return eventType == null ? i : $"{i}<{eventType.CSharpName}>";
-    }
-
     private string LoggerType => ExternalTypes.ILogger(GetClassName(_handler));
 
     private string NullLoggerInstance => ExternalTypes.NullLoggerInstance(GetClassName(_handler));
@@ -292,7 +296,7 @@ internal class EventHandlerGenerator
     private static string OptionsType => ExternalTypes.IOptions(PureESSymbols.Options);
 
     public const string Namespace = "PureES.EventHandlers";
-    private const string ActivitySource = "PureES.EventHandlers.EventHandler";
+    private const string EventTypeName = "global::PureES.BasicEventTypeMap.GetTypeName(@event.Event.GetType())";
 
     #endregion
 }

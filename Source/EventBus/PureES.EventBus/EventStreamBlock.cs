@@ -10,16 +10,16 @@ namespace PureES.EventBus;
 /// </summary>
 internal sealed class EventStreamBlock : ITargetBlock<EventEnvelope>, ISourceBlock<EventEnvelope>
 {
-    private readonly Dictionary<string, EventQueue> _queues = new();
+    private readonly Dictionary<string, StreamQueue> _queues = new();
 
     private readonly ITargetBlock<EventEnvelope> _producer;
     
     private readonly ISourceBlock<EventEnvelope> _consumer;
 
-    public EventStreamBlock(Func<EventEnvelope, Task> handle)
+    public EventStreamBlock(Func<EventEnvelope, Task> handle, ExecutionDataflowBlockOptions options)
     {
         //Producer creates/appends to queues
-        var producer = new TransformBlock<EventEnvelope, EventQueue>(e =>
+        var producer = new TransformBlock<EventEnvelope, StreamQueue>(e =>
         {
             //We lock on _queues to allow removal below
             lock (_queues)
@@ -27,7 +27,7 @@ internal sealed class EventStreamBlock : ITargetBlock<EventEnvelope>, ISourceBlo
                 //Get or create queue
                 if (!_queues.TryGetValue(e.StreamId, out var queue))
                 {
-                    queue = new EventQueue(e.StreamId,
+                    queue = new StreamQueue(
                         new SemaphoreSlim(1, 1),
                         new ConcurrentQueue<EventEnvelope>());
                     _queues[e.StreamId] = queue;
@@ -40,72 +40,71 @@ internal sealed class EventStreamBlock : ITargetBlock<EventEnvelope>, ISourceBlo
         {
             //Queue in the order we received, 1 at a time
             EnsureOrdered = true,
-            MaxDegreeOfParallelism = 1
+            MaxDegreeOfParallelism = 1,
+
+            CancellationToken = options.CancellationToken,
+
+            //Apply backpressure here if required
+            BoundedCapacity = options.BoundedCapacity,
+            TaskScheduler = options.TaskScheduler,
+            NameFormat = options.NameFormat,
+            MaxMessagesPerTask = options.MaxMessagesPerTask
         });
 
-        //The worker process in parallel
+        //The worker block is parallel
         //Access to the streams is synchronized via the Semaphore
         
-        var worker = new TransformBlock<EventQueue, HandleResult>(async queue =>
+        var worker = new TransformManyBlock<StreamQueue, EventEnvelope>(async queue =>
         {
-            var handled = new List<EventEnvelope>();
-            
-            //We must lock with the Semaphore to ensure only one thread on the queue at any time
-            //However, if 2 events for a stream come in sequence, a worker will lock up just waiting on the Semaphore
-            //Therefore we drop work here
-            lock (queue)
-            {
-                if (queue.Mutex.CurrentCount == 0)
-                    return new HandleResult(queue.StreamId, handled); //Another worker is operating on this stream below, we can skip to the end
-            }
-
-            //No-one waiting, so this should be very fast
-            //We will save by skipping the async
-            queue.Mutex.Wait();
+            await queue.Mutex.WaitAsync();
             try
             {
-                //Note that there is a subtle race condition here: If we are already processing here,
-                //we will grab the next event when it is enqueued above
-
-                //As a result, we may get here to discover that all events have already
-                //been processed by the previous queue (i.e. the queue is empty)
-
-                //Not actually a problem, just something to note
-                while (queue.Queue.TryDequeue(out var envelope))
+                if (queue.Queue.TryDequeue(out var envelope))
                 {
                     await handle(envelope);
-                    handled.Add(envelope);
+                    return [envelope];
                 }
+
+                //No events in the queue: should not happen, but just in case
+                return [];
             }
             finally
             {
                 queue.Mutex.Release();
             }
-
-            return new HandleResult(queue.StreamId, handled);
         }, new ExecutionDataflowBlockOptions
         {
             BoundedCapacity = 1,
 
             //Event streams are processed in no particular order
-            EnsureOrdered = false
+            EnsureOrdered = false,
+
+            //Configure processor with provided parallelism
+            MaxDegreeOfParallelism = options.MaxDegreeOfParallelism,
+            TaskScheduler = options.TaskScheduler,
+            NameFormat = options.NameFormat,
+            MaxMessagesPerTask = options.MaxMessagesPerTask
         });
 
-        var cleanup = new TransformManyBlock<HandleResult, EventEnvelope>(result =>
+        var cleanup = new TransformBlock<EventEnvelope, EventEnvelope>(envelope =>
             {
                 //Here, we remove empty queues
                 lock (_queues)
                 {
-                    if (_queues.TryGetValue(result.StreamId, out var queue) && queue.Queue.IsEmpty)
-                        _queues.Remove(result.StreamId);
+                    if (_queues.TryGetValue(envelope.StreamId, out var queue) && queue.Queue.IsEmpty)
+                        _queues.Remove(envelope.StreamId);
                 }
-                return result.Handled;
+                return envelope;
             },
             new ExecutionDataflowBlockOptions
             {
                 //Order & synchronization are unimportant, since we are locking on _queues anyway
                 EnsureOrdered = false, 
-                MaxDegreeOfParallelism = DataflowBlockOptions.Unbounded
+                MaxDegreeOfParallelism = DataflowBlockOptions.Unbounded,
+
+                TaskScheduler = options.TaskScheduler,
+                NameFormat = options.NameFormat,
+                MaxMessagesPerTask = options.MaxMessagesPerTask
             });
 
         producer.LinkTo(worker, new DataflowLinkOptions
@@ -120,10 +119,12 @@ internal sealed class EventStreamBlock : ITargetBlock<EventEnvelope>, ISourceBlo
         _producer = producer;
         _consumer = cleanup;
     }
-    
-    private record EventQueue(string StreamId, SemaphoreSlim Mutex, ConcurrentQueue<EventEnvelope> Queue);
-    
-    private record HandleResult(string StreamId, List<EventEnvelope> Handled);
+
+    /// <summary>
+    /// A queue of events for a stream
+    /// </summary>
+    private record StreamQueue(SemaphoreSlim Mutex, ConcurrentQueue<EventEnvelope> Queue);
+
     
     #region DataFlow Implementation
 

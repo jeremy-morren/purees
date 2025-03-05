@@ -23,16 +23,18 @@ public class BasicEventTypeMapTests
     [InlineData(typeof(BasicEventTypeMapTests))]
     [InlineData(typeof(IAggregateStore<List<string>>))]
     [InlineData(typeof(NestedType))]
+    [InlineData(typeof(SubType))]
     public void MapShouldReturnSameType(Type type)
     {
-        var str = BasicEventTypeMap.GetTypeName(type);
+        var list = BasicEventTypeMap.GetTypeNames(type);
+        list.ShouldNotBeEmpty();
+        list.ShouldNotContain(s => s.StartsWith("System.Object"));
+        list.ShouldNotContain(s => s.Contains("Version="));
+        list.ShouldNotContain(s => s.Contains(typeof(string).Assembly.GetName().Name!));
         
-        str.ShouldNotContain("Version=");
-        str.ShouldNotContain(typeof(string).Assembly.GetName().Name!);
+        _output.WriteLine(string.Join(Environment.NewLine, list));
 
-        _output.WriteLine(str);
-
-        var mapped = BasicEventTypeMap.GetCLRType(str);
+        var mapped = BasicEventTypeMap.GetCLRType(list[^1]);
         mapped.ShouldBe(type);
     }
 
@@ -41,13 +43,17 @@ public class BasicEventTypeMapTests
     [InlineData("System.Collections.Generic.List`1[[PureES.PureESOptions, PureES]]")]
     [InlineData("System.Collections.Generic.Dictionary`2[System.String, System.Object]")]
     [InlineData("PureES.Tests.BasicEventTypeMapTests, PureES.Tests")]
+    [InlineData("PureES.Tests.BasicEventTypeMapTests+SubType, PureES.Tests")]
     public void GetTypeFromStringShouldNotBeNull(string name)
     {
         var type = BasicEventTypeMap.GetCLRType(name);
         type.ShouldNotBeNull();
         
-        BasicEventTypeMap.GetTypeName(type).ShouldBe(name);
+        var names = BasicEventTypeMap.GetTypeNames(type);
+        names.ShouldNotBeEmpty();
+        names[^1].ShouldBe(name);
     }
     
-    private static class NestedType {}
+    private class NestedType {}
+    private class SubType : NestedType {}
 }

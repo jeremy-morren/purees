@@ -22,6 +22,8 @@ internal interface IType : IToken, IEquatable<IType>
 
     public string FullName { get; }
 
+    public string GetFullName(bool nullable);
+
     /// <summary>
     /// Gets a fully qualified CSharp type name (ie fully opened generic type),
     /// including 'global::' prefix and nullable qualifier

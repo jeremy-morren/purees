@@ -78,7 +78,7 @@ namespace PureES.CommandHandlers
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        public async global::System.Threading.Tasks.Task<ulong> Handle(global::PureES.Tests.Models.Commands.Create command, CancellationToken cancellationToken)
+        public async global::System.Threading.Tasks.Task<uint> Handle(global::PureES.Tests.Models.Commands.Create command, CancellationToken cancellationToken)
         {
             if (command == null)
             {
@@ -112,7 +112,7 @@ namespace PureES.CommandHandlers
                     }))
                 {
                     var result = global::PureES.Tests.Models.TestAggregate.CreateOn(command);
-                    var revision = ulong.MaxValue;
+                    var revision = uint.MaxValue;
                     if (result != null)
                     {
                         var e = new global::PureES.UncommittedEvent(result);

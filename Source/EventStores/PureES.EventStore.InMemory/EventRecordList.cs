@@ -5,12 +5,12 @@ using System.Text.Json;
 
 namespace PureES.EventStore.InMemory;
 
-internal class EventRecordList : IReadOnlyList<EventRecord>
+internal class EventRecordList : IReadOnlyList<InMemoryEventRecord>
 {
-    private readonly ImmutableList<EventRecord> _records;
+    private readonly ImmutableList<InMemoryEventRecord> _records;
     private readonly ImmutableDictionary<string, ImmutableList<int>> _streams;
 
-    private EventRecordList(ImmutableList<EventRecord> records,
+    private EventRecordList(ImmutableList<InMemoryEventRecord> records,
         ImmutableDictionary<string, ImmutableList<int>> streams)
     {
         _records = records;
@@ -21,40 +21,40 @@ internal class EventRecordList : IReadOnlyList<EventRecord>
     public bool Exists(string streamId) => _streams.ContainsKey(streamId);
 
     [Pure]
-    public bool TryGetRevision(string streamId, out ulong revision)
+    public bool TryGetRevision(string streamId, out uint revision)
     {
         if (_streams.TryGetValue(streamId, out var list))
         {
-            revision = (ulong)list.Count - 1;
+            revision = (uint)list.Count - 1;
             return true;
         }
 
-        revision = ulong.MaxValue;
+        revision = uint.MaxValue;
         return false;
     }
-    
+
     [Pure]
-    public EventRecordList Append(string streamId, List<EventRecord> events, out ulong revision)
+    public EventRecordList Append(string streamId, List<InMemoryEventRecord> events, out uint revision)
     {
         var stream = _streams.GetValueOrDefault(streamId) ?? ImmutableList<int>.Empty;
 
         for (var i = 0; i < events.Count; i++)
             events[i].StreamPos = stream.Count + i;
-        
+
         stream = stream.AddRange(Enumerable.Range(_records.Count, events.Count));
         var records = _records.AddRange(events);
-        revision = (ulong)stream.Count - 1;
+        revision = (uint)stream.Count - 1;
 
         return new EventRecordList(records, _streams.SetItem(streamId, stream));
     }
 
     public static readonly EventRecordList Empty = new(
-        ImmutableList<EventRecord>.Empty, ImmutableDictionary<string, ImmutableList<int>>.Empty);
+        ImmutableList<InMemoryEventRecord>.Empty, ImmutableDictionary<string, ImmutableList<int>>.Empty);
 
     #region Read
 
     [Pure]
-    public IEnumerable<EventRecord> ReadAll(Direction direction)
+    public IEnumerable<InMemoryEventRecord> ReadAll(Direction direction)
     {
         return direction switch
         {
@@ -65,14 +65,14 @@ internal class EventRecordList : IReadOnlyList<EventRecord>
     }
 
     [Pure]
-    public IEnumerable<EventRecord> ReadAll(Direction direction, ulong maxCount) =>
+    public IEnumerable<InMemoryEventRecord> ReadAll(Direction direction, uint maxCount) =>
         ReadAll(direction).Take((int)maxCount);
-    
-    public IEnumerable<EventRecord> ReadStream(Direction direction, string streamId, out ulong revision)
+
+    public IEnumerable<InMemoryEventRecord> ReadStream(Direction direction, string streamId, out uint revision)
     {
         if (!_streams.TryGetValue(streamId, out var stream))
             throw new StreamNotFoundException(streamId);
-        revision = (ulong)stream.Count - 1;
+        revision = (uint)stream.Count - 1;
         var indexes = direction switch
         {
             Direction.Forwards => stream,
@@ -81,24 +81,24 @@ internal class EventRecordList : IReadOnlyList<EventRecord>
         };
         return indexes.Select(i => _records[i]);
     }
-    
+
     #endregion
-    
+
     #region List Implementation
 
-    public IEnumerator<EventRecord> GetEnumerator() => _records.GetEnumerator();
+    public IEnumerator<InMemoryEventRecord> GetEnumerator() => _records.GetEnumerator();
 
     IEnumerator IEnumerable.GetEnumerator() => ((IEnumerable)_records).GetEnumerator();
 
     public int Count => _records.Count;
 
-    public EventRecord this[int index] => _records[index];
-    
+    public InMemoryEventRecord this[int index] => _records[index];
+
     #endregion
     
     #region Serialization
-    
-    public JsonElement Serialize() => JsonSerializer.SerializeToElement(_records);
-    
+
+    public ImmutableList<InMemoryEventRecord> Records => _records;
+
     #endregion
 }

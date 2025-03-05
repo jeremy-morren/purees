@@ -27,8 +27,10 @@ public class PureESIncrementalGenerator : IIncrementalGenerator
                     };
                 })
             .Where(t => t != null!);
+
+        types = types.Where(t => t.HasAggregateAttribute() || t.HasEventHandlersAttribute());
         
-        context.RegisterSourceOutput(types.Collect(), static (context, types) =>
+        context.RegisterImplementationSourceOutput(types.Collect(), static (context, types) =>
         {
             void AddSource(string filename, string cs)
             {

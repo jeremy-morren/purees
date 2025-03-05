@@ -32,6 +32,10 @@ internal class AggregateFactoryGenerator
     private string GenerateInternal()
     {
         _w.WriteFileHeader(false);
+        
+        //Allow marking when methods as obsolete, for use with events that are marked as obsolete
+        _w.WriteLine("#pragma warning disable CS0612 // Type or member is obsolete");
+        _w.WriteLine("#pragma warning disable CS0618 // Type or member is obsolete");
 
         _w.WriteLine();
         
@@ -58,18 +62,16 @@ internal class AggregateFactoryGenerator
 
     private void WriteConstructor()
     {
-        _w.WriteLine($"private readonly {EventStoreType} _eventStore;");
         _w.WriteLine($"private readonly {ServiceProviderType} _services;");
         
         _w.WriteMethodAttributes();
         _w.Write($"public {ClassName}(");
 
-        _w.WriteParameters($"{EventStoreType} eventStore", $"{ServiceProviderType} services");
+        _w.WriteParameters($"{ServiceProviderType} services");
 
         _w.WriteRawLine(")");
         _w.PushBrace();
 
-        _w.WriteLine("this._eventStore = eventStore ?? throw new ArgumentNullException(nameof(eventStore));");
         _w.WriteLine("this._services = services ?? throw new ArgumentNullException(nameof(services));");
         
         _w.PopBrace();
@@ -98,7 +100,7 @@ internal class AggregateFactoryGenerator
                 
                 WriteWhenSwitch(_aggregate.When.Where(w => !w.IsUpdate).ToList(), "CreateWhen");
                 
-                _w.WriteLine($"return new {RehydratedAggregate}(current, 0ul);");
+                _w.WriteLine($"return new {RehydratedAggregate}(current, 0u);");
             });
         
         //Update when
@@ -176,18 +178,18 @@ internal class AggregateFactoryGenerator
 
     private void ThrowRehydrationException(string parameters)
     {
-        _w.WriteLine($"throw new global::{PureESSymbols.RehydrationException}(streamId, AggregateType, {parameters});");
+        _w.WriteLine($"throw new global::{PureESSymbols.RehydrationException}(enumerator.Current, AggregateType, {parameters});");
     }
 
     private void InvokeWhen(When when)
     {
         _w.WriteStatement("try", () =>
         {
-            var @await = when.IsAsync ? "await " : string.Empty;
+            var await = when.IsAsync ? "await " : string.Empty;
 
             _w.Write(when.Method.IsStatic
-                ? $"current = {@await}{_aggregate.Type.CSharpName}.{when.Method.Name}("
-                : $"{@await}current.{when.Method.Name}(");
+                ? $"current = {await}{_aggregate.Type.CSharpName}.{when.Method.Name}("
+                : $"{await}current.{when.Method.Name}(");
 
             var parameters = when.Method.Parameters.Select(p =>
             {
@@ -269,8 +271,6 @@ internal class AggregateFactoryGenerator
     private string RehydratedAggregate => $"global::{PureESSymbols.RehydratedAggregate}<{_aggregate.Type.CSharpName}>";
     
     private static string GetTypeName => $"global::{PureESSymbols.BasicEventTypeMap}.GetTypeName";
-
-    private static string EventStoreType => $"global::{PureESSymbols.IEventStore}";
     private static string ServiceProviderType => $"global::{typeof(IServiceProvider).FullName}";
 
     private static string AsyncEnumerableEventEnvelope => 

@@ -1,24 +1,28 @@
 ﻿using System.Threading.Tasks.Dataflow;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using PureES.EventBus;
 
 namespace PureES.EventStore.InMemory.Subscription;
 
 internal class InMemoryEventStoreSubscriptionToAll : IInMemoryEventStoreSubscription
 {
-    private readonly TransformManyBlock<List<EventRecord>, EventEnvelope> _target;
+    private readonly TransformManyBlock<List<InMemoryEventRecord>, EventEnvelope> _target;
     private readonly IEventBus _eventBus;
 
     public InMemoryEventStoreSubscriptionToAll(
         IServiceProvider services,
         InMemoryEventStoreSerializer serializer,
+        IOptions<PureESOptions> options,
         ILoggerFactory? loggerFactory = null)
     {
-        _eventBus = new EventBus.EventBus(services, loggerFactory?.CreateLogger<EventBus.EventBus>());
+        _eventBus = new EventBus.EventBus(services,
+            options.Value.EventBusOptions,
+            loggerFactory?.CreateLogger<EventBus.EventBus>());
         
         //Load records, and publish to event block
         
-        _target = new TransformManyBlock<List<EventRecord>, EventEnvelope>(
+        _target = new TransformManyBlock<List<InMemoryEventRecord>, EventEnvelope>(
             records => records.Select(serializer.Deserialize),
             new ExecutionDataflowBlockOptions()
             {
@@ -39,7 +43,7 @@ internal class InMemoryEventStoreSubscriptionToAll : IInMemoryEventStoreSubscrip
         return Task.WhenAny(Task.Delay(-1, ct), _eventBus.Completion);
     }
 
-    public void AfterCommit(List<EventRecord> records)
+    public void AfterCommit(List<InMemoryEventRecord> records)
     {
         if (!_target.Post(records))
             throw new InvalidOperationException("Cannot handle events after subscription stopped");

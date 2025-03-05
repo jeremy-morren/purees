@@ -98,22 +98,31 @@ namespace PureES.EventHandlers
         {
             if (@event.Event is not global::PureES.Tests.Models.Events.Created)
             {
-                throw new ArgumentException(nameof(@event));
+                throw new ArgumentOutOfRangeException($"Unknown event type {@event.Event.GetType()}", nameof(@event));
             }
-            using (var activity = new global::System.Diagnostics.Activity("PureES.EventHandlers.EventHandler"))
+            using (var activity = PureES.PureESTracing.ActivitySource.StartActivity("HandleEvent"))
             {
-                activity.SetTag("StreamId", @event.StreamId);
-                activity.SetTag("StreamPosition", @event.StreamPosition);
-                activity.SetTag("EventType", "PureES.Tests.Models.Events.Created");
-                global::System.Diagnostics.Activity.Current = activity;
-                activity.Start();
+                if (activity != null)
+                {
+                    activity.DisplayName = "PureES.Tests.Models.TestEventHandlers.OnCreated";
+                    if (activity.IsAllDataRequested)
+                    {
+                        activity?.SetTag("StreamId", @event.StreamId);
+                        activity?.SetTag("StreamPosition", @event.StreamPosition);
+                        activity?.SetTag("HandlerClass", "PureES.Tests.Models.TestEventHandlers");
+                        activity?.SetTag("HandlerMethod", "OnCreated");
+                        activity?.SetTag("HandlerEventType", "PureES.Tests.Models.Events.Created");
+                        activity?.SetTag("EventType", global::PureES.BasicEventTypeMap.GetTypeName(@event.Event.GetType()));
+                    }
+                }
                 using (_logger.BeginScope(new global::System.Collections.Generic.Dictionary<string, object>()
                     {
-                        { "EventType", EventType },
-                        { "EventHandlerParent", ParentType },
-                        { "EventHandler", "OnCreated" },
                         { "StreamId", @event.StreamId },
                         { "StreamPosition", @event.StreamPosition },
+                        { "HandlerClass", "PureES.Tests.Models.TestEventHandlers" },
+                        { "HandlerMethod", "OnCreated" },
+                        { "HandlerEventType", "PureES.Tests.Models.Events.Created" },
+                        { "EventType", global::PureES.BasicEventTypeMap.GetTypeName(@event.Event.GetType()) },
                     }))
                 {
                     var ct = new CancellationTokenSource(_options.Timeout).Token;
@@ -126,7 +135,7 @@ namespace PureES.EventHandlers
                             message: "Handling event {StreamId}/{StreamPosition}. Event Type: {@EventType}. Event handler {EventHandler} on {@EventHandlerParent}",
                             @event.StreamId,
                             @event.StreamPosition,
-                            EventType,
+                            @event.Event.GetType(),
                             "OnCreated",
                             ParentType);
                         await global::PureES.Tests.Models.TestEventHandlers.OnCreated(
@@ -140,26 +149,9 @@ namespace PureES.EventHandlers
                             @event.StreamId,
                             @event.StreamPosition,
                             elapsed.TotalMilliseconds,
-                            EventType,
+                            @event.Event.GetType(),
                             "OnCreated",
                             ParentType);
-                    }
-                    catch (global::System.OperationCanceledException ex)
-                    {
-                        this._logger.Log(
-                            logLevel: _options.PropagateExceptions ? LogLevel.Information : LogLevel.Error,
-                            exception: ex,
-                            message: "Timed out while handling event {StreamId}/{StreamPosition}. Elapsed: {Elapsed:0.0000}ms. Event Type: {@EventType}. Event handler {EventHandler} on {@EventHandlerParent}",
-                            @event.StreamId,
-                            @event.StreamPosition,
-                            GetElapsed(start),
-                            EventType,
-                            "OnCreated",
-                            ParentType);
-                        if (_options.PropagateExceptions)
-                        {
-                            throw;
-                        }
                     }
                     catch (global::System.Exception ex)
                     {
@@ -170,9 +162,14 @@ namespace PureES.EventHandlers
                             @event.StreamId,
                             @event.StreamPosition,
                             GetElapsed(start),
-                            EventType,
+                            @event.Event.GetType(),
                             "OnCreated",
                             ParentType);
+                        if (activity != null)
+                        {
+                            activity.SetStatus(global::System.Diagnostics.ActivityStatusCode.Error, ex.Message);
+                            activity.SetTag("error.type", ex.GetType().FullName);
+                        }
                         if (_options.PropagateExceptions)
                         {
                             throw;
@@ -181,5 +178,10 @@ namespace PureES.EventHandlers
                 }
             }
         }
+
+        [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
+        [global::System.Diagnostics.DebuggerStepThroughAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        public bool CanHandle(global::PureES.EventEnvelope @event) => @event.Event is global::PureES.Tests.Models.Events.Created;
     }
 }

@@ -32,7 +32,7 @@ public static class EventStoreReadExtensions
     ///     from all events in the order in which they were added
     /// </returns>
     public static IAsyncEnumerable<EventEnvelope> ReadAll(this IEventStore eventStore,
-        ulong maxCount,
+        uint maxCount,
         CancellationToken cancellationToken = default)
     {
         if (eventStore == null) throw new ArgumentNullException(nameof(eventStore));
@@ -76,7 +76,7 @@ public static class EventStoreReadExtensions
     /// </exception>
     public static IAsyncEnumerable<EventEnvelope> Read(this IEventStore eventStore, 
         string streamId,
-        ulong expectedRevision,
+        uint expectedRevision,
         CancellationToken cancellationToken = default)
     {
         if (eventStore == null) throw new ArgumentNullException(nameof(eventStore));
@@ -103,8 +103,8 @@ public static class EventStoreReadExtensions
     /// </exception>
     public static IAsyncEnumerable<EventEnvelope> Read(this IEventStore eventStore,
         string streamId,
-        ulong startRevision,
-        ulong expectedRevision,
+        uint startRevision,
+        uint expectedRevision,
         CancellationToken cancellationToken = default) =>
         eventStore.Read(Direction.Forwards, streamId, startRevision, expectedRevision, cancellationToken);
 
@@ -126,7 +126,7 @@ public static class EventStoreReadExtensions
     /// </exception>
     public static IAsyncEnumerable<EventEnvelope> ReadPartial(this IEventStore eventStore,
         string streamId,
-        ulong count,
+        uint count,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(eventStore);
@@ -176,7 +176,7 @@ public static class EventStoreReadExtensions
         CancellationToken cancellationToken = default)
     {
         if (eventStore == null) throw new ArgumentNullException(nameof(eventStore));
-        return eventStore.ReadByEventType(Direction.Forwards, eventType, cancellationToken);
+        return eventStore.ReadByEventType(Direction.Forwards, [eventType], cancellationToken);
     }
     
     /// <summary>
@@ -192,10 +192,10 @@ public static class EventStoreReadExtensions
     /// </returns>
     public static IAsyncEnumerable<EventEnvelope> ReadByEventType(this IEventStore eventStore,
         Type eventType, 
-        ulong maxCount,
+        uint maxCount,
         CancellationToken cancellationToken = default)
     {
         if (eventStore == null) throw new ArgumentNullException(nameof(eventStore));
-        return eventStore.ReadByEventType(Direction.Forwards, eventType, maxCount, cancellationToken);
+        return eventStore.ReadByEventType(Direction.Forwards, [eventType], maxCount, cancellationToken);
     }
 }

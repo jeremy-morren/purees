@@ -25,6 +25,13 @@ public class TestEventHandlers
         envelope.ShouldNotBeNull();
         _services.ShouldNotBeNull();
     }
+    
+    [EventHandlerPriority(20)]
+    public void OnDerivedUpdated(EventEnvelope<Events.DerivedUpdated> envelope)
+    {
+        envelope.ShouldNotBeNull();
+        _services.ShouldNotBeNull();
+    }
 
     public void OnCreated2(EventEnvelope<Events.Created, object> envelope, [FromServices] ILoggerFactory lf)
     {

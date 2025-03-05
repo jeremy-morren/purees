@@ -1,7 +1,6 @@
 ﻿using JetBrains.Annotations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Internal;
 using PureES.EventStore.InMemory.Subscription;
 
 namespace PureES.EventStore.InMemory;
@@ -20,18 +19,15 @@ public static class InMemoryEventStoreServiceCollectionExtensions
     ///     Any existing registrations of <see cref="IEventStore" /> will not be overwritten,
     ///     hence this method is safe to be called multiple times
     /// </remarks>
-    public static IServiceCollection AddInMemoryEventStore(this IServiceCollection services,
+    public static InMemoryEventStoreBuilder AddInMemoryEventStore(this IServiceCollection services,
         Action<InMemoryEventStoreOptions>? configureOptions = null)
     {
-        services.TryAddSingleton<ISystemClock, SystemClock>();
+        services.TryAddSingleton(TimeProvider.System);
 
         services.AddOptions<InMemoryEventStoreOptions>()
             .Configure(o => configureOptions?.Invoke(o))
-            .Validate(o =>
-            {
-                o.Validate();
-                return true;
-            });
+            .Validate(o => o.Validate())
+            .PostConfigure(o => o.PostConfigure());
         
         services.TryAddSingleton<InMemoryEventStoreSerializer>();
         
@@ -39,13 +35,44 @@ public static class InMemoryEventStoreServiceCollectionExtensions
 
         services.TryAddSingleton<IInMemoryEventStore>(sp => (IInMemoryEventStore)sp.GetRequiredService<IEventStore>());
 
-        return services;
+        return new InMemoryEventStoreBuilder(services);
     }
 
     public static IServiceCollection AddInMemorySubscriptionToAll(this IServiceCollection services)
     {
-        services.AddHostedService<InMemoryEventStoreSubscriptionToAll>();
+        if (services.All(x => x.ImplementationType != typeof(InMemoryEventStoreSubscriptionToAll)))
+            services.AddHostedService<InMemoryEventStoreSubscriptionToAll>();
 
         return services;
+    }
+}
+
+public class InMemoryEventStoreBuilder
+{
+    public IServiceCollection Services { get; }
+
+    public InMemoryEventStoreBuilder(IServiceCollection services)
+    {
+        Services = services;
+    }
+
+    public InMemoryEventStoreBuilder AddSubscriptionToAll()
+    {
+        Services.AddInMemorySubscriptionToAll();
+        return this;
+    }
+
+    public InMemoryEventStoreBuilder Configure(Action<InMemoryEventStoreOptions> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+        Services.Configure(configure);
+        return this;
+    }
+
+    public InMemoryEventStoreBuilder Configure(Action<InMemoryEventStoreOptions, IServiceProvider> configure)
+    {
+        ArgumentNullException.ThrowIfNull(configure);
+        Services.AddOptions<InMemoryEventStoreOptions>().Configure(configure);
+        return this;
     }
 }

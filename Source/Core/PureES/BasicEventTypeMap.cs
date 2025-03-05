@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using System.Text;
 
 namespace PureES;
@@ -10,30 +11,50 @@ namespace PureES;
 [PublicAPI]
 public class BasicEventTypeMap : IEventTypeMap
 {
-    string IEventTypeMap.GetTypeName(Type eventType) => GetTypeName(eventType);
-    Type IEventTypeMap.GetCLRType(string typeName) => GetCLRType(typeName);
+    ImmutableArray<string> IEventTypeMap.GetTypeNames(Type eventType)
+    {
+        ArgumentNullException.ThrowIfNull(eventType);
+        return NamesMap.GetOrAdd(eventType, GetTypeNames);
+    }
+
+    Type IEventTypeMap.GetCLRType(string typeName)
+    {
+        ArgumentNullException.ThrowIfNull(typeName);
+        return TypesMap.GetOrAdd(typeName, GetCLRType);
+    }
+
+    // Used by AggregateFactory for showing a type name in exceptions
+    public static string GetTypeName(Type type) => GetTypeNames(type)[^1];
 
     private static readonly ConcurrentDictionary<string, Type> TypesMap = new();
-    private static readonly ConcurrentDictionary<Type, string> NamesMap = new();
+    private static readonly ConcurrentDictionary<Type, ImmutableArray<string>> NamesMap = new();
     
     public static Type GetCLRType(string typeName)
     {
-        if (typeName == null) throw new ArgumentNullException(nameof(typeName));
-        
-        return TypesMap.GetOrAdd(typeName, _ => 
-            Type.GetType(typeName) 
-            ?? throw new ArgumentOutOfRangeException(nameof(typeName), typeName, "Unable to resolve CLR type"));
+        ArgumentException.ThrowIfNullOrEmpty(typeName);
+
+        return Type.GetType(typeName) 
+               ?? throw new ArgumentOutOfRangeException(nameof(typeName), typeName, "Unable to resolve CLR type");
     }
 
-    public static string GetTypeName(Type eventType)
+    /// <summary>
+    /// Gets type names (full inheritance hierarchy) for a type
+    /// </summary>
+    public static ImmutableArray<string> GetTypeNames(Type eventType)
     {
-        if (eventType == null) throw new ArgumentNullException(nameof(eventType));
+        ArgumentNullException.ThrowIfNull(eventType);
 
-        return NamesMap.GetOrAdd(eventType, __ =>
+        var result = new List<string>();
+        while (true)
         {
-            GetTypeName(eventType, out var name, out var _);
-            return name;
-        });
+            GetTypeName(eventType, out var name, out _);
+            result.Add(name);
+            if (eventType.BaseType == typeof(object) || eventType.BaseType == null)
+                break;
+            eventType = eventType.BaseType;
+        }
+        result.Reverse(); //Base type first
+        return [..result];
     }
     
     /// <summary>
@@ -44,8 +65,8 @@ public class BasicEventTypeMap : IEventTypeMap
     /// </remarks>
     public static void GetTypeName(Type type, out string name, out bool includesAssembly)
     {
-        if (type == null) throw new ArgumentNullException(nameof(type));
-        
+        ArgumentNullException.ThrowIfNull(type);
+
         var sb = new StringBuilder(capacity: type.ToString().Length);
         if (type.FullName == null)
             throw new ArgumentOutOfRangeException(nameof(type), type, "Cannot serialize a partially defined type");

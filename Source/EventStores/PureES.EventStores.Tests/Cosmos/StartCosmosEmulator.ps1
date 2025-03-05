@@ -49,7 +49,7 @@ function CheckAdmin {
 function Wait()
 {
     param (
-        [int]$Timeout = 240
+        [int]$Timeout = 300
     )
 
     #Start-CosmosDBEmulator is unreliable
@@ -95,7 +95,7 @@ elseif (CheckAdmin)
 }
 else {
     Write-Host "Starting cosmos emulator"
-    
+
     #Run current script with admin rights
     Start-Process powershell.exe -ArgumentList ('-File', $PSCommandPath) -Verb runas
 

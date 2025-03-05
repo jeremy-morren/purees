@@ -118,7 +118,7 @@ internal static class WriterHelpers
         {
             $"logLevel: {level}",
             $"exception: {exception}",
-            $"message: \"{message}\"",
+            $"message: {message.ToStringLiteral()}",
         }, args);
 
         writer.WriteRawLine(");");

@@ -12,4 +12,6 @@ public static class Events
     {
         public bool Equals(Commands.Update cmd) => cmd.Id == Id && cmd.Value == Value;
     }
+    
+    public record DerivedUpdated(TestAggregateId Id, int Value) : Updated(Id, Value);
 }

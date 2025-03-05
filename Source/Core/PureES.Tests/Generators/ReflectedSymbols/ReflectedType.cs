@@ -71,6 +71,8 @@ internal class ReflectedType : ReflectedTokenBase, IType
 
     public override string ToString() => CSharpName;
 
+    public string GetFullName(bool nullable) => FullName;
+
     public string CSharpName
     {
         get

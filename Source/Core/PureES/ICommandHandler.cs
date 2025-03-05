@@ -13,7 +13,7 @@ public interface ICommandHandler<in TCommand>
     ///     The <c>StreamPosition</c> of the added event(s)
     ///     from <see cref="IEventStore" />
     /// </returns>
-    Task<ulong> Handle(TCommand command, CancellationToken cancellationToken);
+    Task<uint> Handle(TCommand command, CancellationToken cancellationToken);
 }
 
 /// <summary>

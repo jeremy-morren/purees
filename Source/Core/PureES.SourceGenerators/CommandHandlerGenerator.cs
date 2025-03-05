@@ -47,7 +47,7 @@ internal class CommandHandlerGenerator
         
         _w.WriteMethodAttributes();
         
-        var returnType = _handler.ResultType != null ? _handler.ResultType.CSharpName : "ulong";
+        var returnType = _handler.ResultType != null ? _handler.ResultType.CSharpName : "uint";
         returnType = TypeNameHelpers.GetGenericTypeName(typeof(Task<>), returnType);
         _w.WriteStatement(
             $"public async {returnType} Handle({_handler.Command.CSharpName} command, CancellationToken cancellationToken)",
@@ -85,20 +85,20 @@ internal class CommandHandlerGenerator
         _w.WriteParameters(
             _handler.Services.Select((svc, i) => $"{svc.CSharpName} service{i}"),
             
-            _handler.StreamId == null ? new [] { $"{StreamIdSvc} getStreamId"} : Enumerable.Empty<string>(),
-            
-            //NB: These are last, so we can provide default values of null
-            new []
-            {
+            _handler.StreamId == null ? [$"{StreamIdSvc} getStreamId"] : [],
+
+            [
                 $"{EventStoreType} eventStore",
                 $"{AggregateStoreType} aggregateStore",
                 $"{EnumerableEventEnricherType} syncEnrichers",
                 $"{EnumerableAsyncEventEnricherType} asyncEnrichers",
                 $"{EnumerableValidatorType} syncValidators",
                 $"{EnumerableAsyncValidatorType} asyncValidators",
+
+                //NB: These are last, so we can provide default values of null
                 $"{ConcurrencyType} concurrency = null",
                 $"{LoggerType} logger = null"
-            });
+            ]);
 
         _w.WriteRawLine(')');
         _w.PushBrace();
@@ -133,7 +133,7 @@ internal class CommandHandlerGenerator
 
         if (_handler.Command.IsReferenceType)
         {
-            //Add null check, which returns immediately
+            //Add null check
             _w.WriteStatement("if (command == null)", "throw new ArgumentNullException(nameof(command));");
         }
 
@@ -145,8 +145,12 @@ internal class CommandHandlerGenerator
             "Handling command {@Command}. Aggregate: {@Aggregate}. Method: {Method}", 
             commandType, aggregateType, method);
 
+        WriteStartActivity();
+
+        BeginLogScope();
+
         _w.WriteLine($"var start = {GeneratorHelpers.GetTimestamp};");
-        
+
         _w.WriteStatement("try", () =>
         {
             WriteValidate();
@@ -161,11 +165,9 @@ internal class CommandHandlerGenerator
                 _w.WriteLine("var current = await _aggregateStore.Load(streamId, currentRevision, cancellationToken);");
             }
             
-            BeginLogScope();
-            
             WriteInvoke();
 
-            _w.WriteLine(_handler.IsUpdate ? "var revision = currentRevision;" : "var revision = ulong.MaxValue;");
+            _w.WriteLine(_handler.IsUpdate ? "var revision = currentRevision;" : "var revision = uint.MaxValue;");
 
             var result = _handler.ResultType != null ? "result?.Event" : "result";
             
@@ -177,7 +179,7 @@ internal class CommandHandlerGenerator
                     
                     _w.WriteStatement("if (transaction.Count > 0)", () =>
                     {
-                        WriteEnrich(true, "transaction.Values.SelectMany(p => p.Events)");
+                        WriteEnrich(true, "transaction.SelectMany(l => l)");
                         _w.WriteLine("await _eventStore.SubmitTransaction(transaction, cancellationToken);");
                     });
                 }
@@ -211,8 +213,8 @@ internal class CommandHandlerGenerator
                 commandType, "GetElapsed(start)", "streamId", "revision", aggregateType, method);
             
             _w.WriteLine(_handler.ResultType != null ? "return result?.Result;" : "return revision;");
-            
-            _w.PopBrace(); //Log scope
+
+            ActivityHelpers.SetActivitySuccess(_w);
         });
         _w.WriteStatement($"catch (global::{typeof(Exception).FullName} ex)", () =>
         {
@@ -221,8 +223,13 @@ internal class CommandHandlerGenerator
                 "ex",
                 "Error handling command {@Command}. Aggregate: {@Aggregate}. Method: {Method}. Elapsed: {Elapsed:0.0000}ms",
                 commandType, aggregateType, method, "GetElapsed(start)");
+            ActivityHelpers.SetActivityError(_w, "ex");
             _w.WriteLine("throw;");
         });
+
+        _w.PopBrace(); //Log scope
+
+        _w.PopBrace(); //Activity
     }
 
     private void WriteValidate()
@@ -238,7 +245,7 @@ internal class CommandHandlerGenerator
         
         var parent = _handler.Method.IsStatic ? _aggregate.Type.CSharpName : "current";
         
-        _w.Write($"var result = {@await}{parent}.{_handler.Method.Name}(");
+        _w.Write($"var result = {await}{parent}.{_handler.Method.Name}(");
         var parameters = _handler.Method.Parameters
             .Select(p =>
             {
@@ -307,28 +314,18 @@ internal class CommandHandlerGenerator
     private void WriteCreateTransaction()
     {
         const string list = $"global::{PureESSymbols.UncommittedEventsList}";
-        
+
+        _w.WriteLine($"var transaction = new {TypeNameHelpers.GetGenericTypeName(typeof(List<>), list)}();");
+
         var source = _handler.ResultType != null ? "result.Event" : "result";
-        
-        var dictionary = TypeNameHelpers.GetGenericTypeName(typeof(Dictionary<,>), "string", list);
-        
-        _w.WriteLine($"var transaction = new {dictionary}();");
-        
         _w.WriteStatement($"foreach (var pair in {source})", () =>
         {
-            _w.WriteStatement("if (pair.Value.Count == 0)", "continue;");
+            //If stream is current stream, manually calculate return revision
+            _w.WriteStatement("if (pair.Key == streamId)", 
+                "revision = pair.Value.ExpectedRevision.HasValue ? pair.Value.ExpectedRevision.Value + (uint)pair.Value.Count : (uint)(pair.Value.Count - 1);");
             
-            //If stream is current stream, use currentRevision as expected
-            //And manually calculate return revision
-            _w.WriteStatement("if (pair.Key == streamId)", () =>
-            {
-                _w.WriteLine($"transaction.Add(pair.Key, new {list}(currentRevision, pair.Value));");
-                _w.WriteLine(_handler.IsUpdate
-                    ? "revision = currentRevision + (ulong)pair.Value.Count;"
-                    : "revision = (ulong)pair.Value.Count - 1;");
-            });
-            _w.WriteStatement("else", 
-                $"transaction.Add(pair.Key, new {list}(pair.Value.ExpectedRevision, pair.Value));");
+            _w.WriteStatement("if (pair.Value.Count > 0)",
+                $"transaction.Add(new {list}(pair.Key, pair.Value.ExpectedRevision, pair.Value));");
         });
     }
     
@@ -336,43 +333,29 @@ internal class CommandHandlerGenerator
     {
         //If stream id was provided, then a constant
         //Otherwise invoke service
-        if (_handler.StreamId != null)
-        {
-            var streamId = _handler.StreamId.Replace("\"", "\\\"");
-            _w.WriteLine($"const string streamId = \"{streamId}\";");
-        }
-        else
-        {
-            _w.WriteLine("var streamId = this._getStreamId.GetStreamId(command);");
-        }
+        _w.WriteLine(_handler.StreamId != null
+            ? $"const string streamId = {_handler.StreamId.ToStringLiteral()};"
+            : "var streamId = this._getStreamId.GetStreamId(command);");
+    }
+
+    private void WriteStartActivity()
+    {
+        const string activityName = "HandleCommand";
+        var displayName = $"{activityName} {ActivityHelpers.GetTypeDisplayName(_aggregate.Type)}.{_handler.Method.Name}";
+        ActivityHelpers.StartActivity(_w, activityName, displayName, GetTags());
     }
     
     private void BeginLogScope()
     {
-        _w.WriteLine($"using (_logger.BeginScope(new {ExternalTypes.LoggerScopeType}()");
-        _w.Push();
-        _w.PushBrace();
-        IEnumerable<(string,string)> parameters = new []
-        {
-            ("Command", "CommandType"),
-            ("Aggregate","AggregateType"),
-            ("Method", $"\"{_handler.Method.Name}\""),
-            ("StreamId", "streamId")
-        };
-        
-        if (_handler.IsUpdate)
-            parameters = parameters.Concat(new[]
-            {
-                ("CurrentStreamRevision", "currentRevision")
-            });
-        
-        foreach (var (key, value) in parameters)
-            _w.WriteLine($"{{ \"{key}\", {value} }},");
-        _w.Pop();
-        _w.WriteLine("}))");
-        _w.Pop();
-        _w.PushBrace();
+        LoggingHelpers.BeginLogScope(_w, GetTags());
     }
+
+    private IEnumerable<(string, string?)> GetTags() =>
+    [
+        ("Command", "CommandType"),
+        ("Aggregate","AggregateType"),
+        ("Method", _handler.Method.Name.ToStringLiteral())
+    ];
 
     #region Types
 

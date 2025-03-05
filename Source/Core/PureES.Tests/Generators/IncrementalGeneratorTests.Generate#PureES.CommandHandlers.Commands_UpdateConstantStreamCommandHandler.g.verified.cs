@@ -91,69 +91,86 @@ namespace PureES.CommandHandlers
                 CommandType,
                 AggregateType,
                 "UpdateOnResult");
-            var start = global::System.Diagnostics.Stopwatch.GetTimestamp();
-            try
+            using (var activity = PureES.PureESTracing.ActivitySource.StartActivity("HandleCommand"))
             {
-                foreach (var v in this._syncValidators)
+                if (activity != null)
                 {
-                    v.Validate(command);
+                    activity.DisplayName = "PureES.Tests.Models.TestAggregate.UpdateOnResult";
+                    if (activity.IsAllDataRequested)
+                    {
+                        activity?.SetTag("Command", CommandType);
+                        activity?.SetTag("Aggregate", AggregateType);
+                        activity?.SetTag("Method", "UpdateOnResult");
+                    }
                 }
-                foreach (var v in this._asyncValidators)
-                {
-                    await v.Validate(command, cancellationToken);
-                }
-                const string streamId = "UpdateConstantStream";
-                var currentRevision = this._concurrency?.GetExpectedRevision(streamId, command) ?? await this._eventStore.GetRevision(streamId, cancellationToken);
-                var current = await _aggregateStore.Load(streamId, currentRevision, cancellationToken);
                 using (_logger.BeginScope(new global::System.Collections.Generic.Dictionary<string, object>()
                     {
                         { "Command", CommandType },
                         { "Aggregate", AggregateType },
                         { "Method", "UpdateOnResult" },
-                        { "StreamId", streamId },
-                        { "CurrentStreamRevision", currentRevision },
                     }))
                 {
-                    var result = current.UpdateOnResult(command, this._service0);
-                    var revision = currentRevision;
-                    if (result?.Event != null)
+                    var start = global::System.Diagnostics.Stopwatch.GetTimestamp();
+                    try
                     {
-                        var e = new global::PureES.UncommittedEvent(result.Event);
-                        foreach (var enricher in this._syncEnrichers)
+                        foreach (var v in this._syncValidators)
                         {
-                            enricher.Enrich(e);
+                            v.Validate(command);
                         }
-                        foreach (var enricher in this._asyncEnrichers)
+                        foreach (var v in this._asyncValidators)
                         {
-                            await enricher.Enrich(e, cancellationToken);
+                            await v.Validate(command, cancellationToken);
                         }
-                        revision = await _eventStore.Append(streamId, currentRevision, e, cancellationToken);
+                        const string streamId = "UpdateConstantStream";
+                        var currentRevision = this._concurrency?.GetExpectedRevision(streamId, command) ?? await this._eventStore.GetRevision(streamId, cancellationToken);
+                        var current = await _aggregateStore.Load(streamId, currentRevision, cancellationToken);
+                        var result = current.UpdateOnResult(command, this._service0);
+                        var revision = currentRevision;
+                        if (result?.Event != null)
+                        {
+                            var e = new global::PureES.UncommittedEvent(result.Event);
+                            foreach (var enricher in this._syncEnrichers)
+                            {
+                                enricher.Enrich(e);
+                            }
+                            foreach (var enricher in this._asyncEnrichers)
+                            {
+                                await enricher.Enrich(e, cancellationToken);
+                            }
+                            revision = await _eventStore.Append(streamId, currentRevision, e, cancellationToken);
+                        }
+                        this._concurrency?.OnUpdated(streamId, command, currentRevision, revision);
+                        this._logger.Log(
+                            logLevel: global::Microsoft.Extensions.Logging.LogLevel.Information,
+                            exception: null,
+                            message: "Handled command {@Command}. Elapsed: {Elapsed:0.0000}ms. Stream {StreamId} is now at {Revision}. Aggregate: {@Aggregate}. Method: {Method}",
+                            CommandType,
+                            GetElapsed(start),
+                            streamId,
+                            revision,
+                            AggregateType,
+                            "UpdateOnResult");
+                        return result?.Result;
+                        activity?.SetStatus(global::System.Diagnostics.ActivityStatusCode.Ok);
                     }
-                    this._concurrency?.OnUpdated(streamId, command, currentRevision, revision);
-                    this._logger.Log(
-                        logLevel: global::Microsoft.Extensions.Logging.LogLevel.Information,
-                        exception: null,
-                        message: "Handled command {@Command}. Elapsed: {Elapsed:0.0000}ms. Stream {StreamId} is now at {Revision}. Aggregate: {@Aggregate}. Method: {Method}",
-                        CommandType,
-                        GetElapsed(start),
-                        streamId,
-                        revision,
-                        AggregateType,
-                        "UpdateOnResult");
-                    return result?.Result;
+                    catch (global::System.Exception ex)
+                    {
+                        this._logger.Log(
+                            logLevel: global::Microsoft.Extensions.Logging.LogLevel.Information,
+                            exception: ex,
+                            message: "Error handling command {@Command}. Aggregate: {@Aggregate}. Method: {Method}. Elapsed: {Elapsed:0.0000}ms",
+                            CommandType,
+                            AggregateType,
+                            "UpdateOnResult",
+                            GetElapsed(start));
+                        if (activity != null)
+                        {
+                            activity.SetStatus(global::System.Diagnostics.ActivityStatusCode.Error, ex.Message);
+                            activity.SetTag("error.type", ex.GetType().FullName);
+                        }
+                        throw;
+                    }
                 }
-            }
-            catch (global::System.Exception ex)
-            {
-                this._logger.Log(
-                    logLevel: global::Microsoft.Extensions.Logging.LogLevel.Information,
-                    exception: ex,
-                    message: "Error handling command {@Command}. Aggregate: {@Aggregate}. Method: {Method}. Elapsed: {Elapsed:0.0000}ms",
-                    CommandType,
-                    AggregateType,
-                    "UpdateOnResult",
-                    GetElapsed(start));
-                throw;
             }
         }
     }

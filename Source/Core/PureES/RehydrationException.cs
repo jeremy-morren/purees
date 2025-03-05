@@ -7,35 +7,27 @@
 [PublicAPI]
 public class RehydrationException : Exception
 {
-    public string StreamId { get; }
+    public IEventEnvelope Envelope { get; }
     public Type AggregateType { get; }
 
-    public RehydrationException(string streamId, 
-        Type aggregateType, 
-        Exception innerException)
-        : base($"An error occurred rehydrating '{BasicEventTypeMap.GetTypeName(aggregateType)}'. Stream Id: '{streamId}'", 
+    public RehydrationException(IEventEnvelope envelope, Type aggregateType, Exception? innerException = null)
+        : base(
+            FormatMessage($"An error occurred rehydrating '{BasicEventTypeMap.GetTypeNames(aggregateType)[^1]}'", envelope),
             innerException)
     {
-        StreamId = streamId;
+        Envelope = envelope;
         AggregateType = aggregateType;
     }
     
-    public RehydrationException(string streamId, 
-        Type aggregateType, 
-        string message)
-        : base($"{message}. Aggregate type: '{BasicEventTypeMap.GetTypeName(aggregateType)}'. Stream Id: '{streamId}'")
+    public RehydrationException(IEventEnvelope envelope, Type aggregateType, string message, Exception? innerException = null)
+        : base(
+            FormatMessage($"{message}. Aggregate type: '{BasicEventTypeMap.GetTypeNames(aggregateType)[^1]}'", envelope),
+            innerException)
     {
-        StreamId = streamId;
+        Envelope = envelope;
         AggregateType = aggregateType;
     }
     
-    public RehydrationException(string streamId, 
-        Type aggregateType, 
-        string message,
-        Exception innerException)
-        : base($"{message}. Aggregate type: '{BasicEventTypeMap.GetTypeName(aggregateType)}'. Stream Id: '{streamId}'", innerException)
-    {
-        StreamId = streamId;
-        AggregateType = aggregateType;
-    }
+    private static string FormatMessage(string message, IEventEnvelope envelope) => 
+        $"{message}. Stream Id: '{envelope.StreamId}'. Stream Pos: {envelope.StreamPosition}";
 }

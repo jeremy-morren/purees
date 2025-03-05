@@ -69,7 +69,7 @@ namespace PureES.AggregateFactories
                     throw new global::PureES.RehydrationException(streamId, AggregateType, $"No suitable CreateWhen method found for event '{eventType}'");
                 }
             }
-            return new global::PureES.RehydratedAggregate<global::PureES.Tests.Models.ImplementedGenericAggregate>(current, 0ul);
+            return new global::PureES.RehydratedAggregate<global::PureES.Tests.Models.ImplementedGenericAggregate>(current, 0u);
         }
 
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]

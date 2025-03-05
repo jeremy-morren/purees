@@ -17,13 +17,11 @@ public static class PureESServiceCollectionExtensions
     public static PureESBuilder AddPureES(this IServiceCollection services, Action<PureESOptions>? configureOptions = null)
     {
         ArgumentNullException.ThrowIfNull(services);
+        
+        services.AddTransient(typeof(IEventHandlerCollection<>), typeof(EventHandlerCollection<>));
 
         services.AddOptions<PureESOptions>()
-            .Validate(o =>
-            {
-                o.Validate();
-                return true;
-            });
+            .Validate(o => o.Validate());
         if (configureOptions != null)
             services.Configure(configureOptions);
 
@@ -104,6 +102,21 @@ public static class PureESServiceCollectionExtensions
             getStreamIdProperty ?? CommandPropertyStreamId<object>.DefaultGetStreamIdProperty);
         builder.Services.AddSingleton(typeof(ICommandStreamId<>), typeof(CommandPropertyStreamId<>));
 
+        return builder;
+    }
+
+    /// <summary>
+    /// Configures PureES options
+    /// </summary>
+    /// <param name="builder"></param>
+    /// <param name="configure"></param>
+    /// <returns></returns>
+    public static PureESBuilder Configure(this PureESBuilder builder, Action<PureESOptions> configure)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        builder.Services.Configure(configure);
         return builder;
     }
 }

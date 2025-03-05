@@ -24,7 +24,7 @@ public interface IEventStore
     /// <param name="cancellationToken"></param>
     /// <returns>The revision (EventStoreReadDirection direction, 0-index based) revision of <paramref name="streamId" /></returns>
     /// <exception cref="StreamNotFoundException">Stream <paramref name="streamId" /> not found</exception>
-    public Task<ulong> GetRevision(string streamId, CancellationToken cancellationToken);
+    public Task<uint> GetRevision(string streamId, CancellationToken cancellationToken);
     
     /// <summary>
     ///     Gets the current revision that stream <paramref name="streamId" /> is at
@@ -35,7 +35,7 @@ public interface IEventStore
     /// <returns>The revision (EventStoreReadDirection direction, 0-index based) revision of <paramref name="streamId" /></returns>
     /// <exception cref="StreamNotFoundException">Stream <paramref name="streamId" /> not found</exception>
     /// <remarks>This method is chiefly for optimistic concurrency</remarks>
-    public Task<ulong> GetRevision(string streamId, ulong expectedRevision, CancellationToken cancellationToken);
+    public Task<uint> GetRevision(string streamId, uint expectedRevision, CancellationToken cancellationToken);
 
     /// <summary>
     ///     Creates a new stream with id <paramref name="streamId" /> using <paramref name="events" />
@@ -45,7 +45,7 @@ public interface IEventStore
     /// <param name="cancellationToken"></param>
     /// <returns><c>Revision</c> of created stream</returns>
     /// <exception cref="StreamAlreadyExistsException">Stream <paramref name="streamId" /> already exists</exception>
-    public Task<ulong> Create(string streamId,
+    public Task<uint> Create(string streamId,
         IEnumerable<UncommittedEvent> events,
         CancellationToken cancellationToken);
 
@@ -57,7 +57,7 @@ public interface IEventStore
     /// <param name="cancellationToken"></param>
     /// <returns><c>Revision</c> of created stream</returns>
     /// <exception cref="StreamAlreadyExistsException">Stream <paramref name="streamId" /> already exists</exception>
-    public Task<ulong> Create(string streamId, UncommittedEvent @event, CancellationToken cancellationToken);
+    public Task<uint> Create(string streamId, UncommittedEvent @event, CancellationToken cancellationToken);
 
     /// <summary>
     ///     Appends <paramref name="events" /> to stream <paramref name="streamId" />
@@ -68,8 +68,8 @@ public interface IEventStore
     /// <param name="cancellationToken"></param>
     /// <returns><c>Revision</c> of stream after append</returns>
     /// <exception cref="StreamNotFoundException">Stream <paramref name="streamId" /> not found</exception>
-    public Task<ulong> Append(string streamId,
-        ulong expectedRevision,
+    public Task<uint> Append(string streamId,
+        uint expectedRevision,
         IEnumerable<UncommittedEvent> events,
         CancellationToken cancellationToken);
     
@@ -81,7 +81,7 @@ public interface IEventStore
     /// <param name="cancellationToken"></param>
     /// <returns><c>Revision</c> of stream after append</returns>
     /// <exception cref="StreamNotFoundException">Stream <paramref name="streamId" /> not found</exception>
-    public Task<ulong> Append(string streamId,
+    public Task<uint> Append(string streamId,
         IEnumerable<UncommittedEvent> events,
         CancellationToken cancellationToken);
 
@@ -94,8 +94,8 @@ public interface IEventStore
     /// <param name="cancellationToken"></param>
     /// <returns><c>Revision</c> of stream after append</returns>
     /// <exception cref="StreamNotFoundException">Stream <paramref name="streamId" /> not found</exception>
-    public Task<ulong> Append(string streamId,
-        ulong expectedRevision,
+    public Task<uint> Append(string streamId,
+        uint expectedRevision,
         UncommittedEvent @event,
         CancellationToken cancellationToken);
     
@@ -107,7 +107,7 @@ public interface IEventStore
     /// <param name="cancellationToken"></param>
     /// <returns><c>Revision</c> of stream after append</returns>
     /// <exception cref="StreamNotFoundException">Stream <paramref name="streamId" /> not found</exception>
-    public Task<ulong> Append(string streamId,
+    public Task<uint> Append(string streamId,
         UncommittedEvent @event,
         CancellationToken cancellationToken);
 
@@ -117,7 +117,7 @@ public interface IEventStore
     /// <param name="transaction">The event streams to append</param>
     /// <param name="cancellationToken"></param>
     /// <exception cref="EventsTransactionException">Multiple transactions were not valid</exception>
-    public Task SubmitTransaction(IReadOnlyDictionary<string, UncommittedEventsList> transaction, CancellationToken cancellationToken);
+    public Task SubmitTransaction(IReadOnlyList<UncommittedEventsList> transaction, CancellationToken cancellationToken);
 
     /// <summary>
     ///     Reads all events in chronological order
@@ -142,7 +142,7 @@ public interface IEventStore
     ///     from all events in the order in which they were added
     /// </returns>
     public IAsyncEnumerable<EventEnvelope> ReadAll(Direction direction,
-        ulong maxCount,
+        uint maxCount,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -178,7 +178,7 @@ public interface IEventStore
     /// </exception>
     public IAsyncEnumerable<EventEnvelope> Read(Direction direction, 
         string streamId,
-        ulong expectedRevision,
+        uint expectedRevision,
         CancellationToken cancellationToken = default);
     
     /// <summary>
@@ -201,8 +201,8 @@ public interface IEventStore
     /// </exception>
     public IAsyncEnumerable<EventEnvelope> Read(Direction direction, 
         string streamId,
-        ulong startRevision,
-        ulong expectedRevision,
+        uint startRevision,
+        uint expectedRevision,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -223,7 +223,7 @@ public interface IEventStore
     /// </exception>
     public IAsyncEnumerable<EventEnvelope> ReadPartial(Direction direction,
         string streamId,
-        ulong count,
+        uint count,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -246,8 +246,8 @@ public interface IEventStore
     ///     Revision of stream <paramref name="streamId" /> less than <paramref name="endRevision" />
     /// </exception>
     public IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId,
-        ulong startRevision,
-        ulong endRevision,
+        uint startRevision,
+        uint endRevision,
         CancellationToken cancellationToken = default);
     
     /// <summary>
@@ -267,7 +267,7 @@ public interface IEventStore
     ///     Revision of stream <paramref name="streamId" /> less than <paramref name="startRevision" />
     /// </exception>
     public IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId,
-        ulong startRevision,
+        uint startRevision,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -296,21 +296,21 @@ public interface IEventStore
     ///     Loads events by <c>EventType</c>
     /// </summary>
     /// <param name="direction">Read direction</param>
-    /// <param name="eventType">Type of event to query</param>
+    /// <param name="eventTypes">Types of event to query</param>
     /// <param name="cancellationToken"></param>
     /// <returns>
     ///     An <see cref="IAsyncEnumerable{T}" /> of <see cref="EventEnvelope" />
     ///     from the events in the stream in the order in which they were added
     /// </returns>
     public IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction,
-        Type eventType, 
+        Type[] eventTypes, 
         CancellationToken cancellationToken = default);
     
     /// <summary>
     ///     Loads events by <c>EventType</c>
     /// </summary>
     /// <param name="direction">Read direction</param>
-    /// <param name="eventType">Type of event to query</param>
+    /// <param name="eventTypes">Types of event to query</param>
     /// <param name="maxCount">The maximum number of events to return</param>
     /// <param name="cancellationToken"></param>
     /// <returns>
@@ -318,8 +318,8 @@ public interface IEventStore
     ///     from the events in the stream in the order in which they were added
     /// </returns>
     public IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction,
-        Type eventType, 
-        ulong maxCount,
+        Type[] eventTypes, 
+        uint maxCount,
         CancellationToken cancellationToken = default);
     
     /// <summary>
@@ -329,16 +329,16 @@ public interface IEventStore
     /// <returns>
     ///    The total number of events in the event store.
     /// </returns>
-    public Task<ulong> Count(CancellationToken cancellationToken);
+    public Task<uint> Count(CancellationToken cancellationToken);
     
     /// <summary>
     ///     Counts events by <c>EventType</c>
     /// </summary>
-    /// <param name="eventType">Type of event to query</param>
+    /// <param name="eventTypes">Type of event to query</param>
     /// <param name="cancellationToken"></param>
     /// <returns>
     ///     An <see cref="IAsyncEnumerable{T}" /> of <see cref="EventEnvelope" />
     ///     from the events in the stream in the order in which they were added
     /// </returns>
-    public Task<ulong> CountByEventType(Type eventType, CancellationToken cancellationToken);
+    public Task<uint> CountByEventType(Type[] eventTypes, CancellationToken cancellationToken);
 }

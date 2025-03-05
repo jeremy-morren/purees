@@ -1,11 +1,12 @@
-using System.Collections;
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Reflection;
 using System.Threading.Tasks.Dataflow;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
+
+// ReSharper disable ExplicitCallerInfoArgument
 
 // ReSharper disable ConditionalAccessQualifierIsNonNullableAccordingToAPIContract
 
@@ -20,12 +21,13 @@ public class EventBus : IEventBus
 
     public EventBus(
         IServiceProvider services,
+        ExecutionDataflowBlockOptions? options = null,
         ILogger<EventBus>? logger = null)
     {
         _services = services;
         _logger = logger ?? NullLogger<EventBus>.Instance;
         
-        _handler = new EventStreamBlock(Publish);
+        _handler = new EventStreamBlock(Handle, options ?? new ExecutionDataflowBlockOptions());
 
         var onHandled = new ActionBlock<EventEnvelope>(OnEventHandled, 
             new ExecutionDataflowBlockOptions()
@@ -43,40 +45,51 @@ public class EventBus : IEventBus
 
     private static readonly ConcurrentDictionary<Type, Type> EventHandlerTypes = new();
 
-    private async Task Publish(EventEnvelope envelope)
+    private async Task Handle(EventEnvelope envelope)
     {
+        //Start a new root activity for this event
+        Activity.Current = null;
+
+        using var activity = PureESTracing.ActivitySource.StartActivity(
+            "EventBus.Handle", ActivityKind.Internal, parentContext: default);
+
+        if (activity != null)
+        {
+            var typeName = GetTypeName(GetEventType(envelope));
+
+            activity.DisplayName = $"EventBus.Handle {typeName}";
+            if (activity.IsAllDataRequested)
+            {
+                activity.SetTag("StreamId", envelope.StreamId);
+                activity.SetTag("StreamPosition", envelope.StreamPosition);
+                activity.SetTag("EventType", typeName);
+            }
+        }
+
         var logEvent = new
         {
             envelope.StreamId, 
             envelope.StreamPosition, 
-            EventType = GetTypeName(GetEventType(envelope))
+            EventType = GetEventType(envelope)
         };
         
         try
         {
             await using var scope = _services.CreateAsyncScope();
-            var serviceType = EventHandlerTypes.GetOrAdd(envelope.Event.GetType(), 
-                t =>
-                {
-                    t = typeof(IEventHandler<>).MakeGenericType(t);
-                    return typeof(IEnumerable<>).MakeGenericType(t);
-                });
+            var serviceType = EventHandlerTypes.GetOrAdd(
+                envelope.Event.GetType(),
+                t => typeof(IEventHandlerCollection<>).MakeGenericType(t));
 
-            var handlers = new List<IEventHandler>();
-            var genericHandlers = (IEnumerable?)scope.ServiceProvider.GetService(serviceType);
-            if (genericHandlers != null)
-                handlers.AddRange(genericHandlers.OfType<IEventHandler>());
+            var collection = (IEventHandlerCollection)scope.ServiceProvider.GetRequiredService(serviceType);
             
-            var catchAllHandlers = scope.ServiceProvider.GetService<IEnumerable<IEventHandler>>();
-            if (catchAllHandlers != null)
-                handlers.AddRange(catchAllHandlers);
-        
+            var handlers = collection.GetHandlers(envelope).ToList();
+            
             if (handlers.Count == 0) return;
     
             _logger.LogDebug("Processing {EventHandlerCount} event handler(s) for event {@Event}", 
                 handlers.Count, logEvent);
             var start = Stopwatch.GetTimestamp();
-            
+
             foreach (var handler in handlers.OrderBy(h => h.Priority))
                 await handler.Handle(envelope);
             
@@ -84,9 +97,14 @@ public class EventBus : IEventBus
             _logger.LogDebug(
                 "Processed {EventHandlerCount} event handler(s) for event {@Event}. Elapsed: {Elapsed:0.0000} ms",
                 handlers.Count, logEvent, elapsed.TotalMilliseconds);
+
+            activity?.SetStatus(ActivityStatusCode.Ok);
         }
         catch (Exception e)
         {
+            activity?.SetStatus(ActivityStatusCode.Error, e.Message);
+            activity?.SetTag("error.type", e.GetType().FullName ?? e.GetType().Name);
+
             //Either DI failure, or event handler propagated exception
             _logger.LogCritical(e, "An error occurred handling event {@LogEvent}", logEvent);
             throw;
@@ -102,11 +120,8 @@ public class EventBus : IEventBus
     private static Type GetEventType(EventEnvelope envelope) => 
         envelope.Event?.GetType() ?? throw new InvalidOperationException("Event is null");
 
-    private static string GetTypeName(MemberInfo type)
-    {
-        return type.DeclaringType != null ? $"{GetTypeName(type.DeclaringType)}+{type.Name}" : type.Name;
-    }
-    
+    private static string GetTypeName(Type type) => TypeNameFormatter.GetDisplayTypeName(type);
+
     #endregion
     
     #region Events
@@ -142,7 +157,7 @@ public class EventBus : IEventBus
         EventEnvelope messageValue,
         ISourceBlock<EventEnvelope>? source, 
         bool consumeToAccept) =>
-        _handler.OfferMessage(messageHeader, messageValue, source, consumeToAccept);
+        ((ITargetBlock<EventEnvelope>)_handler).OfferMessage(messageHeader, messageValue, source, consumeToAccept);
 
     public void Complete()
     {
@@ -151,7 +166,7 @@ public class EventBus : IEventBus
 
     public void Fault(Exception exception)
     {
-        _handler.Fault(exception);
+        ((ITargetBlock<EventEnvelope>)_handler).Fault(exception);
     }
 
     public Task Completion { get; }

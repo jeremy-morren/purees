@@ -1,4 +1,6 @@
-﻿namespace PureES;
+﻿using System.Threading.Tasks.Dataflow;
+
+namespace PureES;
 
 [PublicAPI]
 public class PureESOptions
@@ -8,8 +10,13 @@ public class PureESOptions
     /// </summary>
     public PureESEventHandlerOptions EventHandlers { get; } = new();
 
-    public void Validate()
+    /// <summary>
+    /// Configure the event bus
+    /// </summary>
+    public ExecutionDataflowBlockOptions EventBusOptions { get; } = new()
     {
-        EventHandlers.Validate();
-    }
+        EnsureOrdered = true
+    };
+
+    internal bool Validate() => EventHandlers.Validate();
 }

@@ -78,7 +78,7 @@ namespace PureES.CommandHandlers
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        public async global::System.Threading.Tasks.Task<ulong> Handle(ushort command, CancellationToken cancellationToken)
+        public async global::System.Threading.Tasks.Task<uint> Handle(ushort command, CancellationToken cancellationToken)
         {
             this._logger.Log(
                 logLevel: global::Microsoft.Extensions.Logging.LogLevel.Debug,
@@ -87,94 +87,106 @@ namespace PureES.CommandHandlers
                 CommandType,
                 AggregateType,
                 "UpdateTransaction");
-            var start = global::System.Diagnostics.Stopwatch.GetTimestamp();
-            try
+            using (var activity = PureES.PureESTracing.ActivitySource.StartActivity("HandleCommand"))
             {
-                foreach (var v in this._syncValidators)
+                if (activity != null)
                 {
-                    v.Validate(command);
+                    activity.DisplayName = "PureES.Tests.Models.TestAggregate.UpdateTransaction";
+                    if (activity.IsAllDataRequested)
+                    {
+                        activity?.SetTag("Command", CommandType);
+                        activity?.SetTag("Aggregate", AggregateType);
+                        activity?.SetTag("Method", "UpdateTransaction");
+                    }
                 }
-                foreach (var v in this._asyncValidators)
-                {
-                    await v.Validate(command, cancellationToken);
-                }
-                var streamId = this._getStreamId.GetStreamId(command);
-                var currentRevision = this._concurrency?.GetExpectedRevision(streamId, command) ?? await this._eventStore.GetRevision(streamId, cancellationToken);
-                var current = await _aggregateStore.Load(streamId, currentRevision, cancellationToken);
                 using (_logger.BeginScope(new global::System.Collections.Generic.Dictionary<string, object>()
                     {
                         { "Command", CommandType },
                         { "Aggregate", AggregateType },
                         { "Method", "UpdateTransaction" },
-                        { "StreamId", streamId },
-                        { "CurrentStreamRevision", currentRevision },
                     }))
                 {
-                    var result = current.UpdateTransaction(command);
-                    var revision = currentRevision;
-                    if (result != null)
+                    var start = global::System.Diagnostics.Stopwatch.GetTimestamp();
+                    try
                     {
-                        var transaction = new global::System.Collections.Generic.Dictionary<string, global::PureES.UncommittedEventsList>();
-                        foreach (var pair in result)
+                        foreach (var v in this._syncValidators)
                         {
-                            if (pair.Value.Count == 0)
-                            {
-                                continue;
-                            }
-                            if (pair.Key == streamId)
-                            {
-                                transaction.Add(pair.Key, new global::PureES.UncommittedEventsList(currentRevision, pair.Value));
-                                revision = currentRevision + (ulong)pair.Value.Count;
-                            }
-                            else
-                            {
-                                transaction.Add(pair.Key, new global::PureES.UncommittedEventsList(pair.Value.ExpectedRevision, pair.Value));
-                            }
+                            v.Validate(command);
                         }
-                        if (transaction.Count > 0)
+                        foreach (var v in this._asyncValidators)
                         {
-                            foreach (var enricher in this._syncEnrichers)
+                            await v.Validate(command, cancellationToken);
+                        }
+                        var streamId = this._getStreamId.GetStreamId(command);
+                        var currentRevision = this._concurrency?.GetExpectedRevision(streamId, command) ?? await this._eventStore.GetRevision(streamId, cancellationToken);
+                        var current = await _aggregateStore.Load(streamId, currentRevision, cancellationToken);
+                        var result = current.UpdateTransaction(command);
+                        var revision = currentRevision;
+                        if (result != null)
+                        {
+                            var transaction = new global::System.Collections.Generic.List<global::PureES.UncommittedEventsList>();
+                            foreach (var pair in result)
                             {
-                                foreach (var e in transaction.Values.SelectMany(p => p.Events))
+                                if (pair.Key == streamId)
                                 {
-                                    enricher.Enrich(e);
+                                    revision = pair.Value.ExpectedRevision.HasValue ? pair.Value.ExpectedRevision.Value + (uint)pair.Value.Count : (uint)(pair.Value.Count - 1);
+                                }
+                                if (pair.Value.Count > 0)
+                                {
+                                    transaction.Add(new global::PureES.UncommittedEventsList(pair.Key, pair.Value.ExpectedRevision, pair.Value));
                                 }
                             }
-                            foreach (var enricher in this._asyncEnrichers)
+                            if (transaction.Count > 0)
                             {
-                                foreach (var e in transaction.Values.SelectMany(p => p.Events))
+                                foreach (var enricher in this._syncEnrichers)
                                 {
-                                    await enricher.Enrich(e, cancellationToken);
+                                    foreach (var e in transaction.SelectMany(l => l))
+                                    {
+                                        enricher.Enrich(e);
+                                    }
                                 }
+                                foreach (var enricher in this._asyncEnrichers)
+                                {
+                                    foreach (var e in transaction.SelectMany(l => l))
+                                    {
+                                        await enricher.Enrich(e, cancellationToken);
+                                    }
+                                }
+                                await _eventStore.SubmitTransaction(transaction, cancellationToken);
                             }
-                            await _eventStore.SubmitTransaction(transaction, cancellationToken);
                         }
+                        this._concurrency?.OnUpdated(streamId, command, currentRevision, revision);
+                        this._logger.Log(
+                            logLevel: global::Microsoft.Extensions.Logging.LogLevel.Information,
+                            exception: null,
+                            message: "Handled command {@Command}. Elapsed: {Elapsed:0.0000}ms. Stream {StreamId} is now at {Revision}. Aggregate: {@Aggregate}. Method: {Method}",
+                            CommandType,
+                            GetElapsed(start),
+                            streamId,
+                            revision,
+                            AggregateType,
+                            "UpdateTransaction");
+                        return revision;
+                        activity?.SetStatus(global::System.Diagnostics.ActivityStatusCode.Ok);
                     }
-                    this._concurrency?.OnUpdated(streamId, command, currentRevision, revision);
-                    this._logger.Log(
-                        logLevel: global::Microsoft.Extensions.Logging.LogLevel.Information,
-                        exception: null,
-                        message: "Handled command {@Command}. Elapsed: {Elapsed:0.0000}ms. Stream {StreamId} is now at {Revision}. Aggregate: {@Aggregate}. Method: {Method}",
-                        CommandType,
-                        GetElapsed(start),
-                        streamId,
-                        revision,
-                        AggregateType,
-                        "UpdateTransaction");
-                    return revision;
+                    catch (global::System.Exception ex)
+                    {
+                        this._logger.Log(
+                            logLevel: global::Microsoft.Extensions.Logging.LogLevel.Information,
+                            exception: ex,
+                            message: "Error handling command {@Command}. Aggregate: {@Aggregate}. Method: {Method}. Elapsed: {Elapsed:0.0000}ms",
+                            CommandType,
+                            AggregateType,
+                            "UpdateTransaction",
+                            GetElapsed(start));
+                        if (activity != null)
+                        {
+                            activity.SetStatus(global::System.Diagnostics.ActivityStatusCode.Error, ex.Message);
+                            activity.SetTag("error.type", ex.GetType().FullName);
+                        }
+                        throw;
+                    }
                 }
-            }
-            catch (global::System.Exception ex)
-            {
-                this._logger.Log(
-                    logLevel: global::Microsoft.Extensions.Logging.LogLevel.Information,
-                    exception: ex,
-                    message: "Error handling command {@Command}. Aggregate: {@Aggregate}. Method: {Method}. Elapsed: {Elapsed:0.0000}ms",
-                    CommandType,
-                    AggregateType,
-                    "UpdateTransaction",
-                    GetElapsed(start));
-                throw;
             }
         }
     }

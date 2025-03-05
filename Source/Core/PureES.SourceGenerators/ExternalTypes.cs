@@ -26,11 +26,6 @@ public static class ExternalTypes
     public const string DINamespace = "Microsoft.Extensions.DependencyInjection";
 
     public const string OptionsNamespace = "Microsoft.Extensions.Options";
-
-    public const string Activity = "global::System.Diagnostics.Activity";
     
     public static string IOptions(string type) => $"global::{OptionsNamespace}.IOptions<{type}>";
-    
-    public static readonly string LoggerScopeType =
-        TypeNameHelpers.GetGenericTypeName(typeof(Dictionary<string, object>), "string", "object");
 }

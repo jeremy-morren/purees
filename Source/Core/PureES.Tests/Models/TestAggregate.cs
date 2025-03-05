@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using JetBrains.Annotations;
@@ -16,7 +17,7 @@ public partial class TestAggregate
 {
     public required EventEnvelope<Events.Created, Metadata> Created { get; init; }
     public Events.Updated? Updated { get; private set; }
-    public ulong StreamPosition { get; private set; }
+    public uint StreamPosition { get; private set; }
 
     public static Events.Created CreateOn([Command] Commands.Create cmd) => new(cmd.Id, cmd.Value);
 
@@ -26,6 +27,7 @@ public partial class TestAggregate
         service.ShouldNotBeNull();
         return Task.FromResult(new[] { new Events.Updated(cmd.Id, cmd.Value) });
     }
+    
     
     public CommandResult<Events.Updated, int[]> UpdateOnResult([Command] Commands.UpdateConstantStream cmd, [FromServices] IServiceProvider service)
     {
@@ -50,14 +52,22 @@ public partial class TestAggregate
         return new Events.Updated(current.Created.Event.Id, (int)d);
     }
     
-    public static EventsTransaction CreateTransaction([Command] ulong u) => throw new NotImplementedException();
+    public static EventsTransaction CreateTransaction([Command] uint u) => throw new NotImplementedException();
     
     public EventsTransaction UpdateTransaction([Command] ushort u) => throw new NotImplementedException();
     
     public ValueTask<EventsTransaction> TransactionValueTask([Command] short u) => throw new NotImplementedException();
+
+    public static IEventsTransaction TransactionInterface([Command] ISerializable s) =>
+        throw new NotImplementedException();
     
-     public Task<CommandResult<EventsTransaction, object>> TransactionCommandResult([Command] long[] u) => 
-         throw new NotImplementedException();
+    public static IEventsTransaction? TransactionInterfaceNull([Command] uint[] _) =>
+        throw new NotImplementedException();
+
+    public static DerivedTransaction DerivedTransaction([Command] ushort[] x) => throw new NotImplementedException();
+    
+    public Task<CommandResult<EventsTransaction, object>> TransactionCommandResult([Command] long[] u) => 
+        throw new NotImplementedException();
 
     public void GlobalWhen(EventEnvelope envelope, CancellationToken ct)
     {
@@ -96,3 +106,5 @@ public partial class TestAggregate
 
     public static TestAggregate UpdateWhenStatic([Event] Events.Updated e, TestAggregate current) => current;
 }
+
+public class DerivedTransaction : EventsTransaction;

@@ -7,5 +7,5 @@ internal interface IInMemoryEventStoreSubscription : IEventStoreSubscription
     /// <summary>
     /// Notify that records have been committed
     /// </summary>
-    public void AfterCommit(List<EventRecord> records);
+    public void AfterCommit(List<InMemoryEventRecord> records);
 }

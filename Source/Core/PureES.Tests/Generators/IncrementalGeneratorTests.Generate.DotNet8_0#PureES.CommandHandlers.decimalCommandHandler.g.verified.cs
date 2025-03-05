@@ -81,7 +81,7 @@ namespace PureES.CommandHandlers
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        public async global::System.Threading.Tasks.Task<ulong> Handle(decimal command, CancellationToken cancellationToken)
+        public async global::System.Threading.Tasks.Task<uint> Handle(decimal command, CancellationToken cancellationToken)
         {
             this._logger.Log(
                 logLevel: global::Microsoft.Extensions.Logging.LogLevel.Debug,

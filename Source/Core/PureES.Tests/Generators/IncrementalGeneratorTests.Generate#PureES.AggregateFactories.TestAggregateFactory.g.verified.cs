@@ -16,6 +16,8 @@ using System.Linq;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.DependencyInjection;
 
+#pragma warning disable CS0612 // Type or member is obsolete
+#pragma warning disable CS0618 // Type or member is obsolete
 
 namespace PureES.AggregateFactories
 {
@@ -24,17 +26,13 @@ namespace PureES.AggregateFactories
     [global::System.CodeDom.Compiler.GeneratedCodeAttribute("PureES.SourceGenerator", "1.0.0.0")]
     internal sealed class TestAggregateFactory : global::PureES.IAggregateFactory<global::PureES.Tests.Models.TestAggregate>
     {
-        private readonly global::PureES.IEventStore _eventStore;
         private readonly global::System.IServiceProvider _services;
 
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        public TestAggregateFactory(
-            global::PureES.IEventStore eventStore,
-            global::System.IServiceProvider services)
+        public TestAggregateFactory(global::System.IServiceProvider services)
         {
-            this._eventStore = eventStore ?? throw new ArgumentNullException(nameof(eventStore));
             this._services = services ?? throw new ArgumentNullException(nameof(services));
         }
         private static readonly global::System.Type AggregateType = typeof(global::PureES.Tests.Models.TestAggregate);
@@ -60,14 +58,14 @@ namespace PureES.AggregateFactories
                     }
                     catch (Exception ex)
                     {
-                        throw new global::PureES.RehydrationException(streamId, AggregateType, "PureES.Tests.Models.TestAggregate.When(PureES.EventEnvelope<PureES.Tests.Models.Events.Created, PureES.Tests.Models.Metadata>)", ex);
+                        throw new global::PureES.RehydrationException(enumerator.Current, AggregateType, "PureES.Tests.Models.TestAggregate.When(PureES.EventEnvelope<PureES.Tests.Models.Events.Created, PureES.Tests.Models.Metadata>)", ex);
                     }
                     break;
                 }
                 default:
                 {
                     var eventType = global::PureES.BasicEventTypeMap.GetTypeName(enumerator.Current.Event.GetType());
-                    throw new global::PureES.RehydrationException(streamId, AggregateType, $"No suitable CreateWhen method found for event '{eventType}'");
+                    throw new global::PureES.RehydrationException(enumerator.Current, AggregateType, $"No suitable CreateWhen method found for event '{eventType}'");
                 }
             }
             try
@@ -76,7 +74,7 @@ namespace PureES.AggregateFactories
             }
             catch (Exception ex)
             {
-                throw new global::PureES.RehydrationException(streamId, AggregateType, "PureES.Tests.Models.TestAggregate.GlobalWhen(PureES.EventEnvelope, System.Threading.CancellationToken)", ex);
+                throw new global::PureES.RehydrationException(enumerator.Current, AggregateType, "PureES.Tests.Models.TestAggregate.GlobalWhen(PureES.EventEnvelope, System.Threading.CancellationToken)", ex);
             }
             try
             {
@@ -84,9 +82,9 @@ namespace PureES.AggregateFactories
             }
             catch (Exception ex)
             {
-                throw new global::PureES.RehydrationException(streamId, AggregateType, "PureES.Tests.Models.TestAggregate.GlobalWhenAsync(PureES.EventEnvelope, Microsoft.Extensions.Logging.ILoggerFactory)", ex);
+                throw new global::PureES.RehydrationException(enumerator.Current, AggregateType, "PureES.Tests.Models.TestAggregate.GlobalWhenAsync(PureES.EventEnvelope, Microsoft.Extensions.Logging.ILoggerFactory)", ex);
             }
-            return new global::PureES.RehydratedAggregate<global::PureES.Tests.Models.TestAggregate>(current, 0ul);
+            return new global::PureES.RehydratedAggregate<global::PureES.Tests.Models.TestAggregate>(current, 0u);
         }
 
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
@@ -108,7 +106,7 @@ namespace PureES.AggregateFactories
                         }
                         catch (Exception ex)
                         {
-                            throw new global::PureES.RehydrationException(streamId, AggregateType, "PureES.Tests.Models.TestAggregate.When(PureES.Tests.Models.Events.Updated, System.IServiceProvider)", ex);
+                            throw new global::PureES.RehydrationException(enumerator.Current, AggregateType, "PureES.Tests.Models.TestAggregate.When(PureES.Tests.Models.Events.Updated, System.IServiceProvider)", ex);
                         }
                         break;
                     }
@@ -122,7 +120,7 @@ namespace PureES.AggregateFactories
                         }
                         catch (Exception ex)
                         {
-                            throw new global::PureES.RehydrationException(streamId, AggregateType, "PureES.Tests.Models.TestAggregate.When(PureES.Tests.Models.EventEnvelope<int>, Microsoft.Extensions.Logging.ILoggerFactory)", ex);
+                            throw new global::PureES.RehydrationException(enumerator.Current, AggregateType, "PureES.Tests.Models.TestAggregate.When(PureES.Tests.Models.EventEnvelope<int>, Microsoft.Extensions.Logging.ILoggerFactory)", ex);
                         }
                         break;
                     }
@@ -134,14 +132,14 @@ namespace PureES.AggregateFactories
                         }
                         catch (Exception ex)
                         {
-                            throw new global::PureES.RehydrationException(streamId, AggregateType, "PureES.Tests.Models.TestAggregate.UpdateWhenStatic(PureES.Tests.Models.Events.Updated, PureES.Tests.Models.TestAggregate)", ex);
+                            throw new global::PureES.RehydrationException(enumerator.Current, AggregateType, "PureES.Tests.Models.TestAggregate.UpdateWhenStatic(PureES.Tests.Models.Events.Updated, PureES.Tests.Models.TestAggregate)", ex);
                         }
                         break;
                     }
                     default:
                     {
                         var eventType = global::PureES.BasicEventTypeMap.GetTypeName(enumerator.Current.Event.GetType());
-                        throw new global::PureES.RehydrationException(streamId, AggregateType, $"No suitable UpdateWhen method found for event '{eventType}'");
+                        throw new global::PureES.RehydrationException(enumerator.Current, AggregateType, $"No suitable UpdateWhen method found for event '{eventType}'");
                     }
                 }
                 try
@@ -150,7 +148,7 @@ namespace PureES.AggregateFactories
                 }
                 catch (Exception ex)
                 {
-                    throw new global::PureES.RehydrationException(streamId, AggregateType, "PureES.Tests.Models.TestAggregate.GlobalWhen(PureES.EventEnvelope, System.Threading.CancellationToken)", ex);
+                    throw new global::PureES.RehydrationException(enumerator.Current, AggregateType, "PureES.Tests.Models.TestAggregate.GlobalWhen(PureES.EventEnvelope, System.Threading.CancellationToken)", ex);
                 }
                 try
                 {
@@ -158,7 +156,7 @@ namespace PureES.AggregateFactories
                 }
                 catch (Exception ex)
                 {
-                    throw new global::PureES.RehydrationException(streamId, AggregateType, "PureES.Tests.Models.TestAggregate.GlobalWhenAsync(PureES.EventEnvelope, Microsoft.Extensions.Logging.ILoggerFactory)", ex);
+                    throw new global::PureES.RehydrationException(enumerator.Current, AggregateType, "PureES.Tests.Models.TestAggregate.GlobalWhenAsync(PureES.EventEnvelope, Microsoft.Extensions.Logging.ILoggerFactory)", ex);
                 }
                 ++revision;
             }

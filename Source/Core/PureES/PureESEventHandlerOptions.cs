@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Threading.Tasks.Dataflow;
+using Microsoft.Extensions.Logging;
 
 namespace PureES;
 
@@ -18,13 +19,13 @@ public class PureESEventHandlerOptions
     /// <summary>
     /// Gets or sets the maximum time that event handlers should run before timing out.
     /// </summary>
-    /// <remarks>Must be greater than 0. The default is 60 seconds.</remarks>
-    public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(60);
+    /// <remarks>Must be greater than 0. The default is 5 minutes.</remarks>
+    public TimeSpan Timeout { get; set; } = TimeSpan.FromMinutes(5);
 
     /// <summary>
     /// Gets or sets the maximum time in seconds that event handlers should run before timing out.
     /// </summary>
-    /// <remarks>Must be greater than 0. The default is 60 seconds.</remarks>
+    /// <remarks>Must be greater than 0. The default is 300 seconds (5 minutes)</remarks>
     public double TimeoutSeconds
     {
         get => Timeout.TotalSeconds;
@@ -44,12 +45,13 @@ public class PureESEventHandlerOptions
     private static LogLevel DefaultGetLogLevel(EventEnvelope e, TimeSpan ts) =>
         ts.TotalSeconds > 5 ? LogLevel.Warning : LogLevel.Information;
 
-    internal void Validate()
+    internal bool Validate()
     {
         if (GetLogLevel == null!)
             throw new Exception($"{nameof(GetLogLevel)} is required");
         if (Timeout.Ticks <= 0)
             throw new Exception($"{nameof(Timeout)} must be greater than 0");
+        return true;
     }
 
 }

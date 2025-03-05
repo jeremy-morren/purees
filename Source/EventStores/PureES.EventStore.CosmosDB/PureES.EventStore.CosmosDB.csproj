@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <LangVersion>latest</LangVersion>
+    </PropertyGroup>
+    
+    <ItemGroup>
+        <PackageReference Include="Azure.Identity" Version="1.13.1" />
+        <PackageReference Include="Microsoft.Azure.Cosmos" Version="3.46.0" />
+        
+        <PackageReference Include="Microsoft.ApplicationInsights" Version="2.22.0" />
+        <PackageReference Include="Microsoft.ApplicationInsights.AspNetCore" Version="2.22.0" />
+        <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+        
+        <PackageReference Include="System.Linq.Async" Version="6.0.1" />
+        
+        <PackageReference Include="System.Text.Json" Version="8.0.5" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\EventBus\PureES.EventBus\PureES.EventBus.csproj" />
+    </ItemGroup>
+    
+    <ItemGroup>
+        <InternalsVisibleTo Include="PureES.EventStores.Tests" />
+    </ItemGroup>
+    
+    <ItemGroup>
+        <Using Include="Microsoft.Azure.Cosmos" />
+
+        <None Include="ThirdPartyNotice.txt" Visible="false" />
+    </ItemGroup>
+    
+    <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+        <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="8.0.1" />
+        <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+        <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
+        <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="8.0.0" />
+    </ItemGroup>
+    
+</Project>

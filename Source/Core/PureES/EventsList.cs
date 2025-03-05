@@ -14,7 +14,7 @@ public class EventsList : IList<object>
     /// The expected revision of the event stream,
     /// or <see langword="null" /> if the stream is to be created.
     /// </summary>
-    public ulong? ExpectedRevision { get; set; }
+    public uint? ExpectedRevision { get; set; }
 
     /// <summary>
     /// Creates a new <see cref="EventsList" />.
@@ -23,7 +23,7 @@ public class EventsList : IList<object>
     /// The expected revision of the event stream,
     /// or <see langword="null" /> if the stream is to be created.
     /// </param>
-    public EventsList(ulong? expectedRevision)
+    public EventsList(uint? expectedRevision)
     {
         ExpectedRevision = expectedRevision;
     }
@@ -36,7 +36,7 @@ public class EventsList : IList<object>
     /// or <see langword="null" /> if the stream is to be created.
     /// </param>
     /// <param name="events">Events to add to the list.</param>
-    public EventsList(ulong? expectedRevision, IEnumerable<object> @events)
+    public EventsList(uint? expectedRevision, IEnumerable<object> events)
         : this(expectedRevision)
     {
         AddRange(events);
@@ -65,7 +65,7 @@ public class EventsList : IList<object>
 
     public void Insert(int index, object item)
     {
-        if (item == null) throw new ArgumentNullException(nameof(item));
+        ArgumentNullException.ThrowIfNull(item);
         _events.Insert(index, item);
     }
 

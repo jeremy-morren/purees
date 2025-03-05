@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using PureES.EventStores.CosmosDB;
+using PureES.EventStore.CosmosDB;
 
 // ReSharper disable StringLiteralTypo
 // ReSharper disable MemberCanBePrivate.Global

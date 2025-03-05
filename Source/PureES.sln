@@ -18,11 +18,13 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "EventBus", "EventBus", "{71
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "EventStores", "EventStores", "{ABE2AC9E-5E1C-4D7C-88C6-1676C15B5C1A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PureES.EventStores.Marten", "EventStores\PureES.EventStores.Marten\PureES.EventStores.Marten.csproj", "{F31702F6-B7B0-4FE9-A057-05171C16922A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PureES.EventStore.Marten", "EventStores\PureES.EventStore.Marten\PureES.EventStore.Marten.csproj", "{F31702F6-B7B0-4FE9-A057-05171C16922A}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PureES.SourceGenerators", "Core\PureES.SourceGenerators\PureES.SourceGenerators.csproj", "{7C40A945-9E91-42B1-94B9-8CFE1C638DE8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PureES.EventStores.CosmosDB", "EventStores\PureES.EventStores.CosmosDB\PureES.EventStores.CosmosDB.csproj", "{19F955F2-B698-4BB7-A101-1617C665F701}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PureES.EventStore.CosmosDB", "EventStores\PureES.EventStore.CosmosDB\PureES.EventStore.CosmosDB.csproj", "{19F955F2-B698-4BB7-A101-1617C665F701}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PureES.EventStore.EFCore", "EventStores\PureES.EventStore.EFCore\PureES.EventStore.EFCore.csproj", "{EA60AFDD-28EC-484E-A09C-32184A47D509}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -66,6 +68,10 @@ Global
 		{19F955F2-B698-4BB7-A101-1617C665F701}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{19F955F2-B698-4BB7-A101-1617C665F701}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{19F955F2-B698-4BB7-A101-1617C665F701}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EA60AFDD-28EC-484E-A09C-32184A47D509}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EA60AFDD-28EC-484E-A09C-32184A47D509}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EA60AFDD-28EC-484E-A09C-32184A47D509}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EA60AFDD-28EC-484E-A09C-32184A47D509}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{438EDB72-978F-4BBE-9814-E2A54DE26ADE} = {4F003FAA-0133-4856-905A-58FE2F125C34}
@@ -77,5 +83,6 @@ Global
 		{F31702F6-B7B0-4FE9-A057-05171C16922A} = {ABE2AC9E-5E1C-4D7C-88C6-1676C15B5C1A}
 		{7C40A945-9E91-42B1-94B9-8CFE1C638DE8} = {4F003FAA-0133-4856-905A-58FE2F125C34}
 		{19F955F2-B698-4BB7-A101-1617C665F701} = {ABE2AC9E-5E1C-4D7C-88C6-1676C15B5C1A}
+		{EA60AFDD-28EC-484E-A09C-32184A47D509} = {ABE2AC9E-5E1C-4D7C-88C6-1676C15B5C1A}
 	EndGlobalSection
 EndGlobal

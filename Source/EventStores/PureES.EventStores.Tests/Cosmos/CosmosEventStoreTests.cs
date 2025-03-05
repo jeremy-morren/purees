@@ -1,8 +1,8 @@
 ﻿using JetBrains.Annotations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using PureES.EventStores.CosmosDB;
-using PureES.EventStores.CosmosDB.Subscriptions;
+using PureES.EventStore.CosmosDB;
+using PureES.EventStore.CosmosDB.Subscriptions;
 
 namespace PureES.EventStores.Tests.Cosmos;
 
@@ -54,7 +54,7 @@ public class CosmosEventStoreTests : EventStoreTestsBase
         var events = Enumerable.Range(0, 10_000)
             .Select(_ => NewEvent())
             .ToList();
-        var revision = (ulong) events.Count - 1;
+        var revision = (uint) events.Count - 1;
         (await store.Exists(stream, CancellationToken)).ShouldBeFalse();
         (await store.Create(stream, events, CancellationToken)).ShouldBe(revision);
 
@@ -63,7 +63,7 @@ public class CosmosEventStoreTests : EventStoreTestsBase
         (await store.Exists(stream, CancellationToken)).ShouldBeTrue();
         
         await AssertEqual(events, d => store.Read(d, stream, CancellationToken));
-        (await store.GetRevision(stream, CancellationToken)).ShouldBe((ulong) events.Count - 1);
+        (await store.GetRevision(stream, CancellationToken)).ShouldBe((uint) events.Count - 1);
     }
     
     [Fact]
@@ -75,7 +75,7 @@ public class CosmosEventStoreTests : EventStoreTestsBase
         var events = Enumerable.Range(0, 25)
             .Select(_ => NewLargeEvent())
             .ToList();
-        var revision = (ulong) events.Count - 1;
+        var revision = (uint) events.Count - 1;
         (await store.Exists(stream, CancellationToken)).ShouldBeFalse();
         (await store.Create(stream, events, CancellationToken)).ShouldBe(revision);
 
@@ -84,7 +84,7 @@ public class CosmosEventStoreTests : EventStoreTestsBase
         (await store.Exists(stream, CancellationToken)).ShouldBeTrue();
         
         await AssertEqual(events, d => store.Read(d, stream, CancellationToken));
-        (await store.GetRevision(stream, CancellationToken)).ShouldBe((ulong) events.Count - 1);
+        (await store.GetRevision(stream, CancellationToken)).ShouldBe((uint) events.Count - 1);
     }
     
     [Theory]
@@ -99,14 +99,14 @@ public class CosmosEventStoreTests : EventStoreTestsBase
             .Select(_ => NewEvent())
             .ToList();
         const int create = 5;
-        Assert.Equal((ulong) create - 1, await store.Create(stream, events.Take(create), CancellationToken));
+        Assert.Equal((uint) create - 1, await store.Create(stream, events.Take(create), CancellationToken));
         
-        Assert.Equal((ulong) events.Count - 1, useOptimisticConcurrency
+        Assert.Equal((uint) events.Count - 1, useOptimisticConcurrency
             ? await store.Append(stream, create - 1, events.Skip(create), CancellationToken)
             : await store.Append(stream, events.Skip(create), CancellationToken));
         await AssertEqual(events, d => store.Read(d, stream, CancellationToken));
         
-        Assert.Equal((ulong) events.Count - 1, await store.GetRevision(stream, CancellationToken));
+        Assert.Equal((uint) events.Count - 1, await store.GetRevision(stream, CancellationToken));
     }
     
     [Theory]
@@ -121,14 +121,14 @@ public class CosmosEventStoreTests : EventStoreTestsBase
             .Select(_ => NewLargeEvent())
             .ToList();
         const int create = 5;
-        Assert.Equal((ulong) create - 1, await store.Create(stream, events.Take(create), CancellationToken));
+        Assert.Equal((uint) create - 1, await store.Create(stream, events.Take(create), CancellationToken));
         
-        Assert.Equal((ulong) events.Count - 1, useOptimisticConcurrency
+        Assert.Equal((uint) events.Count - 1, useOptimisticConcurrency
             ? await store.Append(stream, create - 1, events.Skip(create), CancellationToken)
             : await store.Append(stream, events.Skip(create), CancellationToken));
         await AssertEqual(events, d => store.Read(d, stream, CancellationToken));
         
-        Assert.Equal((ulong) events.Count - 1, await store.GetRevision(stream, CancellationToken));
+        Assert.Equal((uint) events.Count - 1, await store.GetRevision(stream, CancellationToken));
     }
 
     private static UncommittedEvent NewLargeEvent()

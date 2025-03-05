@@ -81,7 +81,7 @@ namespace PureES.CommandHandlers
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        public async global::System.Threading.Tasks.Task<ulong> Handle(int[] command, CancellationToken cancellationToken)
+        public async global::System.Threading.Tasks.Task<uint> Handle(int[] command, CancellationToken cancellationToken)
         {
             if (command == null)
             {
@@ -94,79 +94,97 @@ namespace PureES.CommandHandlers
                 CommandType,
                 AggregateType,
                 "CreateOnAsyncEnumerable");
-            var start = global::System.Diagnostics.Stopwatch.GetTimestamp();
-            try
+            using (var activity = PureES.PureESTracing.ActivitySource.StartActivity("HandleCommand"))
             {
-                foreach (var v in this._syncValidators)
+                if (activity != null)
                 {
-                    v.Validate(command);
+                    activity.DisplayName = "PureES.Tests.Models.TestAggregate.CreateOnAsyncEnumerable";
+                    if (activity.IsAllDataRequested)
+                    {
+                        activity?.SetTag("Command", CommandType);
+                        activity?.SetTag("Aggregate", AggregateType);
+                        activity?.SetTag("Method", "CreateOnAsyncEnumerable");
+                    }
                 }
-                foreach (var v in this._asyncValidators)
-                {
-                    await v.Validate(command, cancellationToken);
-                }
-                var streamId = this._getStreamId.GetStreamId(command);
                 using (_logger.BeginScope(new global::System.Collections.Generic.Dictionary<string, object>()
                     {
                         { "Command", CommandType },
                         { "Aggregate", AggregateType },
                         { "Method", "CreateOnAsyncEnumerable" },
-                        { "StreamId", streamId },
                     }))
                 {
-                    var result = global::PureES.Tests.Models.TestAggregate.CreateOnAsyncEnumerable(command, this._service0);
-                    var revision = ulong.MaxValue;
-                    if (result != null)
+                    var start = global::System.Diagnostics.Stopwatch.GetTimestamp();
+                    try
                     {
-                        var events = new List<global::PureES.UncommittedEvent>();
-                        await foreach (var e in result.WithCancellation(cancellationToken))
+                        foreach (var v in this._syncValidators)
                         {
-                            events.Add(new global::PureES.UncommittedEvent(e));
+                            v.Validate(command);
                         }
-                        if (events.Count > 0)
+                        foreach (var v in this._asyncValidators)
                         {
-                            foreach (var enricher in this._syncEnrichers)
-                            {
-                                foreach (var e in events)
-                                {
-                                    enricher.Enrich(e);
-                                }
-                            }
-                            foreach (var enricher in this._asyncEnrichers)
-                            {
-                                foreach (var e in events)
-                                {
-                                    await enricher.Enrich(e, cancellationToken);
-                                }
-                            }
-                            revision = await _eventStore.Create(streamId, events, cancellationToken);
+                            await v.Validate(command, cancellationToken);
                         }
+                        var streamId = this._getStreamId.GetStreamId(command);
+                        var result = global::PureES.Tests.Models.TestAggregate.CreateOnAsyncEnumerable(command, this._service0);
+                        var revision = uint.MaxValue;
+                        if (result != null)
+                        {
+                            var events = new List<global::PureES.UncommittedEvent>();
+                            await foreach (var e in result.WithCancellation(cancellationToken))
+                            {
+                                events.Add(new global::PureES.UncommittedEvent(e));
+                            }
+                            if (events.Count > 0)
+                            {
+                                foreach (var enricher in this._syncEnrichers)
+                                {
+                                    foreach (var e in events)
+                                    {
+                                        enricher.Enrich(e);
+                                    }
+                                }
+                                foreach (var enricher in this._asyncEnrichers)
+                                {
+                                    foreach (var e in events)
+                                    {
+                                        await enricher.Enrich(e, cancellationToken);
+                                    }
+                                }
+                                revision = await _eventStore.Create(streamId, events, cancellationToken);
+                            }
+                        }
+                        this._concurrency?.OnUpdated(streamId, command, null, revision);
+                        this._logger.Log(
+                            logLevel: global::Microsoft.Extensions.Logging.LogLevel.Information,
+                            exception: null,
+                            message: "Handled command {@Command}. Elapsed: {Elapsed:0.0000}ms. Stream {StreamId} is now at {Revision}. Aggregate: {@Aggregate}. Method: {Method}",
+                            CommandType,
+                            GetElapsed(start),
+                            streamId,
+                            revision,
+                            AggregateType,
+                            "CreateOnAsyncEnumerable");
+                        return revision;
+                        activity?.SetStatus(global::System.Diagnostics.ActivityStatusCode.Ok);
                     }
-                    this._concurrency?.OnUpdated(streamId, command, null, revision);
-                    this._logger.Log(
-                        logLevel: global::Microsoft.Extensions.Logging.LogLevel.Information,
-                        exception: null,
-                        message: "Handled command {@Command}. Elapsed: {Elapsed:0.0000}ms. Stream {StreamId} is now at {Revision}. Aggregate: {@Aggregate}. Method: {Method}",
-                        CommandType,
-                        GetElapsed(start),
-                        streamId,
-                        revision,
-                        AggregateType,
-                        "CreateOnAsyncEnumerable");
-                    return revision;
+                    catch (global::System.Exception ex)
+                    {
+                        this._logger.Log(
+                            logLevel: global::Microsoft.Extensions.Logging.LogLevel.Information,
+                            exception: ex,
+                            message: "Error handling command {@Command}. Aggregate: {@Aggregate}. Method: {Method}. Elapsed: {Elapsed:0.0000}ms",
+                            CommandType,
+                            AggregateType,
+                            "CreateOnAsyncEnumerable",
+                            GetElapsed(start));
+                        if (activity != null)
+                        {
+                            activity.SetStatus(global::System.Diagnostics.ActivityStatusCode.Error, ex.Message);
+                            activity.SetTag("error.type", ex.GetType().FullName);
+                        }
+                        throw;
+                    }
                 }
-            }
-            catch (global::System.Exception ex)
-            {
-                this._logger.Log(
-                    logLevel: global::Microsoft.Extensions.Logging.LogLevel.Information,
-                    exception: ex,
-                    message: "Error handling command {@Command}. Aggregate: {@Aggregate}. Method: {Method}. Elapsed: {Elapsed:0.0000}ms",
-                    CommandType,
-                    AggregateType,
-                    "CreateOnAsyncEnumerable",
-                    GetElapsed(start));
-                throw;
             }
         }
     }
