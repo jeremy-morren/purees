@@ -65,7 +65,8 @@ public class EventBusTests
         bus.Complete();
         await bus.Completion;
 
-        events.Verify(e => e.OnEventHandled(eventEnvelope), Times.Once);
+        events.Verify(e => e.BeforeEventHandled(eventEnvelope), Times.Once);
+        events.Verify(e => e.AfterEventHandled(eventEnvelope), Times.Once);
     }
 
     private static EventEnvelope NewEnvelope() => new(

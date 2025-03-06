@@ -14,7 +14,7 @@ namespace PureES.EventBus;
 
 public class EventBus : IEventBus
 {
-    private readonly EventStreamBlock _handler;
+    private readonly ITargetBlock<EventEnvelope> _target;
 
     private readonly ILogger<EventBus> _logger;
     private readonly IServiceProvider _services;
@@ -26,19 +26,30 @@ public class EventBus : IEventBus
     {
         _services = services;
         _logger = logger ?? NullLogger<EventBus>.Instance;
-        
-        _handler = new EventStreamBlock(Handle, options ?? new ExecutionDataflowBlockOptions());
 
-        var onHandled = new ActionBlock<EventEnvelope>(OnEventHandled, 
+        var handler = new EventStreamBlock(Handle, options ?? new ExecutionDataflowBlockOptions());
+
+        var beforeHandled = new TransformBlock<EventEnvelope, EventEnvelope>(BeforeEventHandled,
+            new ExecutionDataflowBlockOptions()
+            {
+                EnsureOrdered = true,
+                BoundedCapacity = DataflowBlockOptions.Unbounded, //No backpressure before handle
+                MaxDegreeOfParallelism = 1 //Handle 1 at a time
+            });
+        beforeHandled.LinkTo(handler, new DataflowLinkOptions() {PropagateCompletion = true});
+
+        var onHandled = new ActionBlock<EventEnvelope>(AfterEventHandled,
             new ExecutionDataflowBlockOptions()
             {
                 EnsureOrdered = true,
                 BoundedCapacity = DataflowBlockOptions.Unbounded, //No backpressure after handle
                 MaxDegreeOfParallelism = 1 //Handle 1 at a time
             });
-        _handler.LinkTo(onHandled, new DataflowLinkOptions() {PropagateCompletion = true});
+        handler.LinkTo(onHandled, new DataflowLinkOptions() {PropagateCompletion = true});
         
         Completion = onHandled.Completion;
+
+        _target = beforeHandled;
     }
 
     #region Handle
@@ -125,8 +136,17 @@ public class EventBus : IEventBus
     #endregion
     
     #region Events
-    
-    private async Task OnEventHandled(EventEnvelope envelope)
+
+    private async Task<EventEnvelope> BeforeEventHandled(EventEnvelope envelope)
+    {
+        await InvokeEvent(h => h.BeforeEventHandled(envelope), nameof(IEventBusEvents.BeforeEventHandled));
+        return envelope;
+    }
+
+    private Task AfterEventHandled(EventEnvelope envelope) =>
+        InvokeEvent(h => h.AfterEventHandled(envelope), nameof(IEventBusEvents.AfterEventHandled));
+
+    private async Task InvokeEvent(Func<IEventBusEvents, Task> handle, string methodName)
     {
         try
         {
@@ -136,16 +156,16 @@ public class EventBus : IEventBus
                 ?.ToList();
             if (handlers == null || handlers.Count == 0)
                 return;
-            
-            _logger.LogDebug("Processing OnEventHandled for {Handlers} handler(s)", handlers.Count);
-            await Task.WhenAll(handlers.Select(h => h.OnEventHandled(envelope)));
-            
-            _logger.LogDebug("Processed OnEventHandled events for {Handlers} handler(s)", handlers.Count);
+
+            _logger.LogDebug("Processing {Method} for {Handlers} handler(s)", methodName, handlers.Count);
+
+            await Task.WhenAll(handlers.Select(handle));
+
+            _logger.LogDebug("Processed {Method} for {Handlers} handler(s)", methodName, handlers.Count);
         }
         catch (Exception e)
         {
-            _logger.LogError(e, "Error processing OnEventHandled events");
-            throw;
+            _logger.LogError(e, "Error processing {Method} events", methodName);
         }
     }
 
@@ -157,16 +177,16 @@ public class EventBus : IEventBus
         EventEnvelope messageValue,
         ISourceBlock<EventEnvelope>? source, 
         bool consumeToAccept) =>
-        ((ITargetBlock<EventEnvelope>)_handler).OfferMessage(messageHeader, messageValue, source, consumeToAccept);
+        _target.OfferMessage(messageHeader, messageValue, source, consumeToAccept);
 
     public void Complete()
     {
-        _handler.Complete();
+        _target.Complete();
     }
 
     public void Fault(Exception exception)
     {
-        ((ITargetBlock<EventEnvelope>)_handler).Fault(exception);
+        _target.Fault(exception);
     }
 
     public Task Completion { get; }
