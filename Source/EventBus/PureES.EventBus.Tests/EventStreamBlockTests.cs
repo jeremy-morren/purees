@@ -1,7 +1,5 @@
-﻿using System.Collections.Concurrent;
-using System.Threading.Tasks.Dataflow;
+﻿using System.Threading.Tasks.Dataflow;
 using FluentAssertions;
-using Shouldly;
 using Xunit;
 
 namespace PureES.EventBus.Tests;

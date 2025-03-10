@@ -1,5 +1,4 @@
-﻿using System.Text;
-using PureES.SourceGenerators.Framework;
+﻿using PureES.SourceGenerators.Framework;
 
 namespace PureES.SourceGenerators;
 

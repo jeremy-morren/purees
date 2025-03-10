@@ -1,7 +1,6 @@
 ﻿using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
-using System.Text.Json;
 using Microsoft.Extensions.Hosting;
 using PureES.EventStore.InMemory.Subscription;
 

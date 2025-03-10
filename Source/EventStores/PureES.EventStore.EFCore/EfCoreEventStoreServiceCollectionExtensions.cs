@@ -1,6 +1,5 @@
 ﻿using JetBrains.Annotations;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Internal;
 using Microsoft.Extensions.DependencyInjection;
 using PureES.EventStore.EFCore.Subscriptions;
 

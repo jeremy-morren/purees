@@ -1,6 +1,4 @@
-﻿using System.Text;
-
-namespace PureES.EventBus;
+﻿namespace PureES.EventBus;
 
 /// <summary>
 /// Display type names

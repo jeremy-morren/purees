@@ -1,5 +1,4 @@
 ﻿using System.Collections.Immutable;
-using System.Text.Json;
 using JetBrains.Annotations;
 
 namespace PureES.EventStore.InMemory;
