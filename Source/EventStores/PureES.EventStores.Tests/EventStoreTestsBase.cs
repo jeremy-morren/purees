@@ -252,6 +252,8 @@ public abstract class EventStoreTestsBase
             (await store.Append(stream, events.Skip(5), CancellationToken)).ShouldBe(9u);
         
         await AssertEqual(events, d => store.Read(d, stream, CancellationToken));
+
+        store.Read(Direction.Backwards, stream, CancellationToken).StreamId.ShouldBe(stream);
         (await store.GetRevision(stream, CancellationToken)).ShouldBe((uint)events.Count - 1);
         
         (await store.ReadAll(Direction.Forwards, CancellationToken)
@@ -374,11 +376,11 @@ public abstract class EventStoreTestsBase
         await AssertEqual(events, d => store.Read(d, stream, revision, CancellationToken));
         
         await AssertEqual(events.Skip(2), d => store.Read(d, stream, 2, revision, CancellationToken));
-        
-        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => 
+
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
             store.Read(Direction.Forwards, stream, 3, 2, CancellationToken)
                 .ToListAsync().AsTask());
-        
+
         await AssertEqual(events.Take(5), store.ReadPartial(Direction.Forwards, stream, 5, CancellationToken));
         
         await AssertEqual(events, store.ReadPartial(Direction.Forwards, stream, 10, CancellationToken));
@@ -407,8 +409,8 @@ public abstract class EventStoreTestsBase
 
         await AssertWrongVersion(d => 
             store.Read(d, stream, RandVersion(events.Count + 1), CancellationToken));
-        
-        await AssertWrongVersion(d => 
+
+        await AssertWrongVersion(d =>
             store.Read(d, stream, 2, RandVersion(events.Count + 1), CancellationToken));
 
         await AssertWrongVersion(d => 
@@ -685,7 +687,6 @@ public abstract class EventStoreTestsBase
             .ToListAsync();
         Assert.All([syncResult, asyncResult], result =>
         {
-            
             result.ShouldNotBeEmpty();
             Assert.All(result, stream =>
             {
@@ -752,29 +753,128 @@ public abstract class EventStoreTestsBase
             .ToHashSet();
         
         var syncResult = await store.ReadMany(Direction.Forwards, half, CancellationToken)
-            .SelectAwait(l => l.ToListAsync())
+            .SelectAwait(async l => new
+            {
+                l.StreamId,
+                Events = await l.ToListAsync()
+            })
             .ToListAsync();
         var asyncResult = await store.ReadMany(Direction.Forwards, half.ToAsyncEnumerable(), CancellationToken)
-            .SelectAwait(l => l.ToListAsync())
+            .SelectAwait(async l => new
+            {
+                l.StreamId,
+                Events = await l.ToListAsync()
+            })
             .ToListAsync();
+
         Assert.All([syncResult, asyncResult], result =>
         {
             result.ShouldNotBeEmpty();
             result.Count.ShouldBe(5);
-            result.ShouldAllBe(l => l.Count == 10);
+            result.ShouldAllBe(l => l.Events.Count == 10);
+            result
+                .Should().AllSatisfy(x =>
+                {
+                    x.Events.Should().HaveCount(10).And.BeInAscendingOrder(e => e.StreamPosition);
+                    x.Events.Select(e => e.StreamId).Should().AllBe(x.StreamId);
+                });
+            result.Select(e => e.StreamId).Should()
+                .BeEquivalentTo(half, o => o.WithoutStrictOrdering());
         });
         
         syncResult = await store.ReadMany(Direction.Backwards, half, CancellationToken)
-            .SelectAwait(l => l.ToListAsync())
+            .SelectAwait(async l => new
+            {
+                l.StreamId,
+                Events = await l.ToListAsync()
+            })
             .ToListAsync();
         asyncResult = await store.ReadMany(Direction.Backwards, half.ToAsyncEnumerable(), CancellationToken)
-            .SelectAwait(l => l.ToListAsync())
+            .SelectAwait(async l => new
+            {
+                l.StreamId,
+                Events = await l.ToListAsync()
+            })
             .ToListAsync();
         Assert.All([syncResult, asyncResult], result =>
         {
             result.ShouldNotBeEmpty();
             result.Count.ShouldBe(5);
-            result.ShouldAllBe(l => l.Count == 10);
+            result
+                .Should().AllSatisfy(x =>
+                {
+                    x.Events.Should().HaveCount(10).And.BeInDescendingOrder(e => e.StreamPosition);
+                    x.Events.Select(e => e.StreamId).Should().AllBe(x.StreamId);
+                });
+            result.Select(e => e.StreamId).Should()
+                .BeEquivalentTo(half, o => o.WithoutStrictOrdering());
+        });
+    }
+
+    [Fact]
+    public async Task Read_Many_Should_Throw_For_Invalid_Streams()
+    {
+        await using var harness = await CreateHarness();
+        var store = harness.EventStore;
+
+        await Assert.AllAsync(Enum.GetValues<Direction>(), async direction =>
+        {
+            var ex = await Assert.ThrowsAsync<StreamNotFoundException>(async () =>
+                await store.ReadMany(direction, ["stream"], CancellationToken).ToListAsync());
+            ex.StreamId.ShouldBe("stream");
+
+            var aggregateEx = await Assert.ThrowsAsync<AggregateException>(async () =>
+                await store.ReadMany(direction, ["stream1", "stream2"], CancellationToken).ToListAsync());
+
+            aggregateEx.InnerExceptions.Should().HaveCount(2);
+            aggregateEx.InnerExceptions.Should().AllBeOfType<StreamNotFoundException>();
+            aggregateEx.InnerExceptions.OfType<StreamNotFoundException>()
+                .Select(e => e.StreamId)
+                .Should().BeEquivalentTo("stream1", "stream2");
+        });
+
+        await Assert.AllAsync(Enum.GetValues<Direction>(), async direction =>
+        {
+            var ex = await Assert.ThrowsAsync<StreamNotFoundException>(async () =>
+                await store.ReadMany(direction,
+                    new [] { "stream"}.ToAsyncEnumerable(),
+                    CancellationToken).ToListAsync());
+
+            ex.StreamId.ShouldBe("stream");
+
+            var aggregateEx = await Assert.ThrowsAsync<AggregateException>(async () =>
+                await store.ReadMany(direction,
+                    new [] {"stream1", "stream2"}.ToAsyncEnumerable(),
+                    CancellationToken).ToListAsync());
+
+            aggregateEx.InnerExceptions.Should().HaveCount(2);
+            aggregateEx.InnerExceptions.Should().AllBeOfType<StreamNotFoundException>();
+            aggregateEx.InnerExceptions.OfType<StreamNotFoundException>()
+                .Select(e => e.StreamId)
+                .Should().BeEquivalentTo("stream1", "stream2");
+        });
+    }
+
+    [Fact]
+    public async Task Read_Many_Should_Return_Each_Stream_Only_Once()
+    {
+        await using var harness = await CreateHarness();
+        var store = harness.EventStore;
+
+        await Assert.AllAsync(Enum.GetValues<Direction>(), async direction =>
+        {
+            var ex = await Assert.ThrowsAsync<StreamNotFoundException>(async () =>
+                await store.ReadMany(direction, ["stream"], CancellationToken).ToListAsync());
+            ex.StreamId.ShouldBe("stream");
+
+            var aggregateEx = await Assert.ThrowsAsync<AggregateException>(async () =>
+                await store.ReadMany(direction, ["stream1", "stream2"], CancellationToken).ToListAsync());
+
+            aggregateEx.InnerExceptions.Should().HaveCount(2);
+            aggregateEx.InnerExceptions.Should().AllBeOfType<StreamNotFoundException>();
+            aggregateEx.InnerExceptions.OfType<StreamNotFoundException>()
+                .Select(e => e.StreamId)
+                .Should().BeEquivalentTo("stream1", "stream2");
         });
     }
 

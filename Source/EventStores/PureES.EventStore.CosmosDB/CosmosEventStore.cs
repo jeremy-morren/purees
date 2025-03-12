@@ -132,7 +132,7 @@ internal class CosmosEventStore : IEventStore
     }
 
     public Task<uint> Create(string streamId, UncommittedEvent @event, CancellationToken cancellationToken) => 
-        Create(streamId, new[] {@event}, cancellationToken);
+        Create(streamId, [@event], cancellationToken);
     
     public async Task<uint> Append(string streamId, uint expectedRevision, IEnumerable<UncommittedEvent> events, CancellationToken cancellationToken)
     {
@@ -179,7 +179,7 @@ internal class CosmosEventStore : IEventStore
 
     public Task<uint> Append(string streamId, uint expectedRevision, UncommittedEvent @event,
         CancellationToken cancellationToken)
-        => Append(streamId, expectedRevision, new[] {@event}, cancellationToken);
+        => Append(streamId, expectedRevision, [@event], cancellationToken);
 
     public async Task<uint> Append(string streamId, UncommittedEvent @event, CancellationToken cancellationToken)
     {
@@ -366,10 +366,12 @@ internal class CosmosEventStore : IEventStore
         }
     }
 
-    public async IAsyncEnumerable<EventEnvelope> Read(Direction direction, 
+    private async IAsyncEnumerable<EventEnvelope> ReadInternal(Direction direction,
         string streamId, 
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(streamId);
+
         var queryDef = direction switch
         {
             Direction.Forwards => new QueryDefinition("select * from c where c.eventStreamId = @streamId ORDER BY c.eventStreamPosition"),
@@ -392,13 +394,16 @@ internal class CosmosEventStore : IEventStore
         }
     }
 
-    public async IAsyncEnumerable<EventEnvelope> Read(Direction direction, 
+    public IEventStoreStream Read(Direction direction, string streamId,  CancellationToken cancellationToken) =>
+        new CosmosDBEventStoreStream(direction, streamId, ReadInternal(direction, streamId, cancellationToken));
+
+    private async IAsyncEnumerable<EventEnvelope> ReadInternal(Direction direction,
         string streamId, 
         uint expectedRevision, 
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
-        
+        ArgumentNullException.ThrowIfNull(streamId);
+
         var queryDef = direction switch 
         {
             Direction.Forwards => new QueryDefinition(
@@ -428,17 +433,18 @@ internal class CosmosEventStore : IEventStore
             throw new WrongStreamRevisionException(streamId, expectedRevision, revision);
     }
 
-    public async IAsyncEnumerable<EventEnvelope> Read(Direction direction, 
+    public IEventStoreStream Read(Direction direction, string streamId, uint expectedRevision, CancellationToken cancellationToken) =>
+        new CosmosDBEventStoreStream(direction, streamId, ReadInternal(direction, streamId, expectedRevision, cancellationToken));
+
+    private async IAsyncEnumerable<EventEnvelope> ReadInternal(Direction direction,
         string streamId,
         uint startRevision, 
         uint expectedRevision,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
+        ArgumentNullException.ThrowIfNull(streamId);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(startRevision, expectedRevision);
 
-        if (startRevision > expectedRevision)
-            throw new ArgumentOutOfRangeException(nameof(startRevision));
-        
         var queryDef = direction switch 
         {
             Direction.Forwards => new QueryDefinition(
@@ -470,16 +476,17 @@ internal class CosmosEventStore : IEventStore
             throw new WrongStreamRevisionException(streamId, expectedRevision, revision);
     }
 
-    public async IAsyncEnumerable<EventEnvelope> ReadPartial(Direction direction,
+    public IEventStoreStream Read(Direction direction, string streamId, uint startRevision, uint expectedRevision, CancellationToken cancellationToken) =>
+        new CosmosDBEventStoreStream(direction, streamId, ReadInternal(direction, streamId, startRevision, expectedRevision, cancellationToken));
+
+    private async IAsyncEnumerable<EventEnvelope> ReadPartialInternal(Direction direction,
         string streamId,
         uint count, 
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
-        
-        if (count == 0)
-            throw new ArgumentOutOfRangeException(nameof(count));
-        
+        ArgumentNullException.ThrowIfNull(streamId);
+        ArgumentOutOfRangeException.ThrowIfNegative(count);
+
         var queryDef = direction switch
         {
             Direction.Forwards => new QueryDefinition(
@@ -513,15 +520,16 @@ internal class CosmosEventStore : IEventStore
             throw new WrongStreamRevisionException(streamId, count - 1, read - 1);
     }
 
-    public async IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId,
+    public IEventStoreStream ReadPartial(Direction direction, string streamId, uint count, CancellationToken cancellationToken) =>
+        new CosmosDBEventStoreStream(direction, streamId, ReadPartialInternal(direction, streamId, count, cancellationToken));
+
+    private async IAsyncEnumerable<EventEnvelope> ReadSliceInternal(string streamId,
         uint startRevision, 
         uint endRevision,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
-
-        if (startRevision > endRevision)
-            throw new ArgumentOutOfRangeException(nameof(startRevision));
+        ArgumentNullException.ThrowIfNull(streamId);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(startRevision, endRevision);
 
         var queryDef = new QueryDefinition(
             "select * from c where c.eventStreamId = @streamId and (c.eventStreamPosition = 0 or (c.eventStreamPosition >= @start and c.eventStreamPosition <= @end)) ORDER BY c.eventStreamPosition");
@@ -556,11 +564,14 @@ internal class CosmosEventStore : IEventStore
                 await GetRevision(streamId, cancellationToken));
     }
 
-    public async IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId, 
+    public IEventStoreStream ReadSlice(string streamId, uint startRevision, uint endRevision, CancellationToken cancellationToken) =>
+        new CosmosDBEventStoreStream(Direction.Forwards, streamId, ReadSliceInternal(streamId, startRevision, endRevision, cancellationToken));
+
+    private async IAsyncEnumerable<EventEnvelope> ReadSliceInternal(string streamId,
         uint startRevision, 
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
+        ArgumentNullException.ThrowIfNull(streamId);
 
         var queryDef = new QueryDefinition(
             "select * from c where c.eventStreamId = @streamId and (c.eventStreamPosition = 0 OR c.eventStreamPosition >= @start) ORDER BY c.eventStreamPosition");
@@ -592,10 +603,15 @@ internal class CosmosEventStore : IEventStore
                 await GetRevision(streamId, cancellationToken));
     }
 
-    public async IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(Direction direction, 
+    public IEventStoreStream ReadSlice(string streamId, uint startRevision, CancellationToken cancellationToken) =>
+        new CosmosDBEventStoreStream(Direction.Forwards, streamId, ReadSliceInternal(streamId, startRevision, cancellationToken));
+
+    public async IAsyncEnumerable<IEventStoreStream> ReadMany(Direction direction,
         IEnumerable<string> streams, 
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
+        var list = streams.ToList();
+
         var queryDef = direction switch
         {
             Direction.Forwards => new QueryDefinition(
@@ -604,11 +620,11 @@ internal class CosmosEventStore : IEventStore
                 "select * from c where ARRAY_CONTAINS(@streams, c.eventStreamId, false) ORDER BY c.eventStreamId desc, c.eventStreamPosition desc"),
             _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
         };
-                
-        queryDef = queryDef.WithParameter("@streams", streams);
+        queryDef = queryDef.WithParameter("@streams", list);
             
         var container = _client.GetContainer();
 
+        var read = new HashSet<string>();
         using var iterator = container.GetItemQueryIterator<CosmosEvent>(queryDef);
 
         var stream = new List<EventEnvelope>();
@@ -618,6 +634,7 @@ internal class CosmosEventStore : IEventStore
             var result = await iterator.ReadNextAsync(cancellationToken);
             foreach (var e in result)
             {
+                read.Add(e.EventStreamId);
                 var item = _serializer.Deserialize(e);
                 if (stream.Count == 0 || item.StreamId == stream[0].StreamId)
                 {
@@ -625,53 +642,39 @@ internal class CosmosEventStore : IEventStore
                     continue;
                 }
                 //We have started a new stream
-                yield return stream.ToAsyncEnumerable();
-                stream = new List<EventEnvelope>() {item};
+                yield return new CosmosDBEventStoreStream(direction, item.StreamId, stream.ToAsyncEnumerable());
+                stream = [item];
             }
         }
-        if (stream.Count > 0) 
-            yield return stream.ToAsyncEnumerable(); //Return final stream
+
+        if (stream.Count > 0)
+        {
+            //Return final stream
+            yield return new CosmosDBEventStoreStream(direction, stream[0].StreamId, stream.ToAsyncEnumerable());
+        }
+
+        var missing = list.Except(read)
+            .Select(id => new StreamNotFoundException(id))
+            .ToList();
+        //Check for missing streams
+        switch (missing.Count)
+        {
+            case 0:
+                break;
+            case 1:
+                throw missing[0];
+            default:
+                throw new AggregateException(missing);
+        }
     }
     
-    public async IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(Direction direction, 
+    public async IAsyncEnumerable<IEventStoreStream> ReadMany(Direction direction,
         IAsyncEnumerable<string> streams, 
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var queryDef = direction switch
-        {
-            Direction.Forwards => new QueryDefinition(
-                "select * from c where ARRAY_CONTAINS(@streams, c.eventStreamId, false) ORDER BY c.eventStreamId, c.eventStreamPosition"),
-            Direction.Backwards => new QueryDefinition(
-                "select * from c where ARRAY_CONTAINS(@streams, c.eventStreamId, false) ORDER BY c.eventStreamId desc, c.eventStreamPosition desc"),
-            _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
-        };
-
-        queryDef = queryDef.WithParameter("@streams", await streams.ToListAsync(cancellationToken));
-            
-        var container = _client.GetContainer();
-
-        using var iterator = container.GetItemQueryIterator<CosmosEvent>(queryDef);
-
-        var stream = new List<EventEnvelope>();
-
-        while (iterator.HasMoreResults)
-        {
-            var result = await iterator.ReadNextAsync(cancellationToken);
-            foreach (var e in result)
-            {
-                var item = _serializer.Deserialize(e);
-                if (stream.Count == 0 || item.StreamId == stream[0].StreamId)
-                {
-                    stream.Add(item);
-                    continue;
-                }
-                //We have started a new stream
-                yield return stream.ToAsyncEnumerable();
-                stream = new List<EventEnvelope>() {item};
-            }
-        }
-        if (stream.Count > 0) 
-            yield return stream.ToAsyncEnumerable(); //Return final stream
+        var list = await streams.ToListAsync(cancellationToken);
+        await foreach (var stream in ReadMany(direction, list, cancellationToken))
+            yield return stream;
     }
     
     #endregion

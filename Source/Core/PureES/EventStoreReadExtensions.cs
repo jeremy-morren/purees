@@ -17,7 +17,7 @@ public static class EventStoreReadExtensions
     public static IAsyncEnumerable<EventEnvelope> ReadAll(this IEventStore eventStore,
         CancellationToken cancellationToken = default)
     {
-        if (eventStore == null) throw new ArgumentNullException(nameof(eventStore));
+        ArgumentNullException.ThrowIfNull(eventStore);
         return eventStore.ReadAll(Direction.Forwards, cancellationToken);
     }
 
@@ -35,7 +35,7 @@ public static class EventStoreReadExtensions
         uint maxCount,
         CancellationToken cancellationToken = default)
     {
-        if (eventStore == null) throw new ArgumentNullException(nameof(eventStore));
+        ArgumentNullException.ThrowIfNull(eventStore);
         return eventStore.ReadAll(Direction.Forwards, maxCount, cancellationToken);
     }
 
@@ -50,11 +50,11 @@ public static class EventStoreReadExtensions
     ///     from the events in the stream in the order in which they were added
     /// </returns>
     /// <exception cref="StreamNotFoundException">Stream <paramref name="streamId" /> not found</exception>
-    public static IAsyncEnumerable<EventEnvelope> Read(this IEventStore eventStore, 
+    public static IEventStoreStream Read(this IEventStore eventStore,
         string streamId,
         CancellationToken cancellationToken = default)
     {
-        if (eventStore == null) throw new ArgumentNullException(nameof(eventStore));
+        ArgumentNullException.ThrowIfNull(eventStore);
         return eventStore.Read(Direction.Forwards, streamId, cancellationToken);
     }
 
@@ -74,12 +74,12 @@ public static class EventStoreReadExtensions
     /// <exception cref="WrongStreamRevisionException">
     ///     Stream <paramref name="streamId" /> not at revision <paramref name="expectedRevision" />
     /// </exception>
-    public static IAsyncEnumerable<EventEnvelope> Read(this IEventStore eventStore, 
+    public static IEventStoreStream Read(this IEventStore eventStore,
         string streamId,
         uint expectedRevision,
         CancellationToken cancellationToken = default)
     {
-        if (eventStore == null) throw new ArgumentNullException(nameof(eventStore));
+        ArgumentNullException.ThrowIfNull(eventStore);
         return eventStore.Read(Direction.Forwards, streamId, expectedRevision, cancellationToken);
     }
 
@@ -101,7 +101,7 @@ public static class EventStoreReadExtensions
     /// <exception cref="WrongStreamRevisionException">
     ///     Stream <paramref name="streamId" /> not at revision <paramref name="expectedRevision" />
     /// </exception>
-    public static IAsyncEnumerable<EventEnvelope> Read(this IEventStore eventStore,
+    public static IEventStoreStream Read(this IEventStore eventStore,
         string streamId,
         uint startRevision,
         uint expectedRevision,
@@ -124,7 +124,7 @@ public static class EventStoreReadExtensions
     /// <exception cref="WrongStreamRevisionException">
     ///     Revision of stream <paramref name="streamId" /> less than <paramref name="count" />
     /// </exception>
-    public static IAsyncEnumerable<EventEnvelope> ReadPartial(this IEventStore eventStore,
+    public static IEventStoreStream ReadPartial(this IEventStore eventStore,
         string streamId,
         uint count,
         CancellationToken cancellationToken = default)
@@ -139,7 +139,7 @@ public static class EventStoreReadExtensions
     /// <param name="eventStore">Event store</param>
     /// <param name="streams">The streams to read</param>
     /// <param name="cancellationToken"></param>
-    public static IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(this IEventStore eventStore,
+    public static IAsyncEnumerable<IEventStoreStream> ReadMany(this IEventStore eventStore,
         IEnumerable<string> streams, 
         CancellationToken cancellationToken = default)
     {
@@ -153,7 +153,7 @@ public static class EventStoreReadExtensions
     /// <param name="eventStore">Event store</param>
     /// <param name="streams">The streams to read</param>
     /// <param name="cancellationToken"></param>
-    public static IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(this IEventStore eventStore, 
+    public static IAsyncEnumerable<IEventStoreStream> ReadMany(this IEventStore eventStore,
         IAsyncEnumerable<string> streams, 
         CancellationToken cancellationToken = default)
     {
@@ -175,7 +175,7 @@ public static class EventStoreReadExtensions
         Type eventType, 
         CancellationToken cancellationToken = default)
     {
-        if (eventStore == null) throw new ArgumentNullException(nameof(eventStore));
+        ArgumentNullException.ThrowIfNull(eventStore);
         return eventStore.ReadByEventType(Direction.Forwards, [eventType], cancellationToken);
     }
     
@@ -195,7 +195,7 @@ public static class EventStoreReadExtensions
         uint maxCount,
         CancellationToken cancellationToken = default)
     {
-        if (eventStore == null) throw new ArgumentNullException(nameof(eventStore));
+        ArgumentNullException.ThrowIfNull(eventStore);
         return eventStore.ReadByEventType(Direction.Forwards, [eventType], maxCount, cancellationToken);
     }
 }

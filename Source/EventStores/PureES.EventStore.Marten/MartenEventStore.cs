@@ -270,7 +270,7 @@ internal class MartenEventStore : IEventStore
             yield return _serializer.Deserialize(e);
     }
 
-    public async IAsyncEnumerable<EventEnvelope> Read(Direction direction, 
+    private async IAsyncEnumerable<EventEnvelope> ReadInternal(Direction direction,
         string streamId, 
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
@@ -291,10 +291,13 @@ internal class MartenEventStore : IEventStore
         if (!exists)
             throw new StreamNotFoundException(streamId);
     }
+
+    public IEventStoreStream Read(Direction direction, string streamId, CancellationToken cancellationToken) =>
+        new MartenEventStoreStream(direction, streamId, ReadInternal(direction, streamId, cancellationToken));
     
     //For the below: revision is 0-based, hence the --count
 
-    public async IAsyncEnumerable<EventEnvelope> Read(Direction direction, 
+    private async IAsyncEnumerable<EventEnvelope> ReadInternal(Direction direction,
         string streamId, 
         uint expectedRevision,
         [EnumeratorCancellation] CancellationToken cancellationToken)
@@ -325,7 +328,11 @@ internal class MartenEventStore : IEventStore
             throw new WrongStreamRevisionException(streamId, expectedRevision, count);
     }
 
-    public async IAsyncEnumerable<EventEnvelope> Read(Direction direction, 
+    public IEventStoreStream Read(Direction direction, string streamId, uint expectedRevision, CancellationToken cancellationToken) =>
+        new MartenEventStoreStream(direction, streamId, ReadInternal(direction, streamId, expectedRevision, cancellationToken));
+
+    private async IAsyncEnumerable<EventEnvelope> ReadInternal(
+        Direction direction,
         string streamId, 
         uint startRevision, 
         uint expectedRevision,
@@ -337,9 +344,12 @@ internal class MartenEventStore : IEventStore
         await using var session = ReadSession();
         var query = session
             .Query<MartenEvent>()
-            .Where(e => e.StreamId == streamId)
-            .Where(e => e.StreamPosition >= (int)startRevision)
-            .OrderBy(e => e.StreamPosition);
+            .OrderBy(e => e.StreamPosition)
+            .Where(e => e.StreamId == streamId);
+
+        if (startRevision != 0)
+            query = query.Where(e => e.StreamPosition >= (int)startRevision || e.StreamPosition == 0);
+
         query = direction switch
         {
             Direction.Forwards => query.OrderBy(e => e.StreamPosition),
@@ -347,19 +357,28 @@ internal class MartenEventStore : IEventStore
             _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
         };
         var count = startRevision;
+        var found = false;
         await foreach (var e in query.ToAsyncEnumerable(cancellationToken))
         {
+            found = true;
+            if (e.StreamPosition == 0 && startRevision != 0) continue;
             yield return _serializer.Deserialize(e);
             ++count;
         }
-        if (count == startRevision)
+        if (!found)
             throw new StreamNotFoundException(streamId);
         --count;
         if (count != expectedRevision)
-            throw new WrongStreamRevisionException(streamId, expectedRevision, count);
+        {
+            var actual = await GetRevision(streamId, cancellationToken);
+            throw new WrongStreamRevisionException(streamId, expectedRevision, actual);
+        }
     }
 
-    public async IAsyncEnumerable<EventEnvelope> ReadPartial(
+    public IEventStoreStream Read(Direction direction, string streamId, uint startRevision, uint expectedRevision, CancellationToken cancellationToken) =>
+        new MartenEventStoreStream(direction, streamId, ReadInternal(direction, streamId, startRevision, expectedRevision, cancellationToken));
+
+    private async IAsyncEnumerable<EventEnvelope> ReadPartialInternal(
         Direction direction, 
         string streamId, 
         uint count,
@@ -391,10 +410,13 @@ internal class MartenEventStore : IEventStore
         if (read != count)
             throw new WrongStreamRevisionException(streamId, count - 1, read - 1);
     }
+
+    public IEventStoreStream ReadPartial(Direction direction, string streamId, uint count, CancellationToken cancellationToken) =>
+        new MartenEventStoreStream(direction, streamId, ReadPartialInternal(direction, streamId, count, cancellationToken));
     
     //NB: For reading slice: We always include at position '0'. The reason is to differentiate between 'doesn't exist' and 'read after end'
 
-    public async IAsyncEnumerable<EventEnvelope> ReadSlice(
+    private async IAsyncEnumerable<EventEnvelope> ReadSliceInternal(
         string streamId, 
         uint startRevision, 
         uint endRevision,
@@ -431,7 +453,10 @@ internal class MartenEventStore : IEventStore
             throw new WrongStreamRevisionException(streamId, endRevision, actual.Value);
     }
 
-    public async IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId,
+    public IEventStoreStream ReadSlice(string streamId, uint startRevision, uint endRevision, CancellationToken cancellationToken) =>
+        new MartenEventStoreStream(Direction.Forwards, streamId, ReadSliceInternal(streamId, startRevision, endRevision, cancellationToken));
+
+    private async IAsyncEnumerable<EventEnvelope> ReadSliceInternal(string streamId,
         uint startRevision, 
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
@@ -465,11 +490,14 @@ internal class MartenEventStore : IEventStore
         throw new WrongStreamRevisionException(streamId, startRevision, actual.Value);
     }
 
-    public async IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(Direction direction,
+    public IEventStoreStream ReadSlice(string streamId, uint startRevision, CancellationToken cancellationToken) =>
+        new MartenEventStoreStream(Direction.Forwards, streamId, ReadSliceInternal(streamId, startRevision, cancellationToken));
+
+    public async IAsyncEnumerable<IEventStoreStream> ReadMany(Direction direction,
         IEnumerable<string> streams, 
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        var list = streams.ToList();
+        var list = streams.Distinct().ToList();
         await using var session = ReadSession();
         var query = session
             .Query<MartenEvent>()
@@ -484,55 +512,47 @@ internal class MartenEventStore : IEventStore
                 .ThenByDescending(e => e.StreamPosition),
             _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
         };
+        var read = new HashSet<string>();
         var stream = new List<EventEnvelope>();
         await foreach (var e in query.ToAsyncEnumerable(cancellationToken))
         {
+            read.Add(e.StreamId);
             if (stream.Count > 0 && e.StreamId != stream[^1].StreamId)
             {
-                yield return stream.ToAsyncEnumerable();
-                stream = new List<EventEnvelope>();
+                yield return new MartenEventStoreStream(direction, stream[^1].StreamId, stream.ToAsyncEnumerable());
+                stream = [];
             }
-
             stream.Add(_serializer.Deserialize(e));
         }
 
         if (stream.Count > 0)
-            yield return stream.ToAsyncEnumerable();
+        {
+            //Return the last stream
+            yield return new MartenEventStoreStream(direction, stream[^1].StreamId, stream.ToAsyncEnumerable());
+        }
+
+        // Check for missing streams
+        var missing = list.Except(read)
+            .Select(id => new StreamNotFoundException(id))
+            .ToList();
+        switch (missing.Count)
+        {
+            case 0:
+                break;
+            case 1:
+                throw missing[0];
+            default:
+                throw new AggregateException(missing);
+        }
     }
 
-    public async IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(Direction direction, 
+    public async IAsyncEnumerable<IEventStoreStream> ReadMany(Direction direction,
         IAsyncEnumerable<string> streams, 
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var list = await streams.ToListAsync(cancellationToken);
-        await using var session = ReadSession();
-        var query = session
-            .Query<MartenEvent>()
-            .Where(e => list.Contains(e.StreamId));
-        query = direction switch
-        {
-            Direction.Forwards => query
-                .OrderBy(e => e.StreamId)
-                .ThenBy(e => e.StreamPosition),
-            Direction.Backwards => query
-                .OrderByDescending(e => e.StreamId)
-                .ThenByDescending(e => e.StreamPosition),
-            _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
-        };
-        var stream = new List<EventEnvelope>();
-        await foreach (var e in query.ToAsyncEnumerable(cancellationToken))
-        {
-            if (stream.Count > 0 && e.StreamId != stream[^1].StreamId)
-            {
-                yield return stream.ToAsyncEnumerable();
-                stream = [];
-            }
-
-            stream.Add(_serializer.Deserialize(e));
-        }
-
-        if (stream.Count > 0)
-            yield return stream.ToAsyncEnumerable();
+        await foreach (var stream in ReadMany(direction, list, cancellationToken))
+            yield return stream;
     }
 
     public async IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction, 

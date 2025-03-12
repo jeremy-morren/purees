@@ -108,7 +108,7 @@ internal class InMemoryEventStore : IInMemoryEventStore
 
     public Task<uint> Create(string streamId, UncommittedEvent @event, CancellationToken _)
     {
-        if (@event == null) throw new ArgumentNullException(nameof(@event));
+        ArgumentNullException.ThrowIfNull(@event);
 
         return Create(streamId, [@event], _);
     }
@@ -156,21 +156,21 @@ internal class InMemoryEventStore : IInMemoryEventStore
 
     public Task<uint> Append(string streamId, uint expectedRevision, UncommittedEvent @event, CancellationToken _)
     {
-        if (@event == null) throw new ArgumentNullException(nameof(@event));
+        ArgumentNullException.ThrowIfNull(@event);
 
         return Append(streamId, expectedRevision, new [] { @event }, _);
     }
 
     public Task<uint> Append(string streamId, UncommittedEvent @event, CancellationToken _)
     {
-        if (@event == null) throw new ArgumentNullException(nameof(@event));
+        ArgumentNullException.ThrowIfNull(@event);
 
         return Append(streamId, [ @event ], _);
     }
 
     public Task SubmitTransaction(IReadOnlyList<UncommittedEventsList> transaction, CancellationToken _)
     {
-        if (transaction == null) throw new ArgumentNullException(nameof(transaction));
+        ArgumentNullException.ThrowIfNull(transaction);
 
         if (transaction.Count == 0)
             return Task.CompletedTask; //No events to submit
@@ -254,88 +254,88 @@ internal class InMemoryEventStore : IInMemoryEventStore
         return ToAsyncEnumerable(_events.ReadAll(direction, maxCount));
     }
 
-    public IAsyncEnumerable<EventEnvelope> Read(Direction direction, string streamId, CancellationToken _)
+    public IEventStoreStream Read(Direction direction, string streamId, CancellationToken _)
     {
-        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
+        ArgumentNullException.ThrowIfNull(streamId);
 
-        return ToAsyncEnumerable(_events.ReadStream(direction, streamId, out var _));
+        var records = _events.ReadStream(direction, streamId, out var _);
+        return new InMemoryEventStream(direction, streamId, records, _serializer);
     }
 
-    public IAsyncEnumerable<EventEnvelope> Read(Direction direction, string streamId, uint expectedRevision, CancellationToken _)
+
+    public IEventStoreStream Read(Direction direction, string streamId, uint expectedRevision, CancellationToken _)
     {
-        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
+        ArgumentNullException.ThrowIfNull(streamId);
 
         var records = _events.ReadStream(direction, streamId, out var actual);
 
         if (actual != expectedRevision)
             throw new WrongStreamRevisionException(streamId, expectedRevision, actual);
 
-        return ToAsyncEnumerable(records);
+        return new InMemoryEventStream(direction, streamId, records, _serializer);
     }
 
-    public IAsyncEnumerable<EventEnvelope> Read(Direction direction,
+    public IEventStoreStream Read(Direction direction,
         string streamId,
         uint startRevision,
         uint expectedRevision,
         CancellationToken cancellationToken = default)
     {
-        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
+        ArgumentNullException.ThrowIfNull(streamId);
 
-        if (startRevision > expectedRevision)
-            throw new ArgumentOutOfRangeException(nameof(startRevision));
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(startRevision, expectedRevision);
 
-        var stream = _events.ReadStream(direction, streamId, out var actual);
+        var records = _events.ReadStream(direction, streamId, out var actual);
 
         if (actual != expectedRevision)
             throw new WrongStreamRevisionException(streamId, expectedRevision, actual);
 
         var skip = (int)startRevision;
-        stream = direction switch
+        records = direction switch
         {
-            Direction.Forwards => stream.Skip(skip),
-            Direction.Backwards => stream.SkipLast(skip),
+            Direction.Forwards => records.Skip(skip),
+            Direction.Backwards => records.SkipLast(skip),
             _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
         };
 
-        return ToAsyncEnumerable(stream);
+        return new InMemoryEventStream(direction, streamId, records, _serializer);
     }
 
-    public IAsyncEnumerable<EventEnvelope> ReadPartial(Direction direction,
+    public IEventStoreStream ReadPartial(Direction direction,
         string streamId,
         uint count,
         CancellationToken _)
     {
-        if (streamId == null) throw new ArgumentNullException(nameof(streamId));
-
-        if (count == 0)
-            throw new ArgumentOutOfRangeException(nameof(count));
+        ArgumentNullException.ThrowIfNull(streamId);
+        ArgumentOutOfRangeException.ThrowIfLessThan(count, 0u);
 
         var stream = _events.ReadStream(direction, streamId, out var actual);
         if (actual < count - 1)
             throw new WrongStreamRevisionException(streamId, count - 1, actual);
 
-        return ToAsyncEnumerable(stream.Take((int)count));
+        return new InMemoryEventStream(direction, streamId, stream.Take((int)count), _serializer);
     }
 
-    public IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId,
+    public IEventStoreStream ReadSlice(string streamId,
         uint startRevision,
         uint endRevision,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(streamId);
-
-        if (startRevision > endRevision)
-            throw new ArgumentOutOfRangeException(nameof(startRevision));
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(startRevision, endRevision);
 
         var stream = _events.ReadStream(Direction.Forwards, streamId, out var actual);
 
         if (endRevision > actual)
             throw new WrongStreamRevisionException(streamId, endRevision, actual);
 
-        return ToAsyncEnumerable(stream.Take((int)endRevision + 1).Skip((int)startRevision));
+        return new InMemoryEventStream(Direction.Forwards,
+            streamId,
+            stream.Take((int)endRevision + 1).Skip((int)startRevision),
+            _serializer);
     }
 
-    public IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId, uint startRevision, CancellationToken cancellationToken = default)
+    public IEventStoreStream ReadSlice(string streamId, uint startRevision, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(streamId);
 
@@ -344,15 +344,20 @@ internal class InMemoryEventStore : IInMemoryEventStore
         if (actual < startRevision)
             throw new WrongStreamRevisionException(streamId, startRevision, actual);
 
-        return ToAsyncEnumerable(stream.Skip((int)startRevision));
+        return new InMemoryEventStream(Direction.Forwards,
+            streamId,
+            stream.Skip((int)startRevision),
+            _serializer);
     }
 
-    public IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(Direction direction,
+    public IAsyncEnumerable<IEventStoreStream> ReadMany(Direction direction,
         IEnumerable<string> streams,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(streams);
 
+        streams = streams.Distinct();
+
         streams = direction switch
         {
             Direction.Forwards => streams.OrderBy(s => s),
@@ -360,30 +365,39 @@ internal class InMemoryEventStore : IInMemoryEventStore
             _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
         };
 
+        var list = streams.ToList();
+
+        var exceptions = list
+            .Where(id => !_events.Exists(id))
+            .Select(id => new StreamNotFoundException(id))
+            .ToList();
+
+        // Handle streams not found
+        switch (exceptions.Count)
+        {
+            case 0:
+                break;
+            case 1:
+                throw exceptions[0];
+            default:
+                throw new AggregateException(exceptions);
+        }
+
         var result =
-            from s in streams
-            where _events.Exists(s) //Ignore not found
-            select ToAsyncEnumerable(_events.ReadStream(direction, s, out _));
+            from id in list
+            let stream = _events.ReadStream(direction, id, out _)
+            select new InMemoryEventStream(direction, id, stream, _serializer);
 
         return result.ToAsyncEnumerable();
     }
 
-    public async IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(Direction direction,
+    public async IAsyncEnumerable<IEventStoreStream> ReadMany(Direction direction,
         IAsyncEnumerable<string> streams,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        streams = direction switch
-        {
-            Direction.Forwards => streams.OrderBy(s => s),
-            Direction.Backwards => streams.OrderByDescending(s => s),
-            _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
-        };
-        await foreach (var s in streams.WithCancellation(cancellationToken))
-        {
-            if (!_events.Exists(s))
-                continue; //Ignore not found
-            yield return ToAsyncEnumerable(_events.ReadStream(direction, s, out _));
-        }
+        var list = await streams.ToListAsync(cancellationToken);
+        await foreach (var stream in ReadMany(direction, list, cancellationToken))
+            yield return stream;
     }
 
     public IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction,

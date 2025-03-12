@@ -156,7 +156,7 @@ public interface IEventStore
     ///     from the events in the stream in the order in which they were added
     /// </returns>
     /// <exception cref="StreamNotFoundException">Stream <paramref name="streamId" /> not found</exception>
-    public IAsyncEnumerable<EventEnvelope> Read(Direction direction, 
+    public IEventStoreStream Read(Direction direction,
         string streamId,
         CancellationToken cancellationToken = default);
 
@@ -176,11 +176,11 @@ public interface IEventStore
     /// <exception cref="WrongStreamRevisionException">
     ///     Stream <paramref name="streamId" /> not at revision <paramref name="expectedRevision" />
     /// </exception>
-    public IAsyncEnumerable<EventEnvelope> Read(Direction direction, 
+    public IEventStoreStream Read(Direction direction,
         string streamId,
         uint expectedRevision,
         CancellationToken cancellationToken = default);
-    
+
     /// <summary>
     ///     Reads events from stream <paramref name="streamId" />,
     ///     ensuring stream is at <see cref="expectedRevision" />
@@ -199,7 +199,7 @@ public interface IEventStore
     /// <exception cref="WrongStreamRevisionException">
     ///     Stream <paramref name="streamId" /> not at revision <paramref name="expectedRevision" />
     /// </exception>
-    public IAsyncEnumerable<EventEnvelope> Read(Direction direction, 
+    public IEventStoreStream Read(Direction direction,
         string streamId,
         uint startRevision,
         uint expectedRevision,
@@ -221,7 +221,7 @@ public interface IEventStore
     /// <exception cref="WrongStreamRevisionException">
     ///     Revision of stream <paramref name="streamId" /> less than <paramref name="count" />
     /// </exception>
-    public IAsyncEnumerable<EventEnvelope> ReadPartial(Direction direction,
+    public IEventStoreStream ReadPartial(Direction direction,
         string streamId,
         uint count,
         CancellationToken cancellationToken = default);
@@ -245,7 +245,7 @@ public interface IEventStore
     /// <exception cref="WrongStreamRevisionException">
     ///     Revision of stream <paramref name="streamId" /> less than <paramref name="endRevision" />
     /// </exception>
-    public IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId,
+    public IEventStoreStream ReadSlice(string streamId,
         uint startRevision,
         uint endRevision,
         CancellationToken cancellationToken = default);
@@ -266,7 +266,7 @@ public interface IEventStore
     /// <exception cref="WrongStreamRevisionException">
     ///     Revision of stream <paramref name="streamId" /> less than <paramref name="startRevision" />
     /// </exception>
-    public IAsyncEnumerable<EventEnvelope> ReadSlice(string streamId,
+    public IEventStoreStream ReadSlice(string streamId,
         uint startRevision,
         CancellationToken cancellationToken = default);
 
@@ -277,7 +277,7 @@ public interface IEventStore
     /// <param name="streams">The streams to read</param>
     /// <param name="cancellationToken"></param>
     /// <returns>A combined stream of events, in chronological order</returns>
-    public IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(Direction direction,
+    public IAsyncEnumerable<IEventStoreStream> ReadMany(Direction direction,
         IEnumerable<string> streams, 
         CancellationToken cancellationToken = default);
     
@@ -288,7 +288,7 @@ public interface IEventStore
     /// <param name="streams">The streams to read</param>
     /// <param name="cancellationToken"></param>
     /// <returns>A combined stream of events, in chronological order</returns>
-    public IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(Direction direction, 
+    public IAsyncEnumerable<IEventStoreStream> ReadMany(Direction direction,
         IAsyncEnumerable<string> streams, 
         CancellationToken cancellationToken = default);
 

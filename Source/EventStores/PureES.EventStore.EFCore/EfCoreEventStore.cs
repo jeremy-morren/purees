@@ -57,6 +57,7 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore where TContext : D
 
         await using var command = src.CreateDbCommand();
         await using var _ = await OpenConnectionWrapper.OpenAsync(command, ct);
+        await command.PrepareAsync(ct); //This is a frequent operation, prepare the command
         await using var reader = await command.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
         {
@@ -306,7 +307,7 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore where TContext : D
         };
     }
     
-    public async IAsyncEnumerable<EventEnvelope> Read(Direction direction, string streamId, [EnumeratorCancellation] CancellationToken cancellationToken)
+    private async IAsyncEnumerable<EventEnvelope> ReadInternal(Direction direction, string streamId, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(streamId);
 
@@ -324,7 +325,10 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore where TContext : D
             throw new StreamNotFoundException(streamId);
     }
 
-    public async IAsyncEnumerable<EventEnvelope> Read(
+    public IEventStoreStream Read(Direction direction, string streamId, CancellationToken cancellationToken) =>
+        new EfCoreEventStoreStream(direction, streamId, ReadInternal(direction, streamId, cancellationToken));
+
+    private async IAsyncEnumerable<EventEnvelope> ReadInternal(
         Direction direction, 
         string streamId, 
         uint expectedRevision,
@@ -350,7 +354,10 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore where TContext : D
             throw new WrongStreamRevisionException(streamId, expectedRevision, actual);
     }
 
-    public async IAsyncEnumerable<EventEnvelope> Read(
+    public IEventStoreStream Read(Direction direction, string streamId, uint expectedRevision, CancellationToken cancellationToken) =>
+        new EfCoreEventStoreStream(direction, streamId, ReadInternal(direction, streamId, expectedRevision, cancellationToken));
+
+    private async IAsyncEnumerable<EventEnvelope> ReadInternal(
         Direction direction, 
         string streamId,
         uint startRevision, 
@@ -401,7 +408,10 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore where TContext : D
             throw new WrongStreamRevisionException(streamId, expectedRevision, actual);
     }
 
-    public async IAsyncEnumerable<EventEnvelope> ReadPartial(
+    public IEventStoreStream Read(Direction direction, string streamId, uint startRevision, uint expectedRevision, CancellationToken cancellationToken) =>
+        new EfCoreEventStoreStream(direction, streamId, ReadInternal(direction, streamId, startRevision, expectedRevision, cancellationToken));
+
+    private async IAsyncEnumerable<EventEnvelope> ReadPartialInternal(
         Direction direction, 
         string streamId, 
         uint count,
@@ -426,7 +436,10 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore where TContext : D
             throw new WrongStreamRevisionException(streamId, count - 1, read - 1);
     }
 
-    public async IAsyncEnumerable<EventEnvelope> ReadSlice(
+    public IEventStoreStream ReadPartial(Direction direction, string streamId, uint count, CancellationToken cancellationToken) =>
+        new EfCoreEventStoreStream(direction, streamId, ReadPartialInternal(direction, streamId, count, cancellationToken));
+
+    private async IAsyncEnumerable<EventEnvelope> ReadSliceInternal(
         string streamId, 
         uint startRevision, 
         uint endRevision,
@@ -471,7 +484,10 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore where TContext : D
             throw new WrongStreamRevisionException(streamId, endRevision, actual.Value);
     }
 
-    public async IAsyncEnumerable<EventEnvelope> ReadSlice(
+    public IEventStoreStream ReadSlice(string streamId, uint startRevision, uint endRevision, CancellationToken cancellationToken) =>
+        new EfCoreEventStoreStream(Direction.Forwards, streamId, ReadSliceInternal(streamId, startRevision, endRevision, cancellationToken));
+
+    private async IAsyncEnumerable<EventEnvelope> ReadSliceInternal(
         string streamId, 
         uint startRevision, 
         [EnumeratorCancellation] CancellationToken cancellationToken)
@@ -511,23 +527,28 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore where TContext : D
         actual = await GetRevision(streamId, cancellationToken);
         throw new WrongStreamRevisionException(streamId, startRevision, actual.Value);
     }
+
+    public IEventStoreStream ReadSlice(string streamId, uint startRevision, CancellationToken cancellationToken) =>
+        new EfCoreEventStoreStream(Direction.Forwards, streamId, ReadSliceInternal(streamId, startRevision, cancellationToken));
     
     #endregion
     
     #region Read Many
 
-    public IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(
+    public async IAsyncEnumerable<IEventStoreStream> ReadMany(
         Direction direction, 
         IEnumerable<string> streams, 
-        CancellationToken cancellationToken)
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(streams);
 
-        return ReadEvents(
+        var list = streams.ToList();
+
+        var source = ReadEvents(
                 context =>
                 {
                     var query = context.QueryEvents()
-                        .Where(e => streams.Contains(e.StreamId));
+                        .Where(e => list.Contains(e.StreamId));
 
                     return direction switch
                     {
@@ -543,9 +564,30 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore where TContext : D
                 },
                 cancellationToken)
             .GroupSequentialBy(e => e.StreamId);
+
+        var read = new HashSet<string>();
+        await foreach (var group in source)
+        {
+            read.Add(group.Key);
+            yield return new EfCoreEventStoreStream(direction, group.Key, group);
+        }
+
+        // Check if all streams were read
+        var exceptions = list.Except(read)
+            .Select(streamId => new StreamNotFoundException(streamId))
+            .ToList();
+        switch (exceptions.Count)
+        {
+            case 0:
+                yield break;
+            case 1:
+                throw exceptions[0];
+            default:
+                throw new AggregateException(exceptions);
+        }
     }
 
-    public async IAsyncEnumerable<IAsyncEnumerable<EventEnvelope>> ReadMany(
+    public async IAsyncEnumerable<IEventStoreStream> ReadMany(
         Direction direction, 
         IAsyncEnumerable<string> streams, 
         [EnumeratorCancellation] CancellationToken cancellationToken)
