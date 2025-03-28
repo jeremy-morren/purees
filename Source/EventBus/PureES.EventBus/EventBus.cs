@@ -53,8 +53,6 @@ public class EventBus : IEventBus
 
     #region Handle
 
-    private static readonly ConcurrentDictionary<Type, Type> EventHandlerTypes = new();
-
     private async Task Handle(EventEnvelope envelope)
     {
         //Start a new root activity for this event
@@ -86,13 +84,9 @@ public class EventBus : IEventBus
         try
         {
             await using var scope = _services.CreateAsyncScope();
-            var serviceType = EventHandlerTypes.GetOrAdd(
-                envelope.Event.GetType(),
-                t => typeof(IEventHandlerCollection<>).MakeGenericType(t));
 
-            var collection = (IEventHandlerCollection)scope.ServiceProvider.GetRequiredService(serviceType);
-            
-            var handlers = collection.GetHandlers(envelope).ToList();
+            var provider = scope.ServiceProvider.GetRequiredService<IEventHandlersProvider>();
+            var handlers = provider.GetHandlers(envelope.Event.GetType());
             
             if (handlers.Count == 0) return;
     
@@ -100,7 +94,7 @@ public class EventBus : IEventBus
                 handlers.Count, logEvent);
             var start = Stopwatch.GetTimestamp();
 
-            foreach (var handler in handlers.OrderBy(h => h.Priority))
+            foreach (var handler in handlers)
                 await handler.Handle(envelope);
             
             var elapsed = GetElapsed(start);

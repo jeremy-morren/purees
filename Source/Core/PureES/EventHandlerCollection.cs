@@ -8,7 +8,7 @@ namespace PureES;
 /// All event handlers registered for a given event type ordered by priority.
 /// </summary>
 /// <typeparam name="TEvent">The derived event type</typeparam>
-internal class EventHandlerCollection<TEvent> : IEventHandlerCollection<TEvent>
+internal class EventHandlerCollection<TEvent> : IEventHandlerCollection
 {
     private readonly List<IEventHandler> _handlers;
 
@@ -22,33 +22,32 @@ internal class EventHandlerCollection<TEvent> : IEventHandlerCollection<TEvent>
             .OrderBy(l => l.Priority)
             .ToList();
     }
-    
-    public IEnumerable<IEventHandler> GetHandlers(EventEnvelope @event) => _handlers.Where(h => h.CanHandle(@event));
-    
+
+    public Type EventType => typeof(TEvent);
+
     #region Factory
-    
+
+
+    private static readonly List<Type> HandlerTypes = GetTypeHierarchy().Concat(GetInterfaces()).ToList();
+
     [SuppressMessage("ReSharper", "StaticMemberInGenericType")] 
     private static readonly Func<IServiceProvider, IEnumerable<IEventHandler>?[]> HandlerFactory = CreateHandlerFactory();
-    
+
     private static Func<IServiceProvider, IEnumerable<IEventHandler>?[]> CreateHandlerFactory()
     {
         var sp = Expression.Parameter(typeof(IServiceProvider), "sp");
-
-        var getService = typeof(IServiceProvider).GetMethod("GetService", BindingFlags.Public | BindingFlags.Instance)!;
-        
-        var types = GetTypeHierarchy().ToList();
         
         //Get event handlers for the type, and all its base types
-        var handlers = types
+        var handlers = HandlerTypes
             .Select(t =>
             {
                 var enumerable = typeof(IEnumerable<>).MakeGenericType(typeof(IEventHandler<>).MakeGenericType(t));
-                var get = Expression.Call(sp, getService, Expression.Constant(enumerable));
-                return Expression.Convert(get, typeof(IEnumerable<IEventHandler>));
+                Expression body = Expression.Call(sp, ReflectionItems.GetService, Expression.Constant(enumerable));
+                return Expression.Convert(body, typeof(IEnumerable<IEventHandler>));
             });
         
         var handlerList = Expression.NewArrayInit(typeof(IEnumerable<IEventHandler>), handlers);
-        
+
         return Expression.Lambda<Func<IServiceProvider, IEnumerable<IEventHandler>?[]>>(handlerList, sp).Compile();
     }
     
@@ -64,6 +63,9 @@ internal class EventHandlerCollection<TEvent> : IEventHandlerCollection<TEvent>
             t = t.BaseType;
         }
     }
+
+    private static IEnumerable<Type> GetInterfaces() => typeof(TEvent).GetInterfaces()
+        .Where(i => !i.IsGenericType || i.GetGenericTypeDefinition() != typeof(IEquatable<>));
     
     #endregion
     

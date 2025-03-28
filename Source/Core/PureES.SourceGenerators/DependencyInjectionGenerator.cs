@@ -107,12 +107,9 @@ internal class DependencyInjectionGenerator
         {
             _w.WriteLine();
             var handlerType = $"global::{EventHandlerGenerator.Namespace}.{EventHandlerGenerator.GetClassName(handler)}";
-            //Register all interfaces implemented by the handler, as enumerable
-            foreach (var i in EventHandlerGenerator.GetInterfaces(handler))
-            {
-                var descriptor = $"new ServiceDescriptor(lifetime: ServiceLifetime.Transient, serviceType: typeof({i}), implementationType: typeof({handlerType}))";
-                _w.WriteLine($"services.TryAddEnumerable({descriptor});");
-            }
+            var @interface = EventHandlerGenerator.GetInterface(handler);
+            var descriptor = $"new ServiceDescriptor(lifetime: ServiceLifetime.Transient, serviceType: typeof({@interface}), implementationType: typeof({handlerType}))";
+            _w.WriteLine($"services.TryAddEnumerable({descriptor});");
         }
         
         var handlerParents = _eventHandlers

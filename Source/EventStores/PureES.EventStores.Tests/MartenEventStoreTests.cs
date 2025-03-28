@@ -23,10 +23,6 @@ public class MartenEventStoreTests : EventStoreTestsBase
 
         var list = new List<EventEnvelope>();
 
-        handler.Setup(s => s.CanHandle(It.Is<EventEnvelope>(e => e.Timestamp != default)))
-            .Returns(true)
-            .Verifiable(Times.Exactly(110));
-
         handler.Setup(s => s.Handle(It.IsAny<EventEnvelope>()))
             .Callback((EventEnvelope e) =>
             {

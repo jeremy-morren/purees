@@ -17,8 +17,9 @@ public static class PureESServiceCollectionExtensions
     public static PureESBuilder AddPureES(this IServiceCollection services, Action<PureESOptions>? configureOptions = null)
     {
         ArgumentNullException.ThrowIfNull(services);
-        
-        services.AddTransient(typeof(IEventHandlerCollection<>), typeof(EventHandlerCollection<>));
+
+        services.TryAddTransient(typeof(IEventHandlersProvider), typeof(EventHandlersProvider));
+        services.TryAddTransient(typeof(EventHandlerCollection<>));
 
         services.AddOptions<PureESOptions>()
             .Validate(o => o.Validate());

@@ -32,9 +32,7 @@ internal class EventHandlerGenerator
             
             _w.WriteClassAttributes();
 
-            var interfaces = string.Join(", ", GetInterfaces(_handler));
-            
-            _w.WriteStatement($"internal class {GetClassName(_handler)} : {interfaces}", () =>
+            _w.WriteStatement($"internal class {GetClassName(_handler)} : {GetInterface(_handler)}", () =>
             {
                 WriteConstructor();
                 
@@ -43,7 +41,6 @@ internal class EventHandlerGenerator
                 GeneratorHelpers.WriteGetElapsed(_w, true);
                 
                 WriteInvoke();
-                WriteCanHandle();
             });
         });
         
@@ -217,13 +214,6 @@ internal class EventHandlerGenerator
         });
     }
 
-    private void WriteCanHandle()
-    {
-        _w.WriteMethodAttributes();
-        var check = _handler.EventType == null ? "true" : $"@event.Event is {_handler.EventType.CSharpName}";
-        _w.WriteLine($"public bool CanHandle(global::{PureESSymbols.EventEnvelope} @event) => {check};");
-    }
-
     private void StartActivity()
     {
         const string activityName = "HandleEvent";
@@ -252,17 +242,15 @@ internal class EventHandlerGenerator
     ];
     
     #region Helpers
-    
-    public static IEnumerable<string> GetInterfaces(EventHandler handler)
+
+    public static string GetInterface(EventHandler handler)
     {
         const string i = "global::PureES.IEventHandler";
         if (handler.EventType == null)
-            //No event type
-            return [i];
-        
-        //Implement all types in the inheritance hierarchy
-        var types = GetBaseTypes(handler).Prepend(handler.EventType);
-        return types.Select(t => $"{i}<{t.CSharpName}>");
+            //No event type, catch all handler
+            return i;
+
+        return $"{i}<{handler.EventType.FullName}>";
     }
     
     private static IEnumerable<IType> GetBaseTypes(EventHandler handler)

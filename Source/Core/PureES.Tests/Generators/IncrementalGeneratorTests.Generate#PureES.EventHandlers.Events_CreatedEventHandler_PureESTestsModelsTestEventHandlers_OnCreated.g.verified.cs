@@ -23,7 +23,7 @@ namespace PureES.EventHandlers
     [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
     [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute]
     [global::System.CodeDom.Compiler.GeneratedCodeAttribute("PureES.SourceGenerator", "1.0.0.0")]
-    internal class Events_CreatedEventHandler_PureESTestsModelsTestEventHandlers_OnCreated : global::PureES.IEventHandler<global::PureES.Tests.Models.Events.Created>
+    internal class Events_CreatedEventHandler_PureESTestsModelsTestEventHandlers_OnCreated : global::PureES.IEventHandler<PureES.Tests.Models.Events.Created>
     {
         private readonly global::Microsoft.Extensions.Logging.ILogger<Events_CreatedEventHandler_PureESTestsModelsTestEventHandlers_OnCreated> _logger;
         private readonly global::PureES.PureESEventHandlerOptions _options;
@@ -104,7 +104,7 @@ namespace PureES.EventHandlers
             {
                 if (activity != null)
                 {
-                    activity.DisplayName = "PureES.Tests.Models.TestEventHandlers.OnCreated";
+                    activity.DisplayName = "HandleEvent TestEventHandlers.OnCreated (Events+Created)";
                     if (activity.IsAllDataRequested)
                     {
                         activity?.SetTag("StreamId", @event.StreamId);
@@ -169,6 +169,7 @@ namespace PureES.EventHandlers
                         {
                             activity.SetStatus(global::System.Diagnostics.ActivityStatusCode.Error, ex.Message);
                             activity.SetTag("error.type", ex.GetType().FullName);
+                            activity.AddException(ex);
                         }
                         if (_options.PropagateExceptions)
                         {
@@ -178,10 +179,5 @@ namespace PureES.EventHandlers
                 }
             }
         }
-
-        [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
-        [global::System.Diagnostics.DebuggerStepThroughAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        public bool CanHandle(global::PureES.EventEnvelope @event) => @event.Event is global::PureES.Tests.Models.Events.Created;
     }
 }

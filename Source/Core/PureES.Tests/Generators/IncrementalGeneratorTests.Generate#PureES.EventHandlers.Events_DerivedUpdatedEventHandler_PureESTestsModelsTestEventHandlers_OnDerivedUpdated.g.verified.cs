@@ -23,7 +23,7 @@ namespace PureES.EventHandlers
     [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
     [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute]
     [global::System.CodeDom.Compiler.GeneratedCodeAttribute("PureES.SourceGenerator", "1.0.0.0")]
-    internal class Events_DerivedUpdatedEventHandler_PureESTestsModelsTestEventHandlers_OnDerivedUpdated : global::PureES.IEventHandler<global::PureES.Tests.Models.Events.DerivedUpdated>, global::PureES.IEventHandler<global::PureES.Tests.Models.Events.Updated>
+    internal class Events_DerivedUpdatedEventHandler_PureESTestsModelsTestEventHandlers_OnDerivedUpdated : global::PureES.IEventHandler<PureES.Tests.Models.Events.DerivedUpdated>
     {
         private readonly global::Microsoft.Extensions.Logging.ILogger<Events_DerivedUpdatedEventHandler_PureESTestsModelsTestEventHandlers_OnDerivedUpdated> _logger;
         private readonly global::PureES.PureESEventHandlerOptions _options;
@@ -104,7 +104,7 @@ namespace PureES.EventHandlers
             {
                 if (activity != null)
                 {
-                    activity.DisplayName = "PureES.Tests.Models.TestEventHandlers.OnDerivedUpdated";
+                    activity.DisplayName = "HandleEvent TestEventHandlers.OnDerivedUpdated (Events+DerivedUpdated)";
                     if (activity.IsAllDataRequested)
                     {
                         activity?.SetTag("StreamId", @event.StreamId);
@@ -168,6 +168,7 @@ namespace PureES.EventHandlers
                         {
                             activity.SetStatus(global::System.Diagnostics.ActivityStatusCode.Error, ex.Message);
                             activity.SetTag("error.type", ex.GetType().FullName);
+                            activity.AddException(ex);
                         }
                         if (_options.PropagateExceptions)
                         {
@@ -178,10 +179,5 @@ namespace PureES.EventHandlers
                 }
             }
         }
-
-        [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
-        [global::System.Diagnostics.DebuggerStepThroughAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        public bool CanHandle(global::PureES.EventEnvelope @event) => @event.Event is global::PureES.Tests.Models.Events.DerivedUpdated;
     }
 }

@@ -22,17 +22,10 @@ public interface IEventHandler
     /// Invokes all registered event handlers for <c>TEvent</c> from <see cref="IEventHandler{TEvent}"/>
     /// </summary>
     Task Handle(EventEnvelope @event);
-
-    /// <summary>
-    /// Returns whether the envelope can be handled by this handler
-    /// </summary>
-    /// <param name="event">The event envelope to test</param>
-    /// <returns>true if the event can be handled, otherwise false</returns>
-    bool CanHandle(EventEnvelope @event);
 }
 
 /// <summary>
-/// Invokes all event handlers registered for <typeparamref name="TEvent"/>
+/// Event handler for <typeparamref name="TEvent"/>
 /// </summary>
 /// <typeparam name="TEvent">The event type</typeparam>
 [PublicAPI]

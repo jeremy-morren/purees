@@ -95,7 +95,7 @@ namespace PureES.CommandHandlers
             {
                 if (activity != null)
                 {
-                    activity.DisplayName = "PureES.Tests.Models.ImplementedGenericAggregate.Create";
+                    activity.DisplayName = "HandleCommand ImplementedGenericAggregate.Create";
                     if (activity.IsAllDataRequested)
                     {
                         activity?.SetTag("Command", CommandType);
@@ -165,6 +165,7 @@ namespace PureES.CommandHandlers
                         {
                             activity.SetStatus(global::System.Diagnostics.ActivityStatusCode.Error, ex.Message);
                             activity.SetTag("error.type", ex.GetType().FullName);
+                            activity.AddException(ex);
                         }
                         throw;
                     }

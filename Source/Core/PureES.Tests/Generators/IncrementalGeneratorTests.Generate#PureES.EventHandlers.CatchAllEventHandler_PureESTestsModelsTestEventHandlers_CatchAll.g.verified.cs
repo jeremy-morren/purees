@@ -100,7 +100,7 @@ namespace PureES.EventHandlers
             {
                 if (activity != null)
                 {
-                    activity.DisplayName = "PureES.Tests.Models.TestEventHandlers.CatchAll";
+                    activity.DisplayName = "HandleEvent TestEventHandlers.CatchAll";
                     if (activity.IsAllDataRequested)
                     {
                         activity?.SetTag("StreamId", @event.StreamId);
@@ -162,6 +162,7 @@ namespace PureES.EventHandlers
                         {
                             activity.SetStatus(global::System.Diagnostics.ActivityStatusCode.Error, ex.Message);
                             activity.SetTag("error.type", ex.GetType().FullName);
+                            activity.AddException(ex);
                         }
                         if (_options.PropagateExceptions)
                         {
@@ -172,10 +173,5 @@ namespace PureES.EventHandlers
                 }
             }
         }
-
-        [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
-        [global::System.Diagnostics.DebuggerStepThroughAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        public bool CanHandle(global::PureES.EventEnvelope @event) => true;
     }
 }

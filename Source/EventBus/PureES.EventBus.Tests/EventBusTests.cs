@@ -14,7 +14,7 @@ public class EventBusTests
         var executed1 = false;
         var executed2 = false;
 
-        //TODO: implement own version of IEventHandlerCollection
+        //TODO: implement own version of IEventHandlerCollection to remove GetType() distinct call
         var services = new EventHandlerServices(new Dictionary<Type, Action<EventEnvelope>[]>()
         {
             {

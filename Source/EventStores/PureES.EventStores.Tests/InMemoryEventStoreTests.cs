@@ -25,8 +25,6 @@ public class InMemoryEventStoreTests : EventStoreTestsBase
                     list.Add(e);
                 }
             });
-        handler.Setup(s => s.CanHandle(It.IsAny<EventEnvelope>()))
-            .Returns(true);
         
         await using var harness = await CreateHarness(s => s.AddSingleton(handler.Object));
         var store = harness.EventStore;
@@ -52,7 +50,6 @@ public class InMemoryEventStoreTests : EventStoreTestsBase
             Times.Exactly(10));
         
         handler.Verify(s => s.Handle(It.IsAny<EventEnvelope>()), Times.Exactly(110));
-        handler.Verify(s => s.CanHandle(It.IsAny<EventEnvelope>()), Times.Exactly(110));
         
         list.Should().HaveCount(110);
         list.GroupBy(e => e.StreamId).Should().HaveCount(11);
