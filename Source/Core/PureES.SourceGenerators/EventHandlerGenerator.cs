@@ -127,6 +127,7 @@ internal class EventHandlerGenerator
         
         _w.WriteLine($"public {signature}Task Handle(global::{PureESSymbols.EventEnvelope} @event)");
         _w.PushBrace();
+        _w.CheckNotNull("@event");
         
         if (_handler.EventType != null)
             //Validate correct event input

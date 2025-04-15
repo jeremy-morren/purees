@@ -51,7 +51,11 @@ internal class CommandHandlerGenerator
         returnType = TypeNameHelpers.GetGenericTypeName(typeof(Task<>), returnType);
         _w.WriteStatement(
             $"public async {returnType} Handle({_handler.Command.CSharpName} command, CancellationToken cancellationToken)",
-            WriteHandler);
+            () =>
+            {
+                _w.CheckNotNull("command");
+                WriteHandler();
+            });
         
         _w.PopAllBraces();
         

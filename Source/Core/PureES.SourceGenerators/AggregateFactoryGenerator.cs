@@ -1,5 +1,6 @@
 ﻿using PureES.SourceGenerators.Framework;
 using PureES.SourceGenerators.Models;
+using EventHandler = PureES.SourceGenerators.Models.EventHandler;
 
 namespace PureES.SourceGenerators;
 
@@ -62,96 +63,73 @@ internal class AggregateFactoryGenerator
 
     private void WriteConstructor()
     {
-        _w.WriteLine($"private readonly {ServiceProviderType} _services;");
+        if (_services.Length > 0)
+            _w.WriteLine($"private readonly {ServiceProviderType} _serviceProvider;");
         
         _w.WriteMethodAttributes();
         _w.Write($"public {ClassName}(");
 
-        _w.WriteParameters($"{ServiceProviderType} services");
+        if (_services.Length > 0)
+            _w.WriteParameters($"{ServiceProviderType} serviceProvider");
 
         _w.WriteRawLine(")");
         _w.PushBrace();
 
-        _w.WriteLine("this._services = services ?? throw new ArgumentNullException(nameof(services));");
+        if (_services.Length > 0)
+            _w.WriteLine("this._serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));");
         
         _w.PopBrace();
     }
 
     private void WriteFactories()
     {
-        var services = _services.Any() ? $"{ServicesClassName} services, " : null;
-        var servicesParam =  _services.Any() ? "services, " : null;
-        
-        const string moveNext = "await enumerator.MoveNextAsync()";
-        
-        //So that we can generate the create factory, we have to implement the MoveNext methods manually
-        
+        string? createServices = null;
+        if (_services.Length > 0)
+        {
+            _w.WriteLine($"private {ServicesClassName} _services;");
+            createServices = $"_services ??= _serviceProvider.GetRequiredService<{ServicesClassName}>();";
+        }
+
+        var createWhen = _aggregate.When.Where(w => !w.IsUpdate).ToList();
+        var updateWhen = _aggregate.When.Where(w => w.IsUpdate).ToList();
+
+        var createIsAsync = IsAsync(createWhen);
+        var updateIsAsync = IsAsync(updateWhen);
+
         //Create when
         _w.WriteMethodAttributes();
         _w.WriteStatement(
-            $"private async Task<{RehydratedAggregate}> CreateWhen(string streamId, {AsyncEnumeratorEventEnvelope} enumerator, {services}CancellationToken ct)",
+            $"public {(createIsAsync ? "async " : "")}ValueTask<{_aggregate.Type.CSharpName}> CreateWhen({EventEnvelope} envelope, CancellationToken cancellationToken)",
             () =>
             {
-                //Get the first item, or throw
-                _w.WriteStatement($"if (!{moveNext})",
-                    "throw new ArgumentException(\"Stream is empty\");");
-                
+                _w.CheckNotNull("envelope");
+                if (createServices != null)
+                    _w.WriteLine(createServices);
                 _w.WriteLine($"{_aggregate.Type.CSharpName} current;");
-                
-                WriteWhenSwitch(_aggregate.When.Where(w => !w.IsUpdate).ToList(), "CreateWhen");
-                
-                _w.WriteLine($"return new {RehydratedAggregate}(current, 0u);");
+                WriteWhenSwitch(createWhen, "CreateWhen");
+
+                _w.WriteLine(createIsAsync ? "return current;" : "return ValueTask.FromResult(current);");
             });
         
         //Update when
         _w.WriteMethodAttributes();
         _w.WriteStatement(
-            $"private async Task<{RehydratedAggregate}> UpdateWhen(string streamId, {RehydratedAggregate} aggregate, {AsyncEnumeratorEventEnvelope} enumerator, {services}CancellationToken ct)",
+            $"public {(updateIsAsync ? "async " : "")}ValueTask<{_aggregate.Type.CSharpName}> UpdateWhen({EventEnvelope} envelope, {_aggregate.Type.CSharpName} current, CancellationToken cancellationToken)",
             () =>
             {
-                _w.WriteLine($"{_aggregate.Type.CSharpName} current = aggregate.Aggregate;");
-                _w.WriteLine("var revision = aggregate.StreamPosition;");
-                _w.WriteStatement($"while ({moveNext})", () =>
-                {
-                    WriteWhenSwitch(_aggregate.When.Where(w => w.IsUpdate).ToList(), "UpdateWhen");
-                    _w.WriteLine("++revision;");
-                });
-                _w.WriteLine($"return new {RehydratedAggregate}(current, revision);");
-            });
-        
-        //Wrapping implementations (CreateAsync/UpdateAsync)
-        
-        _w.WriteMethodAttributes();
-        _w.WriteStatement($"public async Task<{RehydratedAggregate}> Create(string streamId, {AsyncEnumerableEventEnvelope} @events, CancellationToken cancellationToken)",
-            () =>
-            {
-                if (_services.Any())
-                    _w.WriteLine($"var services = this._services.GetRequiredService<{ServicesClassName}>();");
-                _w.WriteStatement("await using (var enumerator = @events.GetAsyncEnumerator(cancellationToken))", () =>
-                {
-                    _w.WriteLine($"var current = await CreateWhen(streamId, enumerator, {servicesParam}cancellationToken);");
-                    _w.WriteLine($"return await UpdateWhen(streamId, current, enumerator, {servicesParam}cancellationToken);");
-                });
-            });
-        
-        _w.WriteMethodAttributes();
-        _w.WriteStatement($"public async Task<{RehydratedAggregate}> Update(string streamId, {RehydratedAggregate} aggregate, {AsyncEnumerableEventEnvelope} @events, CancellationToken cancellationToken)",
-            () =>
-            {
-                if (_services.Any())
-                    _w.WriteLine($"var services = this._services.GetRequiredService<{ServicesClassName}>();");
-            
-                _w.WriteStatement("await using (var enumerator = @events.GetAsyncEnumerator(cancellationToken))", () =>
-                {
-                    _w.WriteLine(
-                        $"return await UpdateWhen(streamId, aggregate, enumerator, {servicesParam}cancellationToken);");
-                });
+                _w.CheckNotNull("envelope");
+                if (createServices != null)
+                    _w.WriteLine(createServices);
+                WriteWhenSwitch(updateWhen, "UpdateWhen");
+                _w.WriteLine(updateIsAsync ? "return current;" : "return ValueTask.FromResult(current);");
             });
     }
 
-    private void WriteWhenSwitch(IReadOnlyList<When> source, string fallthroughName)
+    private void WriteWhenSwitch(IEnumerable<When> source, string fallthroughName)
     {
-        _w.WriteStatement("switch (enumerator.Current.Event)", () =>
+        //Sort by inheritance depth descending, so that derived events are placed before base events in the switch statement
+        source = source.OrderByDescending(w => w.GetInheritanceDepth()).ToList();
+        _w.WriteStatement("switch (envelope.Event)", () =>
         {
             //Write strongly-typed handlers
             foreach (var w in source.Where(w => w.Event != null))
@@ -166,7 +144,7 @@ internal class AggregateFactoryGenerator
             _w.WriteStatement("default:", () =>
             {
                 //Fallthrough error
-                _w.WriteLine($"var eventType = {GetTypeName}(enumerator.Current.Event.GetType());");
+                _w.WriteLine($"var eventType = {GetTypeName}(envelope.Event.GetType());");
                 ThrowRehydrationException($"$\"No suitable {fallthroughName} method found for event '{{eventType}}'\"");
             });
         });
@@ -178,7 +156,7 @@ internal class AggregateFactoryGenerator
 
     private void ThrowRehydrationException(string parameters)
     {
-        _w.WriteLine($"throw new global::{PureESSymbols.RehydrationException}(enumerator.Current, AggregateType, {parameters});");
+        _w.WriteLine($"throw new global::{PureESSymbols.RehydrationException}(envelope, AggregateType, {parameters});");
     }
 
     private void InvokeWhen(When when)
@@ -194,7 +172,7 @@ internal class AggregateFactoryGenerator
             var parameters = when.Method.Parameters.Select(p =>
             {
                 if (p.Type.IsNonGenericEventEnvelope())
-                    return "enumerator.Current";
+                    return "envelope";
                 if (p.HasEventAttribute())
                 {
                     if (when.Event == null || !p.Type.Equals(when.Event))
@@ -205,17 +183,17 @@ internal class AggregateFactoryGenerator
                 {
                     if (when.Event == null || !e.Equals(when.Event))
                         throw new NotImplementedException();
-                    return $"new {p.Type.CSharpName}(enumerator.Current)"; //Create envelope from non-generic envelope current
+                    return $"new {p.Type.CSharpName}(envelope)"; //Create envelope from non-generic envelope current
                 }
 
                 if (p.HasFromServicesAttribute())
-                    return $"services.S{_services.GetIndex(p.Type)}";
+                    return $"_services.S{_services.GetIndex(p.Type)}";
             
                 if (p.Type.Equals(_aggregate.Type))
                     return "current"; //Provide current aggregate parameter
 
                 if (p.Type.IsCancellationToken())
-                    return "ct";
+                    return "cancellationToken";
             
                 throw new NotImplementedException("Unknown parameter");
             });
@@ -252,6 +230,8 @@ internal class AggregateFactoryGenerator
         
         _w.PopBrace(); //Class
     }
+
+    private static bool IsAsync(IEnumerable<When> handlers) => handlers.Any(h => h.IsAsync);
     
     #region Names
 
@@ -268,16 +248,10 @@ internal class AggregateFactoryGenerator
     private string ServicesClassName => GetServicesClassName(_aggregate);
     private string Interface => GetInterface(_aggregate);
 
-    private string RehydratedAggregate => $"global::{PureESSymbols.RehydratedAggregate}<{_aggregate.Type.CSharpName}>";
-    
     private static string GetTypeName => $"global::{PureESSymbols.BasicEventTypeMap}.GetTypeName";
     private static string ServiceProviderType => $"global::{typeof(IServiceProvider).FullName}";
 
-    private static string AsyncEnumerableEventEnvelope => 
-        ExternalTypes.IAsyncEnumerable($"global::{PureESSymbols.EventEnvelope}");
-
-    private static string AsyncEnumeratorEventEnvelope =>
-        ExternalTypes.IAsyncEnumerator($"global::{PureESSymbols.EventEnvelope}");
+    private const string EventEnvelope = $"global::{PureESSymbols.EventEnvelope}";
 
     #endregion
 }

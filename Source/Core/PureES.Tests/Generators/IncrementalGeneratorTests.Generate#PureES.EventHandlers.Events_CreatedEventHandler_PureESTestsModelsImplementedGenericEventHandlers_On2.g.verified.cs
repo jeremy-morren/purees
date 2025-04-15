@@ -96,6 +96,11 @@ namespace PureES.EventHandlers
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         public Task Handle(global::PureES.EventEnvelope @event)
         {
+#if NET6_0_OR_GREATER
+            global::System.ArgumentNullException.ThrowIfNull(@event, nameof(@event));
+#else
+            if (@event is null) throw new global::System.ArgumentNullException(nameof(@event));
+#endif
             if (@event.Event is not global::PureES.Tests.Models.Events.Created)
             {
                 throw new ArgumentOutOfRangeException($"Unknown event type {@event.Event.GetType()}", nameof(@event));

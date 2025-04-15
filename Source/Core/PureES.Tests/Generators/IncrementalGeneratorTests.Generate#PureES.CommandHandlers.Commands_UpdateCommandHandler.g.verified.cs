@@ -83,6 +83,11 @@ namespace PureES.CommandHandlers
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         public async global::System.Threading.Tasks.Task<uint> Handle(global::PureES.Tests.Models.Commands.Update command, CancellationToken cancellationToken)
         {
+#if NET6_0_OR_GREATER
+            global::System.ArgumentNullException.ThrowIfNull(command, nameof(command));
+#else
+            if (command is null) throw new global::System.ArgumentNullException(nameof(command));
+#endif
             if (command == null)
             {
                 throw new ArgumentNullException(nameof(command));

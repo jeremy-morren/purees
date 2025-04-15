@@ -80,6 +80,11 @@ namespace PureES.CommandHandlers
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         public async global::System.Threading.Tasks.Task<uint> Handle(uint command, CancellationToken cancellationToken)
         {
+#if NET6_0_OR_GREATER
+            global::System.ArgumentNullException.ThrowIfNull(command, nameof(command));
+#else
+            if (command is null) throw new global::System.ArgumentNullException(nameof(command));
+#endif
             this._logger.Log(
                 logLevel: global::Microsoft.Extensions.Logging.LogLevel.Debug,
                 exception: null,

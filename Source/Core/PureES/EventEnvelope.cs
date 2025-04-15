@@ -1,12 +1,8 @@
-﻿
-
-// ReSharper disable InconsistentNaming
+﻿// ReSharper disable InconsistentNaming
 
 namespace PureES;
 
-/// <summary>
-///     Represents an event persisted to <see cref="IEventStore" />
-/// </summary>
+/// <inheritdoc />
 public class EventEnvelope : IEventEnvelope
 {
     public EventEnvelope(EventEnvelope other)
@@ -24,29 +20,48 @@ public class EventEnvelope : IEventEnvelope
         object @event,
         object? metadata)
     {
-        Event = @event ?? throw new ArgumentNullException(nameof(@event));
-        Metadata = metadata;
+        if (timestamp.Kind != DateTimeKind.Utc)
+            throw new ArgumentException("Timestamp must be in UTC", nameof(timestamp));
+
         StreamId = streamId ?? throw new ArgumentNullException(nameof(streamId));
         StreamPosition = streamPosition;
         Timestamp = timestamp;
-        if (timestamp.Kind != DateTimeKind.Utc)
-            throw new ArgumentException("Timestamp must be in UTC", nameof(timestamp));
+        Event = @event ?? throw new ArgumentNullException(nameof(@event));
+        Metadata = metadata;
     }
 
-    /// <summary>The id of the stream that the event belongs to</summary>
+    /// <inheritdoc />
     public string StreamId { get; }
 
-    /// <summary>The position of the event within the stream</summary>
+    /// <inheritdoc />
     public uint StreamPosition { get; }
 
-    /// <summary>The UTC timestamp that the event was persisted</summary>
+    /// <inheritdoc />
     public DateTime Timestamp { get; }
 
-    /// <summary>The underlying event</summary>
+    /// <inheritdoc />
     public object Event { get; }
 
-    /// <summary>The metadata pertaining to the event</summary>
+    /// <inheritdoc />
     public object? Metadata { get; }
+
+    /// <inheritdoc />
+    public IEventEnvelope<TEvent, TMetadata> Cast<TEvent, TMetadata>() where TEvent : notnull => Cast<TEvent, TMetadata>(this);
+
+    internal static IEventEnvelope<TEvent, TMetadata> Cast<TEvent, TMetadata>(IEventEnvelope envelope)
+        where TEvent : notnull
+    {
+        if (envelope.Event is not TEvent)
+        {
+            throw new ArgumentException($"Could not convert {envelope.Event.GetType()} to {typeof(TEvent)}");
+        }
+        if (envelope.Metadata is not TMetadata)
+        {
+            var type = envelope.Metadata?.GetType().ToString() ?? "null";
+            throw new ArgumentException($"Could not convert {envelope.Event.GetType()} to {type}");
+        }
+        return new EventEnvelope<TEvent, TMetadata>(envelope);
+    }
 
     public override string? ToString() => new
     {
@@ -104,10 +119,35 @@ public class EventEnvelope : IEventEnvelope
 /// <summary>
 /// Represents a strongly-typed event persisted to <see cref="IEventStore" />
 /// </summary>
-public class EventEnvelope<TEvent, TMetadata> : IEventEnvelope<TEvent, TMetadata>, IEquatable<IEventEnvelope<TEvent, TMetadata>> 
+public class EventEnvelope<TEvent, TMetadata> : IEventEnvelope<TEvent, TMetadata>, IEquatable<IEventEnvelope<TEvent, TMetadata>>
     where TEvent : notnull
 {
-    public EventEnvelope(EventEnvelope source)
+
+    public EventEnvelope(
+        string streamId,
+        uint streamPosition,
+        DateTime timestamp,
+        TEvent @event,
+        object? metadata)
+    {
+        if (timestamp.Kind != DateTimeKind.Utc)
+            throw new ArgumentException("Timestamp must be in UTC", nameof(timestamp));
+
+        StreamId = streamId ?? throw new ArgumentNullException(nameof(streamId));
+        StreamPosition = streamPosition;
+        Timestamp = timestamp;
+        Event = @event ?? throw new ArgumentNullException(nameof(@event));
+
+        if (metadata is not TMetadata m)
+        {
+            var type = metadata?.GetType().ToString() ?? "null";
+            throw new ArgumentException($"Could not convert {type} to {typeof(TMetadata)}");
+        }
+
+        Metadata = m;
+    }
+    
+    public EventEnvelope(IEventEnvelope source)
     {
         StreamId = source.StreamId;
         StreamPosition = source.StreamPosition;
@@ -128,7 +168,7 @@ public class EventEnvelope<TEvent, TMetadata> : IEventEnvelope<TEvent, TMetadata
         Metadata = m;
     }
 
-    public EventEnvelope(EventEnvelope<TEvent, TMetadata> source)
+    public EventEnvelope(IEventEnvelope<TEvent, TMetadata> source)
     {
         StreamId = source.StreamId;
         StreamPosition = source.StreamPosition;
@@ -137,33 +177,29 @@ public class EventEnvelope<TEvent, TMetadata> : IEventEnvelope<TEvent, TMetadata
         Metadata = source.Metadata;
     }
 
-    /// <summary>
-    ///     The id of the stream that the event belongs to
-    /// </summary>
+    /// <inheritdoc />
     public string StreamId { get; }
 
-    /// <summary>
-    ///     The position of the event within the stream
-    /// </summary>
+    /// <inheritdoc />
     public uint StreamPosition { get; }
 
-    /// <summary>
-    ///     The UTC timestamp that the event was persisted
-    /// </summary>
+    /// <inheritdoc />
     public DateTime Timestamp { get; }
 
-    /// <summary>
-    ///     The underlying event
-    /// </summary>
+    /// <inheritdoc />
     public TEvent Event { get; }
 
-    /// <summary>
-    ///     The metadata pertaining to the event
-    /// </summary>
+    /// <inheritdoc />
     public TMetadata Metadata { get; }
-    
+
+    /// <inheritdoc />
+    public IEventEnvelope<TOther, TMetadata> Cast<TOther>() where TOther : notnull => EventEnvelope.Cast<TOther, TMetadata>(this);
+
+    /// <inheritdoc />
+    public IEventEnvelope<TEvent1, TMetadata1> Cast<TEvent1, TMetadata1>() where TEvent1 : notnull => EventEnvelope.Cast<TEvent1, TMetadata1>(this);
+
     object IEventEnvelope.Event => Event;
-    
+
     object? IEventEnvelope.Metadata => Metadata;
 
     public override string? ToString() => new 

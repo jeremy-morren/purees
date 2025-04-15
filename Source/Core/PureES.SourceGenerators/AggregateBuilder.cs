@@ -81,14 +81,16 @@ internal class AggregateBuilder : BuilderBase
             }
             //Method must be when or unknown
             
-            //Check for methods with Event Envelope parameter
+            //Check for methods with IEventEnvelope parameter
             if (method.Parameters.Any(p => p.Type.IsEventEnvelope()))
             {
-                //Method has an EventEnvelope parameter
+                //Method has an IEventEnvelope parameter
                 if (!ValidateSingleEventEnvelope(method, out var @event))
                     continue;
+                //All parameters must be IEventEnvelope or the aggregate type
                 if (!ValidateAllParameters(method, p => p.Type.IsEventEnvelope() || p.Type.Equals(aggregateType)))
                     continue;
+                //If method is static, the return type must be the aggregate type
                 if (method.IsStatic && !ValidateReturnType(method, aggregateType))
                 {
                     Log.InvalidStaticWhenReturnType(method);
@@ -108,8 +110,10 @@ internal class AggregateBuilder : BuilderBase
             if (method.Parameters.Any(p => p.HasEventAttribute()))
             {
                 //When method with EventAttribute
+
                 if (!ValidateSingleAttribute(method, PureESSymbols.EventAttribute, out var e))
                     continue;
+                //All parameters must have EventAttribute or be the aggregate type
                 if (!ValidateAllParameters(method, p => p.HasEventAttribute() || p.Type.Equals(aggregateType)))
                     continue;
                 if (method.IsStatic && !ValidateReturnType(method, aggregateType))

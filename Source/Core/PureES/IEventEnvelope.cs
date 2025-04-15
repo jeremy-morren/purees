@@ -24,6 +24,12 @@ public interface IEventEnvelope : IEquatable<IEventEnvelope>
 
     /// <summary>The metadata pertaining to the event</summary>
     object? Metadata { get; }
+
+    /// <summary>
+    /// Casts the event to a specific type
+    /// </summary>
+    IEventEnvelope<TEvent, TMetadata> Cast<TEvent, TMetadata>()
+        where TEvent : notnull;
 }
 
 /// <summary>
@@ -32,7 +38,6 @@ public interface IEventEnvelope : IEquatable<IEventEnvelope>
 /// <remarks>
 /// IEquatable is not implemented to enable generic parameters to be covariant
 /// </remarks>
-[UsedImplicitly(ImplicitUseTargetFlags.WithInheritors | ImplicitUseTargetFlags.WithMembers)]
 public interface IEventEnvelope<out TEvent, out TMetadata> : IEventEnvelope
     where TEvent : notnull
 {
@@ -41,4 +46,9 @@ public interface IEventEnvelope<out TEvent, out TMetadata> : IEventEnvelope
 
     /// <summary>The metadata pertaining to the event</summary>
     new TMetadata Metadata { get; }
+
+    /// <summary>
+    /// Casts the event to a specific type
+    /// </summary>
+    IEventEnvelope<TOther, TMetadata> Cast<TOther>() where TOther : notnull;
 }

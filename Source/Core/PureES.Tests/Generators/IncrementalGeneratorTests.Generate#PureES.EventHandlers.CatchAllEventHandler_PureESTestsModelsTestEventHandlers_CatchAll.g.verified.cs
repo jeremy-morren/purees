@@ -96,6 +96,11 @@ namespace PureES.EventHandlers
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         public Task Handle(global::PureES.EventEnvelope @event)
         {
+#if NET6_0_OR_GREATER
+            global::System.ArgumentNullException.ThrowIfNull(@event, nameof(@event));
+#else
+            if (@event is null) throw new global::System.ArgumentNullException(nameof(@event));
+#endif
             using (var activity = PureES.PureESTracing.ActivitySource.StartActivity("HandleEvent"))
             {
                 if (activity != null)

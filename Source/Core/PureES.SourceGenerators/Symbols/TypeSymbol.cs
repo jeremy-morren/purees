@@ -46,6 +46,10 @@ internal class TypeSymbol : IType
     
     public bool IsNullable => _source.NullableAnnotation == NullableAnnotation.Annotated;
 
+    public IType GetGenericTypeDefinition() => new TypeSymbol(((INamedTypeSymbol)_source).ConstructUnboundGenericType());
+
+    public bool IsGenericTypeParameter => _source.TypeKind == TypeKind.TypeParameter;
+
     public IEnumerable<IAttribute> Attributes => _source.GetAttributes()
         .Select(a => new AttributeSymbol(Location, a));
 

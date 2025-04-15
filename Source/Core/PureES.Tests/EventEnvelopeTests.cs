@@ -1,5 +1,6 @@
 ﻿using System;
 using PureES.Tests.Models;
+using Shouldly;
 using Xunit;
 
 namespace PureES.Tests;
@@ -27,6 +28,19 @@ public class EventEnvelopeTests
             Object));
     }
 
+    [Fact]
+    public void CastShouldHandleInheritedTypes()
+    {
+        var env = new EventEnvelope(
+            Guid.NewGuid().ToString(),
+            Rand.Nextuint(),
+            DateTime.UtcNow,
+            new EventDerived(),
+            Object);
+        var casted = env.Cast<EventBase, object>().ShouldNotBeNull();
+        casted.Cast<EventDerived, object>().ShouldNotBeNull();
+    }
+
     private static EventEnvelope NewEnvelope() => new (
         Guid.NewGuid().ToString(),
         Rand.Nextuint(),
@@ -35,4 +49,8 @@ public class EventEnvelopeTests
         Object);
 
     private static readonly object Object = new();
+
+    private class EventBase {}
+
+    private class EventDerived : EventBase {}
 }

@@ -1,19 +1,20 @@
 ﻿namespace PureES;
 
 /// <summary>
-/// A factory for creating and updating aggregates from event streams
+/// A factory for creating and updating aggregates
 /// </summary>
-/// <typeparam name="T"></typeparam>
+/// <typeparam name="TAggregate">The aggregate type</typeparam>
 [PublicAPI]
-public interface IAggregateFactory<T>
+public interface IAggregateFactory<TAggregate>
+    where TAggregate : notnull
 {
     /// <summary>
-    /// Creates a new aggregate from the given event stream
+    /// Creates a new aggregate from the given start event
     /// </summary>
-    Task<RehydratedAggregate<T>> Create(string streamId, IAsyncEnumerable<EventEnvelope> events, CancellationToken ct);
+    ValueTask<TAggregate> CreateWhen(EventEnvelope envelope, CancellationToken cancellationToken);
 
     /// <summary>
-    /// Updates an existing aggregate from the given event stream
+    /// Applies the event to the aggregate, returning the updated aggregate
     /// </summary>
-    Task<RehydratedAggregate<T>> Update(string streamId, RehydratedAggregate<T> current, IAsyncEnumerable<EventEnvelope> events, CancellationToken ct);
+    ValueTask<TAggregate> UpdateWhen(EventEnvelope envelope, TAggregate current, CancellationToken cancellationToken);
 }

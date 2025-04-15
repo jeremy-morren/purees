@@ -43,6 +43,9 @@ internal class ReflectedType : ReflectedTokenBase, IType
     public bool IsAbstract => _type.IsAbstract;
 
     public bool IsGenericType => _type.IsGenericType;
+    public IType GetGenericTypeDefinition() => new ReflectedType(_type.GetGenericTypeDefinition());
+
+    public bool IsGenericTypeParameter => _type.IsGenericTypeParameter;
 
     public IEnumerable<IAttribute> Attributes => _type.GetCustomAttributes(false)
         .Select(a => new ReflectedAttribute(a));

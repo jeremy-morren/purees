@@ -39,6 +39,16 @@ internal interface IType : IToken, IEquatable<IType>
     public bool IsGenericType { get; }
 
     /// <summary>
+    /// Gets the unbound generic type (ie without generic arguments)
+    /// </summary>
+    public IType GetGenericTypeDefinition();
+
+    /// <summary>
+    /// Whether the type is a generic type parameter
+    /// </summary>
+    public bool IsGenericTypeParameter { get; }
+
+    /// <summary>
     /// Gets all attributes applied to a type
     /// </summary>
     /// <returns></returns>

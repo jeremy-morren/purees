@@ -21,36 +21,30 @@ internal class BasicAggregateStore<TAggregate> : IAggregateStore<TAggregate> whe
         _factory = factory;
     }
 
-    public async Task<TAggregate> Load(string streamId, CancellationToken cancellationToken)
+    public ValueTask<TAggregate> Load(string streamId, CancellationToken cancellationToken)
     {
-        var result = await _factory.Create(streamId, 
-            _eventStore.Read(Direction.Forwards, streamId, cancellationToken),
-            cancellationToken);
-        return result.Aggregate;
+        var stream = _eventStore.Read(Direction.Forwards, streamId, cancellationToken);
+        return this.RehydrateAggregate(stream, _factory, cancellationToken);
     }
 
-    public async Task<TAggregate> Load(string streamId, uint expectedRevision, CancellationToken cancellationToken)
+    public ValueTask<TAggregate> Load(string streamId, uint expectedRevision, CancellationToken cancellationToken)
     {
-        var result = await _factory.Create(streamId,
-            _eventStore.Read(Direction.Forwards, streamId, expectedRevision, cancellationToken), 
-            cancellationToken);
-        return result.Aggregate;
+        var stream = _eventStore.Read(Direction.Forwards, streamId, expectedRevision, cancellationToken);
+        return this.RehydrateAggregate(stream, _factory, cancellationToken);
     }
 
-    public async Task<TAggregate> LoadAt(string streamId, uint endRevision, CancellationToken cancellationToken)
+    public ValueTask<TAggregate> LoadAt(string streamId, uint endRevision, CancellationToken cancellationToken)
     {
-        var result = await _factory.Create(streamId, 
-            _eventStore.ReadSlice(streamId, 0, endRevision, cancellationToken),
-            cancellationToken);
-        return result.Aggregate;
+        var stream = _eventStore.ReadSlice(streamId, 0, endRevision, cancellationToken);
+        return this.RehydrateAggregate(stream, _factory, cancellationToken);
     }
 
     public async IAsyncEnumerable<TAggregate> LoadMany(IEnumerable<string> streamIds, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         await foreach (var stream in _eventStore.ReadMany(streamIds, cancellationToken))
         {
-            var result = await _factory.Create(stream.StreamId, stream, cancellationToken);
-            yield return result.Aggregate;
+            var result = await this.RehydrateAggregate(stream, _factory, cancellationToken);
+            yield return result;
         }
     }
 
@@ -58,8 +52,8 @@ internal class BasicAggregateStore<TAggregate> : IAggregateStore<TAggregate> whe
     {
         await foreach (var stream in _eventStore.ReadMany(streamIds, cancellationToken))
         {
-            var result = await _factory.Create(stream.StreamId, stream, cancellationToken);
-            yield return result.Aggregate;
+            var result = await this.RehydrateAggregate(stream, _factory, cancellationToken);
+            yield return result;
         }
     }
 }

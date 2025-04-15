@@ -26,166 +26,144 @@ namespace PureES.AggregateFactories
     [global::System.CodeDom.Compiler.GeneratedCodeAttribute("PureES.SourceGenerator", "1.0.0.0")]
     internal sealed class TestAggregateFactory : global::PureES.IAggregateFactory<global::PureES.Tests.Models.TestAggregate>
     {
-        private readonly global::System.IServiceProvider _services;
+        private readonly global::System.IServiceProvider _serviceProvider;
 
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        public TestAggregateFactory(global::System.IServiceProvider services)
+        public TestAggregateFactory(global::System.IServiceProvider serviceProvider)
         {
-            this._services = services ?? throw new ArgumentNullException(nameof(services));
+            this._serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
         }
         private static readonly global::System.Type AggregateType = typeof(global::PureES.Tests.Models.TestAggregate);
+        private TestAggregateFactory.Services _services;
 
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        private async Task<global::PureES.RehydratedAggregate<global::PureES.Tests.Models.TestAggregate>> CreateWhen(string streamId, global::System.Collections.Generic.IAsyncEnumerator<global::PureES.EventEnvelope> enumerator, TestAggregateFactory.Services services, CancellationToken ct)
+        public ValueTask<global::PureES.Tests.Models.TestAggregate> CreateWhen(global::PureES.EventEnvelope envelope, CancellationToken cancellationToken)
         {
-            if (!await enumerator.MoveNextAsync())
-            {
-                throw new ArgumentException("Stream is empty");
-            }
+#if NET6_0_OR_GREATER
+            global::System.ArgumentNullException.ThrowIfNull(envelope, nameof(envelope));
+#else
+            if (envelope is null) throw new global::System.ArgumentNullException(nameof(envelope));
+#endif
+            _services ??= _serviceProvider.GetRequiredService<TestAggregateFactory.Services>();
             global::PureES.Tests.Models.TestAggregate current;
-            switch (enumerator.Current.Event)
+            switch (envelope.Event)
             {
                 case global::PureES.Tests.Models.Events.Created e:
                 {
                     try
                     {
                         current = global::PureES.Tests.Models.TestAggregate.When(
-                            new global::PureES.EventEnvelope<global::PureES.Tests.Models.Events.Created, global::PureES.Tests.Models.Metadata>(enumerator.Current));
+                            new global::PureES.EventEnvelope<global::PureES.Tests.Models.Events.Created, global::PureES.Tests.Models.Metadata>(envelope));
                     }
                     catch (Exception ex)
                     {
-                        throw new global::PureES.RehydrationException(enumerator.Current, AggregateType, "PureES.Tests.Models.TestAggregate.When(PureES.EventEnvelope<PureES.Tests.Models.Events.Created, PureES.Tests.Models.Metadata>)", ex);
+                        throw new global::PureES.RehydrationException(envelope, AggregateType, "PureES.Tests.Models.TestAggregate.When(PureES.EventEnvelope<PureES.Tests.Models.Events.Created, PureES.Tests.Models.Metadata>)", ex);
                     }
                     break;
                 }
                 default:
                 {
-                    var eventType = global::PureES.BasicEventTypeMap.GetTypeName(enumerator.Current.Event.GetType());
-                    throw new global::PureES.RehydrationException(enumerator.Current, AggregateType, $"No suitable CreateWhen method found for event '{eventType}'");
+                    var eventType = global::PureES.BasicEventTypeMap.GetTypeName(envelope.Event.GetType());
+                    throw new global::PureES.RehydrationException(envelope, AggregateType, $"No suitable CreateWhen method found for event '{eventType}'");
                 }
             }
             try
             {
-                current.GlobalWhen(enumerator.Current, ct);
+                current.GlobalWhen(envelope, cancellationToken);
             }
             catch (Exception ex)
             {
-                throw new global::PureES.RehydrationException(enumerator.Current, AggregateType, "PureES.Tests.Models.TestAggregate.GlobalWhen(PureES.EventEnvelope, System.Threading.CancellationToken)", ex);
+                throw new global::PureES.RehydrationException(envelope, AggregateType, "PureES.Tests.Models.TestAggregate.GlobalWhen(PureES.EventEnvelope, System.Threading.CancellationToken)", ex);
             }
             try
             {
-                await current.GlobalWhenAsync(enumerator.Current, services.S0);
+                await current.GlobalWhenAsync(envelope, _services.S0);
             }
             catch (Exception ex)
             {
-                throw new global::PureES.RehydrationException(enumerator.Current, AggregateType, "PureES.Tests.Models.TestAggregate.GlobalWhenAsync(PureES.EventEnvelope, Microsoft.Extensions.Logging.ILoggerFactory)", ex);
+                throw new global::PureES.RehydrationException(envelope, AggregateType, "PureES.Tests.Models.TestAggregate.GlobalWhenAsync(PureES.EventEnvelope, Microsoft.Extensions.Logging.ILoggerFactory)", ex);
             }
-            return new global::PureES.RehydratedAggregate<global::PureES.Tests.Models.TestAggregate>(current, 0u);
+            return ValueTask.FromResult(current);
         }
 
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        private async Task<global::PureES.RehydratedAggregate<global::PureES.Tests.Models.TestAggregate>> UpdateWhen(string streamId, global::PureES.RehydratedAggregate<global::PureES.Tests.Models.TestAggregate> aggregate, global::System.Collections.Generic.IAsyncEnumerator<global::PureES.EventEnvelope> enumerator, TestAggregateFactory.Services services, CancellationToken ct)
+        public async ValueTask<global::PureES.Tests.Models.TestAggregate> UpdateWhen(global::PureES.EventEnvelope envelope, global::PureES.Tests.Models.TestAggregate current, CancellationToken cancellationToken)
         {
-            global::PureES.Tests.Models.TestAggregate current = aggregate.Aggregate;
-            var revision = aggregate.StreamPosition;
-            while (await enumerator.MoveNextAsync())
+#if NET6_0_OR_GREATER
+            global::System.ArgumentNullException.ThrowIfNull(envelope, nameof(envelope));
+#else
+            if (envelope is null) throw new global::System.ArgumentNullException(nameof(envelope));
+#endif
+            _services ??= _serviceProvider.GetRequiredService<TestAggregateFactory.Services>();
+            switch (envelope.Event)
             {
-                switch (enumerator.Current.Event)
+                case int e:
                 {
-                    case global::PureES.Tests.Models.Events.Updated e:
+                    try
                     {
-                        try
-                        {
-                            current.When(e, services.S1);
-                        }
-                        catch (Exception ex)
-                        {
-                            throw new global::PureES.RehydrationException(enumerator.Current, AggregateType, "PureES.Tests.Models.TestAggregate.When(PureES.Tests.Models.Events.Updated, System.IServiceProvider)", ex);
-                        }
-                        break;
+                        await current.When(
+                            new global::PureES.Tests.Models.EventEnvelope<int>(envelope),
+                            _services.S0);
                     }
-                    case int e:
+                    catch (Exception ex)
                     {
-                        try
-                        {
-                            await current.When(
-                                new global::PureES.Tests.Models.EventEnvelope<int>(enumerator.Current),
-                                services.S0);
-                        }
-                        catch (Exception ex)
-                        {
-                            throw new global::PureES.RehydrationException(enumerator.Current, AggregateType, "PureES.Tests.Models.TestAggregate.When(PureES.Tests.Models.EventEnvelope<int>, Microsoft.Extensions.Logging.ILoggerFactory)", ex);
-                        }
-                        break;
+                        throw new global::PureES.RehydrationException(envelope, AggregateType, "PureES.Tests.Models.TestAggregate.When(PureES.Tests.Models.EventEnvelope<int>, Microsoft.Extensions.Logging.ILoggerFactory)", ex);
                     }
-                    case global::PureES.Tests.Models.Events.Updated e:
+                    break;
+                }
+                case global::PureES.Tests.Models.Events.Updated e:
+                {
+                    try
                     {
-                        try
-                        {
-                            current = global::PureES.Tests.Models.TestAggregate.UpdateWhenStatic(e, current);
-                        }
-                        catch (Exception ex)
-                        {
-                            throw new global::PureES.RehydrationException(enumerator.Current, AggregateType, "PureES.Tests.Models.TestAggregate.UpdateWhenStatic(PureES.Tests.Models.Events.Updated, PureES.Tests.Models.TestAggregate)", ex);
-                        }
-                        break;
+                        current.When(e, _services.S1);
                     }
-                    default:
+                    catch (Exception ex)
                     {
-                        var eventType = global::PureES.BasicEventTypeMap.GetTypeName(enumerator.Current.Event.GetType());
-                        throw new global::PureES.RehydrationException(enumerator.Current, AggregateType, $"No suitable UpdateWhen method found for event '{eventType}'");
+                        throw new global::PureES.RehydrationException(envelope, AggregateType, "PureES.Tests.Models.TestAggregate.When(PureES.Tests.Models.Events.Updated, System.IServiceProvider)", ex);
                     }
+                    break;
                 }
-                try
+                case global::PureES.Tests.Models.Events.Updated e:
                 {
-                    current.GlobalWhen(enumerator.Current, ct);
+                    try
+                    {
+                        current = global::PureES.Tests.Models.TestAggregate.UpdateWhenStatic(e, current);
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new global::PureES.RehydrationException(envelope, AggregateType, "PureES.Tests.Models.TestAggregate.UpdateWhenStatic(PureES.Tests.Models.Events.Updated, PureES.Tests.Models.TestAggregate)", ex);
+                    }
+                    break;
                 }
-                catch (Exception ex)
+                default:
                 {
-                    throw new global::PureES.RehydrationException(enumerator.Current, AggregateType, "PureES.Tests.Models.TestAggregate.GlobalWhen(PureES.EventEnvelope, System.Threading.CancellationToken)", ex);
+                    var eventType = global::PureES.BasicEventTypeMap.GetTypeName(envelope.Event.GetType());
+                    throw new global::PureES.RehydrationException(envelope, AggregateType, $"No suitable UpdateWhen method found for event '{eventType}'");
                 }
-                try
-                {
-                    await current.GlobalWhenAsync(enumerator.Current, services.S0);
-                }
-                catch (Exception ex)
-                {
-                    throw new global::PureES.RehydrationException(enumerator.Current, AggregateType, "PureES.Tests.Models.TestAggregate.GlobalWhenAsync(PureES.EventEnvelope, Microsoft.Extensions.Logging.ILoggerFactory)", ex);
-                }
-                ++revision;
             }
-            return new global::PureES.RehydratedAggregate<global::PureES.Tests.Models.TestAggregate>(current, revision);
-        }
-
-        [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
-        [global::System.Diagnostics.DebuggerStepThroughAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        public async Task<global::PureES.RehydratedAggregate<global::PureES.Tests.Models.TestAggregate>> Create(string streamId, global::System.Collections.Generic.IAsyncEnumerable<global::PureES.EventEnvelope> @events, CancellationToken cancellationToken)
-        {
-            var services = this._services.GetRequiredService<TestAggregateFactory.Services>();
-            await using (var enumerator = @events.GetAsyncEnumerator(cancellationToken))
+            try
             {
-                var current = await CreateWhen(streamId, enumerator, services, cancellationToken);
-                return await UpdateWhen(streamId, current, enumerator, services, cancellationToken);
+                current.GlobalWhen(envelope, cancellationToken);
             }
-        }
-
-        [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
-        [global::System.Diagnostics.DebuggerStepThroughAttribute()]
-        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        public async Task<global::PureES.RehydratedAggregate<global::PureES.Tests.Models.TestAggregate>> Update(string streamId, global::PureES.RehydratedAggregate<global::PureES.Tests.Models.TestAggregate> aggregate, global::System.Collections.Generic.IAsyncEnumerable<global::PureES.EventEnvelope> @events, CancellationToken cancellationToken)
-        {
-            var services = this._services.GetRequiredService<TestAggregateFactory.Services>();
-            await using (var enumerator = @events.GetAsyncEnumerator(cancellationToken))
+            catch (Exception ex)
             {
-                return await UpdateWhen(streamId, aggregate, enumerator, services, cancellationToken);
+                throw new global::PureES.RehydrationException(envelope, AggregateType, "PureES.Tests.Models.TestAggregate.GlobalWhen(PureES.EventEnvelope, System.Threading.CancellationToken)", ex);
             }
+            try
+            {
+                await current.GlobalWhenAsync(envelope, _services.S0);
+            }
+            catch (Exception ex)
+            {
+                throw new global::PureES.RehydrationException(envelope, AggregateType, "PureES.Tests.Models.TestAggregate.GlobalWhenAsync(PureES.EventEnvelope, Microsoft.Extensions.Logging.ILoggerFactory)", ex);
+            }
+            return current;
         }
 
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
