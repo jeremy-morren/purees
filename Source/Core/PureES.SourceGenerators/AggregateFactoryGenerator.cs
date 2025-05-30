@@ -1,6 +1,5 @@
 ﻿using PureES.SourceGenerators.Framework;
 using PureES.SourceGenerators.Models;
-using EventHandler = PureES.SourceGenerators.Models.EventHandler;
 
 namespace PureES.SourceGenerators;
 
