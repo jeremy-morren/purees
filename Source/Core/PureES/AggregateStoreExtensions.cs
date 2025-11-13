@@ -4,18 +4,16 @@
 public static class AggregateStoreExtensions
 {
     /// <summary>
-    /// Rehydrates an aggregate from the stream using the given factory
+    /// Rehydrates an aggregate from the given stream
     /// </summary>
     public static async ValueTask<TAggregate> RehydrateAggregate<TAggregate>(
-        this IAggregateStore<TAggregate> store,
+        this IAggregateFactory<TAggregate> factory,
         IEventStoreStream stream,
-        IAggregateFactory<TAggregate> factory,
         CancellationToken cancellationToken)
         where TAggregate : notnull
     {
-        ArgumentNullException.ThrowIfNull(store);
-        ArgumentNullException.ThrowIfNull(stream);
         ArgumentNullException.ThrowIfNull(factory);
+        ArgumentNullException.ThrowIfNull(stream);
 
         await using var enumerator = stream.GetAsyncEnumerator(cancellationToken);
         if (!await enumerator.MoveNextAsync())

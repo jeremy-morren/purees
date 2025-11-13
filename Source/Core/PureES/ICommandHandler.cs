@@ -6,19 +6,15 @@
 /// <typeparam name="TCommand">Command type</typeparam>
 public interface ICommandHandler<in TCommand>
 {
-    /// <summary>
-    ///     Handles the given <c>Command</c>
-    /// </summary>
-    /// <returns>
-    ///     The <c>StreamPosition</c> of the added event(s)
-    ///     from <see cref="IEventStore" />
-    /// </returns>
+    /// <summary>Gets the stream id for the given <c>Command</c></summary>
+    string GetStreamId(TCommand command);
+
+    /// <summary>Handles the given <c>Command</c></summary>
+    /// <returns>The <c>StreamPosition</c> of the added event(s)from <see cref="IEventStore" /></returns>
     Task<uint> Handle(TCommand command, CancellationToken cancellationToken);
 }
 
-/// <summary>
-///     Handles the given <c>Command</c> and returns <typeparamref name="TResult"/>
-/// </summary>
+/// <summary>Handles the given <c>Command</c> and returns <typeparamref name="TResult"/></summary>
 /// <typeparam name="TCommand">Command type</typeparam>
 /// <typeparam name="TResult">Result type</typeparam>
 public interface ICommandHandler<in TCommand, TResult>

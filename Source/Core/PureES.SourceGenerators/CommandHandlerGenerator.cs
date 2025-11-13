@@ -39,12 +39,14 @@ internal class CommandHandlerGenerator
 
         WriteConstructor();
 
+        WriteGetStreamId();
+
         GeneratorHelpers.WriteGetElapsed(_w, false);
 
         _w.WriteLine();
         _w.WriteLine($"private static readonly global::{typeof(Type).FullName} AggregateType = typeof({_aggregate.Type.CSharpName});");
         _w.WriteLine($"private static readonly global::{typeof(Type).FullName} CommandType = typeof({_handler.Command.CSharpName});");
-        
+
         _w.WriteMethodAttributes();
         
         var returnType = _handler.ResultType != null ? _handler.ResultType.CSharpName : "uint";
@@ -159,7 +161,7 @@ internal class CommandHandlerGenerator
         {
             WriteValidate();
             
-            WriteGetStreamId();
+            WriteSetStreamId();
 
             if (_handler.IsUpdate)
             {
@@ -241,6 +243,20 @@ internal class CommandHandlerGenerator
         _w.WriteStatement("foreach (var v in this._syncValidators)", "v.Validate(command);");
         _w.WriteStatement("foreach (var v in this._asyncValidators)",
             "await v.Validate(command, cancellationToken);");
+    }
+
+    private void WriteGetStreamId()
+    {
+        _w.WriteMethodAttributes();
+        _w.WriteStatement($"public string GetStreamId({_handler.Command.CSharpName} command)", () =>
+        {
+            _w.WriteStatement("if (command == null)", "throw new ArgumentNullException(nameof(command));");
+
+            // If stream id was provided, then a constant, otherwise invoke service
+            _w.WriteLine(_handler.StreamId != null
+                ? $"return {_handler.StreamId.ToStringLiteral()};"
+                : "return this._getStreamId.GetStreamId(command);");
+        });
     }
 
     private void WriteInvoke()
@@ -333,7 +349,7 @@ internal class CommandHandlerGenerator
         });
     }
     
-    private void WriteGetStreamId()
+    private void WriteSetStreamId()
     {
         //If stream id was provided, then a constant
         //Otherwise invoke service

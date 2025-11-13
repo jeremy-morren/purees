@@ -65,6 +65,18 @@ namespace PureES.CommandHandlers
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        public string GetStreamId(int[] command)
+        {
+            if (command == null)
+            {
+                throw new ArgumentNullException(nameof(command));
+            }
+            return this._getStreamId.GetStreamId(command);
+        }
+
+        [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
+        [global::System.Diagnostics.DebuggerStepThroughAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Runtime.CompilerServices.MethodImplAttribute(global::System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private static double GetElapsed(long start)
         {
