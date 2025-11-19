@@ -891,15 +891,25 @@ public abstract class EventStoreTestsBase
     {
         source = source.ToList();
         var other = await events.ToListAsync();
-        
-        other.Select(e => ((Event)e.Event).Id).Should().BeEquivalentTo(
-            source.Select(e => ((Event)e.Event).Id));
+
+        other.Select(e => Props(e.Event, e.Metadata))
+            .Should().BeEquivalentTo(
+                source.Select(e => Props(e.Event, e.Metadata)),
+                o => o.WithStrictOrdering());
         
         other.Should().AllSatisfy(o =>
         {
             o.Timestamp.Kind.ShouldBe(DateTimeKind.Utc);
             o.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromMinutes(1));
         });
+
+        return;
+
+        object Props(object @event, object? metadata) => new
+        {
+            EventId = @event.ShouldBeOfType<Event>().Id,
+            Metadata = metadata != null
+        };
     }
 
     private static uint RandVersion(int? min = null) => (uint) Random.Shared.Next(min + 1 ?? 0, int.MaxValue - 1);

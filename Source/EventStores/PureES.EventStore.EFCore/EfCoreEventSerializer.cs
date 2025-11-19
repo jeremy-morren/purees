@@ -39,15 +39,15 @@ internal class EfCoreEventSerializer
 
     public object DeserializeEvent(string streamId, int streamPos, string eventType, string json)
     {
-        var type = _map.GetCLRType(eventType);
         try
         {
+            var type = _map.GetCLRType(eventType);
             return JsonSerializer.Deserialize(json, type, _jsonOptions)
                    ?? throw new Exception($"Event {streamId}/{streamPos} data is null");
         }
-        catch (JsonException e)
+        catch (Exception ex)
         {
-            throw new Exception($"Failed to deserialize event {streamId}/{streamPos} to {type}", e);
+            throw new Exception($"Failed to deserialize event {streamId}/{streamPos}", ex);
         }
     }
     
@@ -59,9 +59,9 @@ internal class EfCoreEventSerializer
         {
             return JsonSerializer.Deserialize(json, _metadataType, _jsonOptions);
         }
-        catch (JsonException e)
+        catch (Exception ex)
         {
-            throw new Exception($"Failed to deserialize metadata for event {streamId}/{streamPos} to {_metadataType}", e);
+            throw new Exception($"Failed to deserialize metadata for event {streamId}/{streamPos} to {_metadataType}", ex);
         }
     }
 
@@ -72,15 +72,15 @@ internal class EfCoreEventSerializer
 
     public object DeserializeEvent(string streamId, int streamPos, string eventType, JsonElement json)
     {
-        var type = _map.GetCLRType(eventType);
         try
         {
-            return json.Deserialize(type, _jsonOptions)
+            var clrType = _map.GetCLRType(eventType);
+            return json.Deserialize(clrType, _jsonOptions)
                    ?? throw new Exception($"Event {streamId}/{streamPos} data is null");
         }
-        catch (JsonException e)
+        catch (Exception ex)
         {
-            throw new Exception($"Failed to deserialize event {streamId}/{streamPos} to {type}", e);
+            throw new Exception($"Failed to deserialize event {streamId}/{streamPos}", ex);
         }
     }
 
@@ -92,9 +92,9 @@ internal class EfCoreEventSerializer
         {
             return json.Value.Deserialize(_metadataType, _jsonOptions);
         }
-        catch (JsonException e)
+        catch (Exception ex)
         {
-            throw new Exception($"Failed to deserialize metadata for event {streamId}/{streamPos} to {_metadataType}", e);
+            throw new Exception($"Failed to deserialize metadata for event {streamId}/{streamPos} to {_metadataType}", ex);
         }
     }
 

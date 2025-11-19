@@ -19,11 +19,7 @@ public class EventStreamBlockTests
 
             var envelopes = Enumerable.Range(0, count)
                 .SelectMany(stream => Enumerable.Range(0, streamSize)
-                    .Select(i => new EventEnvelope(stream.ToString(),
-                        (uint)i,
-                        DateTime.UtcNow,
-                        new object(),
-                        null)))
+                    .Select(i => NewEnvelope(stream.ToString(), i)))
                 .ToList();
 
             //Completion tasks for each envelope
@@ -126,4 +122,11 @@ public class EventStreamBlockTests
             yield return env;
         }
     }
+
+    private static EventEnvelope NewEnvelope(string streamId, int position) => new(
+        streamId,
+        (uint)position,
+        DateTime.UtcNow,
+        new object(),
+        null);
 }

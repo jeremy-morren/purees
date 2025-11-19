@@ -5,20 +5,12 @@ namespace PureES;
 /// <inheritdoc />
 public class EventEnvelope : IEventEnvelope
 {
-    public EventEnvelope(EventEnvelope other)
-    {
-        Event = other.Event;
-        Metadata = other.Metadata;
-        StreamId = other.StreamId;
-        StreamPosition = other.StreamPosition;
-        Timestamp = other.Timestamp;
-    }
-
-    public EventEnvelope(string streamId, 
+    public EventEnvelope(
+        string streamId,
         uint streamPosition, 
         DateTime timestamp,
-        object @event,
-        object? metadata)
+        object _event,
+        object? _metadata)
     {
         if (timestamp.Kind != DateTimeKind.Utc)
             throw new ArgumentException("Timestamp must be in UTC", nameof(timestamp));
@@ -26,8 +18,17 @@ public class EventEnvelope : IEventEnvelope
         StreamId = streamId ?? throw new ArgumentNullException(nameof(streamId));
         StreamPosition = streamPosition;
         Timestamp = timestamp;
-        Event = @event ?? throw new ArgumentNullException(nameof(@event));
-        Metadata = metadata;
+        Event = _event ?? throw new ArgumentNullException(nameof(_event));
+        Metadata = _metadata;
+    }
+
+    public EventEnvelope(IEventEnvelope other)
+    {
+        StreamId = other.StreamId;
+        StreamPosition = other.StreamPosition;
+        Timestamp = other.Timestamp;
+        Event = other.Event;
+        Metadata = other.Metadata;
     }
 
     /// <inheritdoc />
@@ -62,6 +63,18 @@ public class EventEnvelope : IEventEnvelope
         }
         return new EventEnvelope<TEvent, TMetadata>(envelope);
     }
+
+    /// <summary>
+    /// Creates a new <see cref="EventEnvelope"/> with the specified event
+    /// </summary>
+    public static EventEnvelope WithEvent(IEventEnvelope source, object @event) =>
+        new(
+            source.StreamId,
+            source.StreamPosition,
+            source.Timestamp,
+            @event,
+            source.Metadata
+        );
 
     public override string? ToString() => new
     {
@@ -122,7 +135,6 @@ public class EventEnvelope : IEventEnvelope
 public class EventEnvelope<TEvent, TMetadata> : IEventEnvelope<TEvent, TMetadata>, IEquatable<IEventEnvelope<TEvent, TMetadata>>
     where TEvent : notnull
 {
-
     public EventEnvelope(
         string streamId,
         uint streamPosition,

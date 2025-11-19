@@ -44,7 +44,8 @@ internal class EfCoreEventStoreSubscriptionToAll : IEfCoreEventStoreSubscription
     }
 
     private EventEnvelope DeserializeEvent(EventStoreEvent e) =>
-        new(e.StreamId,
+        new(
+            e.StreamId,
             (uint)e.StreamPos,
             e.Timestamp.UtcDateTime,
             _serializer.DeserializeEvent(e.StreamId, e.StreamPos, e.EventType, e.Event),

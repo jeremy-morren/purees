@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Linq.Async;
 using System.Runtime.CompilerServices;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using PureES.EventStore.EFCore.Models;
@@ -67,11 +68,27 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore where TContext : D
             var eventType = reader.GetString(3);
             var @event = reader.GetString(4);
             var metadata = reader.IsDBNull(5) ? null : reader.GetString(5);
-            yield return new EventEnvelope(streamId,
+
+            yield return CreateEnvelope(streamId, streamPos, timestamp, eventType, @event, metadata, _serializer);
+        }
+
+        yield break;
+
+        static EventEnvelope CreateEnvelope(
+            string streamId,
+            int streamPos,
+            DateTime timestamp,
+            string eventType,
+            string @event,
+            string? metadata,
+            EfCoreEventSerializer serializer)
+        {
+            return new EventEnvelope(
+                streamId,
                 (uint)streamPos,
                 timestamp,
-                _serializer.DeserializeEvent(streamId, streamPos, eventType, @event),
-                _serializer.DeserializeMetadata(streamId, streamPos, metadata));
+                serializer.DeserializeEvent(streamId, streamPos, eventType, @event),
+                serializer.DeserializeMetadata(streamId, streamPos, metadata));
         }
     }
     

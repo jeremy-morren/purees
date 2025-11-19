@@ -20,12 +20,13 @@ public class EventEnvelopeTests
     [Fact]
     public void NonUtcTimestampShouldThrow()
     {
-        Assert.Throws<ArgumentException>(() => new EventEnvelope(
+        var ex = Assert.Throws<ArgumentException>(() => new EventEnvelope(
             Guid.NewGuid().ToString(),
             Rand.Nextuint(),
             DateTime.Now,
-            Events.Created.New(),
+            Object,
             Object));
+        ex.ParamName.ShouldBe("timestamp");
     }
 
     [Fact]
@@ -41,14 +42,14 @@ public class EventEnvelopeTests
         casted.Cast<EventDerived, object>().ShouldNotBeNull();
     }
 
-    private static EventEnvelope NewEnvelope() => new (
+    private static EventEnvelope NewEnvelope() => new(
         Guid.NewGuid().ToString(),
         Rand.Nextuint(),
         DateTime.UtcNow,
         Events.Created.New(),
         Object);
 
-    private static readonly object Object = new();
+    private static readonly object Object = new ();
 
     private class EventBase {}
 
