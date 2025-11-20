@@ -23,11 +23,16 @@ public class UncommittedEventsList : IReadOnlyList<UncommittedEvent>
     /// </summary>
     public IReadOnlyList<UncommittedEvent> Events { get; }
 
-    public UncommittedEventsList(string streamId, uint? expectedRevision, IEnumerable<object> events)
+    public UncommittedEventsList(string streamId, uint? expectedRevision, IEnumerable<UncommittedEvent> events)
     {
         StreamId = streamId;
         ExpectedRevision = expectedRevision;
-        Events = events.Select(e => new UncommittedEvent(e)).ToList();
+        Events = events.ToList();
+    }
+
+    public UncommittedEventsList(string streamId, uint? expectedRevision, IEnumerable<object> events)
+        : this(streamId, expectedRevision, events.Select(e => new UncommittedEvent(e)))
+    {
     }
 
     #region Implementation of IReadOnlyList<UncommittedEvent>

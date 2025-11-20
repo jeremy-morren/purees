@@ -1,15 +1,20 @@
 ﻿namespace PureES;
 
 /// <summary>
-///     Represents an event that has not been persisted to <see cref="IEventStore" />
+/// Represents an event that has not been persisted to <see cref="IEventStore" />
 /// </summary>
 [PublicAPI]
-public sealed record UncommittedEvent(object Event)
+public class UncommittedEvent
 {
+    public UncommittedEvent(object @event)
+    {
+        Event = @event ?? throw new ArgumentNullException(nameof(@event));
+    }
+
     /// <summary>
     /// The event belonging to this record
     /// </summary>
-    public object Event { get; init; } = Event ?? throw new ArgumentNullException(nameof(Event));
+    public object Event { get; }
 
     /// <summary>
     /// The event metadata belonging to this record
