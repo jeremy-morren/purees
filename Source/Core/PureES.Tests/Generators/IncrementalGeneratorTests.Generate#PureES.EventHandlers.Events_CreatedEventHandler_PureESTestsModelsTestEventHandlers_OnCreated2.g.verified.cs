@@ -97,7 +97,7 @@ namespace PureES.EventHandlers
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        public Task Handle(global::PureES.EventEnvelope @event)
+        public global::System.Threading.Tasks.Task Handle(global::PureES.EventEnvelope @event)
         {
 #if NET6_0_OR_GREATER
             global::System.ArgumentNullException.ThrowIfNull(@event, nameof(@event));
@@ -146,9 +146,19 @@ namespace PureES.EventHandlers
                             @event.Event.GetType(),
                             "OnCreated2",
                             ParentType);
-                        this._parent.OnCreated2(
-                            new global::PureES.EventEnvelope<global::PureES.Tests.Models.Events.Created, object>(@event),
-                            this._service0);
+                        if (this._options.RetryPolicy != null)
+                        {
+                            this._options.RetryPolicy.Execute(() => 
+                                this._parent.OnCreated2(
+                                    new global::PureES.EventEnvelope<global::PureES.Tests.Models.Events.Created, object>(@event),
+                                    this._service0));
+                        }
+                        else
+                        {
+                            this._parent.OnCreated2(
+                                new global::PureES.EventEnvelope<global::PureES.Tests.Models.Events.Created, object>(@event),
+                                this._service0);
+                        }
                         var elapsed = GetElapsedTimespan(start);
                         this._logger.Log(
                             logLevel: this._options.GetLogLevel(@event, elapsed),
@@ -160,11 +170,12 @@ namespace PureES.EventHandlers
                             @event.Event.GetType(),
                             "OnCreated2",
                             ParentType);
+                        return global::System.Threading.Tasks.Task.CompletedTask;
                     }
                     catch (global::System.Exception ex)
                     {
                         this._logger.Log(
-                            logLevel: _options.PropagateExceptions ? LogLevel.Information : LogLevel.Error,
+                            logLevel: this._options.PropagateExceptions ? LogLevel.Information : LogLevel.Error,
                             exception: ex,
                             message: "Error handling event {StreamId}/{StreamPosition}. Elapsed: {Elapsed:0.0000}ms. Event Type: {@EventType}. Event handler {EventHandler} on {@EventHandlerParent}",
                             @event.StreamId,
@@ -179,12 +190,11 @@ namespace PureES.EventHandlers
                             activity.SetTag("error.type", ex.GetType().FullName);
                             activity.AddException(ex);
                         }
-                        if (_options.PropagateExceptions)
+                        if (this._options.PropagateExceptions)
                         {
                             throw;
                         }
                     }
-                    return Task.CompletedTask;
                 }
             }
         }

@@ -43,7 +43,7 @@ namespace PureES.EventHandlers
         }
         private static readonly global::System.Type ParentType = typeof(global::PureES.Tests.Models.TestEventHandlers);
         private static readonly global::System.Type EventType = typeof(global::PureES.Tests.Models.Events.DerivedUpdated);
-        private static readonly global::System.Reflection.MethodInfo _method = ParentType.GetMethod(name: "OnDerivedUpdated", bindingAttr: global::System.Reflection.BindingFlags.Public | global::System.Reflection.BindingFlags.Instance, types: new [] { typeof(global::PureES.Tests.Models.EventEnvelope<global::PureES.Tests.Models.Events.DerivedUpdated>) });
+        private static readonly global::System.Reflection.MethodInfo _method = ParentType.GetMethod(name: "OnDerivedUpdated", bindingAttr: global::System.Reflection.BindingFlags.Public | global::System.Reflection.BindingFlags.Instance, types: new [] { typeof(global::PureES.Tests.Models.EventEnvelope<global::PureES.Tests.Models.Events.DerivedUpdated>), typeof(global::System.Threading.CancellationToken) });
 
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
         public global::System.Reflection.MethodInfo Method
@@ -94,7 +94,7 @@ namespace PureES.EventHandlers
         [global::System.ComponentModel.EditorBrowsableAttribute(global::System.ComponentModel.EditorBrowsableState.Never)]
         [global::System.Diagnostics.DebuggerStepThroughAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        public Task Handle(global::PureES.EventEnvelope @event)
+        public global::System.Threading.Tasks.Task Handle(global::PureES.EventEnvelope @event)
         {
 #if NET6_0_OR_GREATER
             global::System.ArgumentNullException.ThrowIfNull(@event, nameof(@event));
@@ -143,8 +143,19 @@ namespace PureES.EventHandlers
                             @event.Event.GetType(),
                             "OnDerivedUpdated",
                             ParentType);
-                        this._parent.OnDerivedUpdated(
-                            new global::PureES.Tests.Models.EventEnvelope<global::PureES.Tests.Models.Events.DerivedUpdated>(@event));
+                        if (this._options.RetryPolicy != null)
+                        {
+                            this._options.RetryPolicy.Execute(() => 
+                                this._parent.OnDerivedUpdated(
+                                    new global::PureES.Tests.Models.EventEnvelope<global::PureES.Tests.Models.Events.DerivedUpdated>(@event),
+                                    ct));
+                        }
+                        else
+                        {
+                            this._parent.OnDerivedUpdated(
+                                new global::PureES.Tests.Models.EventEnvelope<global::PureES.Tests.Models.Events.DerivedUpdated>(@event),
+                                ct);
+                        }
                         var elapsed = GetElapsedTimespan(start);
                         this._logger.Log(
                             logLevel: this._options.GetLogLevel(@event, elapsed),
@@ -156,11 +167,12 @@ namespace PureES.EventHandlers
                             @event.Event.GetType(),
                             "OnDerivedUpdated",
                             ParentType);
+                        return global::System.Threading.Tasks.Task.CompletedTask;
                     }
                     catch (global::System.Exception ex)
                     {
                         this._logger.Log(
-                            logLevel: _options.PropagateExceptions ? LogLevel.Information : LogLevel.Error,
+                            logLevel: this._options.PropagateExceptions ? LogLevel.Information : LogLevel.Error,
                             exception: ex,
                             message: "Error handling event {StreamId}/{StreamPosition}. Elapsed: {Elapsed:0.0000}ms. Event Type: {@EventType}. Event handler {EventHandler} on {@EventHandlerParent}",
                             @event.StreamId,
@@ -175,12 +187,11 @@ namespace PureES.EventHandlers
                             activity.SetTag("error.type", ex.GetType().FullName);
                             activity.AddException(ex);
                         }
-                        if (_options.PropagateExceptions)
+                        if (this._options.PropagateExceptions)
                         {
                             throw;
                         }
                     }
-                    return Task.CompletedTask;
                 }
             }
         }

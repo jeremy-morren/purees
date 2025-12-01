@@ -27,7 +27,7 @@ public class TestEventHandlers
     }
     
     [EventHandlerPriority(20)]
-    public void OnDerivedUpdated(EventEnvelope<Events.DerivedUpdated> envelope)
+    public void OnDerivedUpdated(EventEnvelope<Events.DerivedUpdated> envelope, CancellationToken ct)
     {
         envelope.ShouldNotBeNull();
         _services.ShouldNotBeNull();

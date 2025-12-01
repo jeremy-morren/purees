@@ -1,5 +1,4 @@
-﻿using System.Runtime.Serialization;
-using System.Text.Json;
+﻿using System.Text.Json;
 using Microsoft.Extensions.Options;
 
 namespace PureES.EventStore.InMemory;

@@ -1,4 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
+using Polly;
+using Polly.Retry;
 
 namespace PureES;
 
@@ -32,6 +34,16 @@ public class PureESEventHandlerOptions
     }
 
     /// <summary>
+    /// Retry policy to use for synchronous event handlers
+    /// </summary>
+    public IRetryPolicy? RetryPolicy { get; set; }
+
+    /// <summary>
+    /// Retry policy to use for asynchronous event handlers
+    /// </summary>
+    public IAsyncPolicy? AsyncRetryPolicy { get; set; }
+
+    /// <summary>
     /// A delegate that takes the event envelope and the elapsed milliseconds
     /// and returns the desired log level
     /// </summary>
@@ -52,5 +64,4 @@ public class PureESEventHandlerOptions
             throw new Exception($"{nameof(Timeout)} must be greater than 0");
         return true;
     }
-
 }

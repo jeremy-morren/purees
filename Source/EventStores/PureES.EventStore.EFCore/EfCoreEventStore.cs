@@ -2,7 +2,6 @@
 using System.Diagnostics;
 using System.Linq.Async;
 using System.Runtime.CompilerServices;
-using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using PureES.EventStore.EFCore.Models;

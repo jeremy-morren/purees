@@ -40,10 +40,10 @@ internal class EventHandlerGenerator
     
                 GeneratorHelpers.WriteGetElapsed(_w, true);
                 
-                WriteInvoke();
+                WriteHandle();
             });
         });
-        
+
         return _w.Value;
     }
 
@@ -51,15 +51,15 @@ internal class EventHandlerGenerator
     {
         _w.WriteLine($"private readonly {LoggerType} _logger;");
         _w.WriteLine($"private readonly global::{PureESSymbols.EventHandlerOptions} _options;");
-    
+
         for (var i = 0; i < _handler.Services.Length; i++)
             _w.WriteLine($"private readonly {_handler.Services[i].CSharpName} _service{i};");
-        
+
         _w.WriteLine($"private readonly {_handler.Parent.CSharpName} _parent;");
-    
+
         _w.WriteMethodAttributes();
         _w.Write($"public {GetClassName(_handler)}(");
-        
+
         _w.WriteParameters(
             _handler.Services.Select((s,i) => $"{s.CSharpName} service{i}"),
             [
@@ -69,7 +69,7 @@ internal class EventHandlerGenerator
             ]);
         _w.WriteRawLine(')');
         _w.PushBrace();
-    
+
         _w.WriteLine("this._options = options?.Value.EventHandlers ?? throw new ArgumentNullException(nameof(options));");
         _w.WriteLine($"this._logger = logger ?? {NullLoggerInstance};");
 
@@ -77,7 +77,7 @@ internal class EventHandlerGenerator
             _w.WriteLine($"this._service{i} = service{i} ?? throw new ArgumentNullException(nameof(service{i}));");
 
         _w.WriteLine("this._parent = parent ?? throw new ArgumentNullException(nameof(parent));");
-        
+
         _w.PopBrace();
     }
 
@@ -87,19 +87,19 @@ internal class EventHandlerGenerator
 
         var type = _handler.EventType == null ? "null" : $"typeof({_handler.EventType.CSharpName})";
         _w.WriteLine($"private static readonly global::{typeof(Type).FullName} EventType = {type};");
-        
+
         var methodInfo = $"global::{typeof(MethodInfo).FullName}";
-        
+
         var flags = $"global::{typeof(BindingFlags).FullName}";
         flags = $"{flags}.{nameof(BindingFlags.Public)} | {flags}.";
         flags += _handler.Method.IsStatic ? $"{nameof(BindingFlags.Static)}" : $"{nameof(BindingFlags.Instance)}";
-        
+
         //Get method include parameter types, to handle methods with multiple overloads
         var parameters = _handler.Method.Parameters.Select(p => $"typeof({p.Type.CSharpName})");
 
         _w.WriteLine(
             $"private static readonly {methodInfo} _method = ParentType.GetMethod(name: \"{_handler.Method.Name}\", bindingAttr: {flags}, types: new [] {{ {string.Join(", ", parameters)} }});");
-        
+
         _w.WriteLine();
 
         _w.WriteBrowsableState();
@@ -110,7 +110,7 @@ internal class EventHandlerGenerator
         });
 
         _w.WriteLine();
-        
+
         _w.WriteBrowsableState();
         _w.WriteStatement("public int Priority", () =>
         {
@@ -118,85 +118,98 @@ internal class EventHandlerGenerator
             _w.WriteLine($"get => {_handler.Priority};");
         });
     }
-    
-    private void WriteInvoke()
+
+    private void WriteHandle()
     {
+        var taskName = $"global::{typeof(Task).FullName}";
+
         _w.WriteMethodAttributes();
 
         var signature = _handler.IsAsync ? "async " : null;
-        
-        _w.WriteLine($"public {signature}Task Handle(global::{PureESSymbols.EventEnvelope} @event)");
+        _w.WriteLine($"public {signature}{taskName} Handle(global::{PureESSymbols.EventEnvelope} @event)");
+
         _w.PushBrace();
+
         _w.CheckNotNull("@event");
-        
+
         if (_handler.EventType != null)
             //Validate correct event input
             _w.WriteStatement($"if (@event.Event is not {_handler.EventType.CSharpName})",
                 "throw new ArgumentOutOfRangeException($\"Unknown event type {@event.Event.GetType()}\", nameof(@event));");
-        
-        StartActivity();
-        
-        BeginLogScope();
-        
-        WriteHandle();
-        
-        if (!_handler.IsAsync)
-            _w.WriteLine($"return Task.{nameof(Task.CompletedTask)};");
-        
-        _w.PopBrace(); //Log scope
 
-        _w.PopBrace(); //Activity
-        
-        _w.PopBrace(); //Method
-    }
-    
-    private void WriteHandle()
-    {
+        StartActivity();
+
+        BeginLogScope();
+
         const string getEventType = "@event.Event.GetType()";
         _w.WriteLine("var ct = new CancellationTokenSource(_options.Timeout).Token;");
 
         var method = _handler.Method.Name.ToStringLiteral();
-        
+
         _w.WriteLine($"var start = {GeneratorHelpers.GetTimestamp};");
-        
+
         _w.WriteStatement("try", () =>
         {
-            _w.WriteLogMessage("Debug", 
+            _w.WriteLogMessage("Debug",
                 "null",
                 "Handling event {StreamId}/{StreamPosition}. Event Type: {@EventType}. Event handler {EventHandler} on {@EventHandlerParent}",
                 "@event.StreamId", "@event.StreamPosition", getEventType, method, "ParentType");
-            
-            var parent = _handler.Method.IsStatic ? _handler.Parent.CSharpName : "this._parent";
-            
-            _w.Write($"{(_handler.IsAsync ? "await " : null)}{parent}.{_handler.Method.Name}(");
-            _w.WriteParameters(_handler.Method.Parameters.Select(p =>
+
+            if (_handler.IsAsync)
             {
-                if (p.HasEventAttribute())
-                    return $"({_handler.EventType!.CSharpName})@event.Event";
-                if (p.Type.IsGenericEventEnvelope())
-                    return $"new {p.Type.CSharpName}(@event)";
-                if (p.Type.IsNonGenericEventEnvelope())
-                    return "@event";
-                if (p.HasFromServicesAttribute())
-                    return $"this._service{_handler.Services.GetIndex(p.Type)}";
-                if (p.Type.IsCancellationToken())
-                    return "ct";
-                throw new NotImplementedException("Unknown parameter");
-            }));
-            _w.WriteRawLine(");");
+                const string asyncRetryPolicy = "this._options.AsyncRetryPolicy";
+                _w.WriteStatement($"if ({asyncRetryPolicy} != null)",
+                    () =>
+                    {
+                        _w.WriteLine($"await {asyncRetryPolicy}.ExecuteAsync(() => ");
+                        _w.Push();
+                        WriteCallHandler();
+                        _w.WriteRawLine(");");
+                        _w.Pop();
+                    });
+                _w.WriteStatement("else",
+                    () =>
+                    {
+                        WriteCallHandler("await ");
+                        _w.WriteRawLine(';');
+                    });
+            }
+            else
+            {
+                const string retryPolicy = "this._options.RetryPolicy";
+                _w.WriteStatement($"if ({retryPolicy} != null)",
+                    () =>
+                    {
+                        _w.WriteLine($"{retryPolicy}.Execute(() => ");
+                        _w.Push();
+                        WriteCallHandler();
+                        _w.WriteRawLine(");");
+                        _w.Pop();
+                    });
+                _w.WriteStatement("else",
+                    () =>
+                    {
+                        WriteCallHandler();
+                        _w.WriteRawLine(';');
+                    });
+            }
+
             _w.WriteLine("var elapsed = GetElapsedTimespan(start);");
-            _w.WriteLogMessage("this._options.GetLogLevel(@event, elapsed)", 
+            _w.WriteLogMessage("this._options.GetLogLevel(@event, elapsed)",
                 "null",
                 "Handled event {StreamId}/{StreamPosition}. Elapsed: {Elapsed:0.0000}ms. Event Type: {@EventType}. Event handler {EventHandler} on {@EventHandlerParent}",
-                "@event.StreamId", 
+                "@event.StreamId",
                 "@event.StreamPosition",
                 $"elapsed.{nameof(TimeSpan.TotalMilliseconds)}",
                 getEventType,
                 method,
                 "ParentType");
+
+            if (!_handler.IsAsync)
+                _w.WriteLine($"return {taskName}.CompletedTask;");
         });
 
-        const string propagate = "_options.PropagateExceptions";
+        const string propagate = "this._options.PropagateExceptions";
         const string logErrorLevel = $"{propagate} ? LogLevel.Information : LogLevel.Error";
 
         _w.WriteStatement("catch (global::System.Exception ex)", () =>
@@ -213,6 +226,33 @@ internal class EventHandlerGenerator
             ActivityHelpers.SetActivityError(_w, "ex");
             _w.WriteStatement($"if ({propagate})", "throw;");
         });
+
+        _w.PopBrace(); //Log scope
+
+        _w.PopBrace(); //Activity
+
+        _w.PopBrace(); //Method
+    }
+
+    private void WriteCallHandler(string? signature = null)
+    {
+        var parent = _handler.Method.IsStatic ? _handler.Parent.CSharpName : "this._parent";
+        _w.Write($"{signature}{parent}.{_handler.Method.Name}(");
+        _w.WriteParameters(_handler.Method.Parameters.Select(p =>
+        {
+            if (p.HasEventAttribute())
+                return $"({_handler.EventType!.CSharpName})@event.Event";
+            if (p.Type.IsGenericEventEnvelope())
+                return $"new {p.Type.CSharpName}(@event)";
+            if (p.Type.IsNonGenericEventEnvelope())
+                return "@event";
+            if (p.HasFromServicesAttribute())
+                return $"this._service{_handler.Services.GetIndex(p.Type)}";
+            if (p.Type.IsCancellationToken())
+                return "ct";
+            throw new NotImplementedException("Unknown parameter");
+        }));
+        _w.WriteRaw(")");
     }
 
     private void StartActivity()
