@@ -26,18 +26,17 @@ internal class EventHandlerCollection<TEvent> : IEventHandlerCollection
 
     #region Factory
 
-
-    private static readonly List<Type> HandlerTypes = GetTypeHierarchy().Concat(GetInterfaces()).ToList();
-
-    [SuppressMessage("ReSharper", "StaticMemberInGenericType")] 
+    [SuppressMessage("ReSharper", "StaticMemberInGenericType")]
     private static readonly Func<IServiceProvider, IEnumerable<IEventHandler>?[]> HandlerFactory = CreateHandlerFactory();
 
     private static Func<IServiceProvider, IEnumerable<IEventHandler>?[]> CreateHandlerFactory()
     {
+        var handlerTypes = GetTypeHierarchy().Concat(GetInterfaces());
+
         var sp = Expression.Parameter(typeof(IServiceProvider), "sp");
-        
+
         //Get event handlers for the type, and all its base types
-        var handlers = HandlerTypes
+        var handlers = handlerTypes
             .Select(t =>
             {
                 var enumerable = typeof(IEnumerable<>).MakeGenericType(typeof(IEventHandler<>).MakeGenericType(t));

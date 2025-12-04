@@ -195,7 +195,8 @@ internal class EventHandlerGenerator
             }
 
             _w.WriteLine("var elapsed = GetElapsedTimespan(start);");
-            _w.WriteLogMessage("this._options.GetLogLevel(@event, elapsed)",
+            _w.WriteLogMessage(
+                "this._options.GetLogLevel(@event, elapsed)",
                 "null",
                 "Handled event {StreamId}/{StreamPosition}. Elapsed: {Elapsed:0.0000}ms. Event Type: {@EventType}. Event handler {EventHandler} on {@EventHandlerParent}",
                 "@event.StreamId",
@@ -287,22 +288,12 @@ internal class EventHandlerGenerator
     public static string GetInterface(EventHandler handler)
     {
         const string i = "global::PureES.IEventHandler";
+        //No event type, catch all handler
         if (handler.EventType == null)
-            //No event type, catch all handler
             return i;
 
+        // Specific event type
         return $"{i}<{handler.EventType.FullName}>";
-    }
-    
-    private static IEnumerable<IType> GetBaseTypes(EventHandler handler)
-    {
-        var type = handler.EventType?.BaseType;
-        //NB: We don't handle object, instead users should handle EventEnvelope if they want to handle all events
-        while (type != null && type.CSharpName != "object")
-        {
-            yield return type;
-            type = type.BaseType;
-        }
     }
     
     public static string GetClassName(EventHandler handler)

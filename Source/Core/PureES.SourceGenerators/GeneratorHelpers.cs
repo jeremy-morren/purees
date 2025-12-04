@@ -24,7 +24,6 @@ internal static class GeneratorHelpers
             writer.WriteRawLine("#else");
             writer.WriteLine($"return ({GetTimestamp} - start) * 1000 / (double){frequency};");
             writer.WriteRawLine("#endif");
-            
         });
 
         if (!includeTimespan) return;
