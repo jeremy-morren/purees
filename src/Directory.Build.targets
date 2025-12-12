@@ -1,0 +1,74 @@
+<Project>
+<!--    <Target Name="SetSourceRevisionId" BeforeTargets="InitializeSourceControlInformation">-->
+<!--        <Exec Command="git -C &quot;$(MSBuildProjectDirectory)&quot; describe &#45;&#45;long &#45;&#45;always &#45;&#45;exclude=* &#45;&#45;abbrev=10" -->
+<!--              ConsoleToMSBuild="True" -->
+<!--              IgnoreExitCode="false"-->
+<!--              EchoOff="true"-->
+<!--              LogStandardErrorAsError="true"-->
+<!--              StandardOutputImportance="low" >-->
+<!--            <Output PropertyName="SourceRevisionId" TaskParameter="ConsoleOutput"/>-->
+<!--        </Exec>-->
+<!--    </Target>-->
+
+    <ItemGroup>
+        <PackageReference Update="JetBrains.Annotations" Version="2025.2.4" />
+        <PackageReference Update="System.Linq.AsyncEnumerable" Version="10.0.1" />
+    </ItemGroup>
+
+    <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
+        <PackageReference Update="Microsoft.Extensions.Caching.Abstractions" Version="8.0.0" />
+        <PackageReference Update="Microsoft.Extensions.Logging.Abstractions" Version="8.0.1" />
+        <PackageReference Update="Microsoft.Extensions.Logging" Version="8.0.1" />
+        <PackageReference Update="Microsoft.Extensions.Options" Version="8.0.1" />
+        <PackageReference Update="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" />
+        <PackageReference Update="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
+        <PackageReference Update="Microsoft.Extensions.Hosting.Abstractions" Version="8.0.1" />
+        <PackageReference Update="Microsoft.Extensions.Http" Version="8.0.1" />
+        
+        <PackageReference Update="Microsoft.Extensions.Configuration.Binder" Version="8.0.0" />
+
+        <PackageReference Update="Microsoft.EntityFrameworkCore" Version="8.0.10"  />
+        <PackageReference Update="Microsoft.EntityFrameworkCore.Relational" Version="8.0.10"  />
+
+        <PackageReference Update="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.10" />
+        <PackageReference Update="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" />
+    </ItemGroup>
+
+    <ItemGroup Condition="'$(TargetFramework)' == 'net9.0'">
+        <PackageReference Update="Microsoft.Extensions.Caching.Abstractions" Version="9.0.0" />
+        <PackageReference Update="Microsoft.Extensions.Logging.Abstractions" Version="9.0.0" />
+        <PackageReference Update="Microsoft.Extensions.Logging" Version="9.0.0" />
+        <PackageReference Update="Microsoft.Extensions.Options" Version="9.0.0" />
+        <PackageReference Update="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.0" />
+        <PackageReference Update="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
+        <PackageReference Update="Microsoft.Extensions.Hosting.Abstractions" Version="9.0.0" />
+        <PackageReference Update="Microsoft.Extensions.Http" Version="9.0.0" />
+
+        <PackageReference Update="Microsoft.Extensions.Configuration.Binder" Version="9.0.0" />
+
+        <PackageReference Update="Microsoft.EntityFrameworkCore" Version="9.0.0"  />
+        <PackageReference Update="Microsoft.EntityFrameworkCore.Relational" Version="9.0.0"  />
+
+        <PackageReference Update="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.0" />
+        <PackageReference Update="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.0" />
+    </ItemGroup>
+
+    <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+        <PackageReference Update="Microsoft.Extensions.Caching.Abstractions" Version="10.0.0" />
+        <PackageReference Update="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
+        <PackageReference Update="Microsoft.Extensions.Logging" Version="10.0.0" />
+        <PackageReference Update="Microsoft.Extensions.Options" Version="10.0.0" />
+        <PackageReference Update="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
+        <PackageReference Update="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
+        <PackageReference Update="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.0" />
+        <PackageReference Update="Microsoft.Extensions.Http" Version="10.0.0" />
+
+        <PackageReference Update="Microsoft.Extensions.Configuration.Binder" Version="10.0.0" />
+
+        <PackageReference Update="Microsoft.EntityFrameworkCore" Version="10.0.0"  />
+        <PackageReference Update="Microsoft.EntityFrameworkCore.Relational" Version="10.0.0"  />
+
+        <PackageReference Update="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.0" />
+        <PackageReference Update="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
+    </ItemGroup>
+</Project>
