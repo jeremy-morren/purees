@@ -17,7 +17,7 @@ internal class EfCoreEventSerializer
         _map = map;
     }
     
-    public EventStoreEvent Serialize(string streamId, int streamPos, UncommittedEvent @event)
+    public EventStoreEvent Serialize(string streamId, int streamPos, int? transactionIndex, UncommittedEvent @event)
     {
         ArgumentNullException.ThrowIfNull(streamId);
         ArgumentOutOfRangeException.ThrowIfNegative(streamPos);
@@ -26,6 +26,7 @@ internal class EfCoreEventSerializer
         {
             StreamId = streamId,
             StreamPos = streamPos,
+            TransactionIndex = transactionIndex,
             // Clone the list to avoid issues with EF Core
             EventTypes = EventType.New(@event.Event.GetType(), _map),
             Event = JsonSerializer.SerializeToElement(@event.Event, _jsonOptions),

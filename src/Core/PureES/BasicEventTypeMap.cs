@@ -26,7 +26,12 @@ public class BasicEventTypeMap : IEventTypeMap
     }
 
     // Used by AggregateFactory for showing a type name in exceptions
-    public static string GetTypeName(Type type) => GetTypeNames(type)[^1];
+    public static string GetTypeName(Type type)
+    {
+        ArgumentNullException.ThrowIfNull(type);
+        var names = NamesMap.GetOrAdd(type, GetTypeNames);
+        return names[^1];
+    }
 
     private static readonly ConcurrentDictionary<string, Type> TypesMap = new();
     private static readonly ConcurrentDictionary<Type, ImmutableArray<string>> NamesMap = new();

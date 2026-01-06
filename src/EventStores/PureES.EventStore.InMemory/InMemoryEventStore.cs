@@ -158,7 +158,7 @@ internal class InMemoryEventStore : IInMemoryEventStore
     {
         ArgumentNullException.ThrowIfNull(@event);
 
-        return Append(streamId, expectedRevision, new [] { @event }, _);
+        return Append(streamId, expectedRevision, [@event], _);
     }
 
     public Task<uint> Append(string streamId, UncommittedEvent @event, CancellationToken _)

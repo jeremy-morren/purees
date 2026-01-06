@@ -21,7 +21,7 @@ internal class PostgresProvider(EventStoreDbContext context) : IEfCoreProvider
 
     public bool IsUniqueConstraintFailedException(DbException e)
     {
-        return e.GetType().FullName == "Npgsql.PostgresException" && e.SqlState == "23505";
+        return e.SqlState == "23505" && e.GetType().FullName == "Npgsql.PostgresException";
     }
 
     // Response is a UTC datetime (no conversion needed)

@@ -155,8 +155,8 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore where TContext : D
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         try
         {
-            var r = 0;
-            var list = events.Select(e => _serializer.Serialize(streamId, r++, e)).ToList();
+            var streamPos = 0;
+            var list = events.Select(e => _serializer.Serialize(streamId, streamPos++, null, e)).ToList();
             await WriteEvents(context, list, cancellationToken);
             return (uint)list.Count - 1;
         }
@@ -183,7 +183,7 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore where TContext : D
         if (actual != expectedRevision)
             throw new WrongStreamRevisionException(streamId, expectedRevision, (uint)actual);
         
-        var list = events.Select(e => _serializer.Serialize(streamId, ++actual, e));
+        var list = events.Select(e => _serializer.Serialize(streamId, ++actual, null, e));
         await WriteEvents(context, list, cancellationToken);
         return (uint)actual;
     }
@@ -192,7 +192,7 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore where TContext : D
     {
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
         var actual = await GetRevisionInternal(context, streamId, cancellationToken);
-        var list = events.Select(e => _serializer.Serialize(streamId, ++actual, e));
+        var list = events.Select(e => _serializer.Serialize(streamId, ++actual, null, e));
         await WriteEvents(context, list, cancellationToken);
         return (uint)actual;
     }
@@ -215,10 +215,10 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore where TContext : D
         ArgumentNullException.ThrowIfNull(transaction);
 
         if (transaction.Count == 0)
-            return; //Empty transaction
+            return; // Empty transaction
 
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);
-        //Get actual revisions for all streams
+        // Get actual revisions for all streams
         var streamIds = transaction.Select(x => x.StreamId);
         var revisions = await context.QueryEvents()
             .Where(e => streamIds.Contains(e.StreamId))
@@ -230,9 +230,11 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore where TContext : D
             })
             .ToDictionaryAsync(g => g.StreamId, g => g.Revision, cancellationToken);
         
-        //Check if all streams are at the expected revision
+        // Check if all streams are at the expected revision
         var list = new List<EventStoreEvent>();
         var exceptions = new List<Exception>();
+
+        var transactionIndex = 0;
         foreach (var (streamId, expectedRevision, events) in transaction)
         {
             if (revisions.TryGetValue(streamId, out var actual))
@@ -245,20 +247,24 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore where TContext : D
                         new WrongStreamRevisionException(streamId, expectedRevision.Value, (uint)actual));
                 else
                     //Stream exists and revision matches, append events
-                    list.AddRange(events.Select(x => _serializer.Serialize(streamId, ++actual, x)));
+                    list.AddRange(
+                        from x in events
+                        select _serializer.Serialize(streamId, ++actual, transactionIndex++, x));
             }
             else
             {
-                //Stream does not exist, check revision matches
+                // Stream does not exist, check revision matches
                 if (expectedRevision != null)
                 {
                     exceptions.Add(new StreamNotFoundException(streamId));
                 }
                 else
                 {
-                    //Stream does not exist and revision matches, create stream
-                    var r = 0;
-                    list.AddRange(events.Select(x => _serializer.Serialize(streamId, r++, x)));
+                    // Stream does not exist and revision matches, create stream
+                    var streamPos = 0;
+                    list.AddRange(
+                        from x in events
+                        select _serializer.Serialize(streamId, streamPos++, transactionIndex++, x));
                 }
             }
         }
@@ -271,7 +277,7 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore where TContext : D
                 throw new EventsTransactionException(exceptions);
         }
         
-        //No exceptions, write events
+        // No exceptions, write events
         await WriteEvents(context, list, cancellationToken);
     }
     
@@ -279,17 +285,19 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore where TContext : D
     
     #region Read All
     
-    private IQueryable<EventStoreEvent> ReadAll(EventStoreDbContext<TContext> context, Direction direction)
+    private static IQueryable<EventStoreEvent> ReadAll(EventStoreDbContext<TContext> context, Direction direction)
     {
         var query = context.QueryEvents();
         return direction switch
         {
             Direction.Forwards => query
                 .OrderBy(e => e.Timestamp)
+                .ThenBy(e => e.TransactionIndex)
                 .ThenBy(e => e.StreamId)
                 .ThenBy(e => e.StreamPos),
             Direction.Backwards => query
                 .OrderByDescending(e => e.Timestamp)
+                .ThenByDescending(e => e.TransactionIndex)
                 .ThenByDescending(e => e.StreamId)
                 .ThenByDescending(e => e.StreamPos),
             _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
@@ -619,20 +627,16 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore where TContext : D
     public IAsyncEnumerable<EventEnvelope> ReadByEventType(
         Direction direction, 
         Type[] eventTypes, 
-        CancellationToken cancellationToken)
-    {
-        return ReadByEventTypeInternal(direction, eventTypes, null, cancellationToken);
-    }
+        CancellationToken cancellationToken) =>
+        ReadByEventTypeInternal(direction, eventTypes, null, cancellationToken);
 
     public IAsyncEnumerable<EventEnvelope> ReadByEventType(
         Direction direction, 
         Type[] eventTypes, 
         uint maxCount,
-        CancellationToken cancellationToken)
-    {
-        return ReadByEventTypeInternal(direction, eventTypes, maxCount, cancellationToken);
-    }
-    
+        CancellationToken cancellationToken) =>
+        ReadByEventTypeInternal(direction, eventTypes, maxCount, cancellationToken);
+
     private IAsyncEnumerable<EventEnvelope> ReadByEventTypeInternal(
         Direction direction, 
         Type[] eventTypes, 
@@ -640,6 +644,7 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore where TContext : D
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(eventTypes);
+
         if (eventTypes.Length == 0)
             return AsyncEnumerable.Empty<EventEnvelope>(); //No events to read
 
@@ -649,10 +654,14 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore where TContext : D
                 var query = FilterByEventType(context, eventTypes);
                 query = direction switch
                 {
-                    Direction.Forwards => query.OrderBy(e => e.Timestamp)
+                    Direction.Forwards => query
+                        .OrderBy(e => e.Timestamp)
+                        .ThenBy(e => e.TransactionIndex)
                         .ThenBy(e => e.StreamId)
                         .ThenBy(e => e.StreamPos),
-                    Direction.Backwards => query.OrderByDescending(e => e.Timestamp)
+                    Direction.Backwards => query
+                        .OrderByDescending(e => e.Timestamp)
+                        .ThenByDescending(e => e.TransactionIndex)
                         .ThenByDescending(e => e.StreamId)
                         .ThenByDescending(e => e.StreamPos),
                     _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)

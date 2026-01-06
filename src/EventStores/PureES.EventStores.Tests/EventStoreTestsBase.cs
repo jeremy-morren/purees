@@ -878,6 +878,45 @@ public abstract class EventStoreTestsBase
         });
     }
 
+    [Fact]
+    public async Task Submit_Transaction_Should_Preserve_Order()
+    {
+        // Ensure that events within a transaction are stored and read in the same order
+        await using var harness = await CreateHarness();
+        var store = harness.EventStore;
+
+        var transaction = new EventsTransaction();
+        transaction.AddOrAppend("Z", null, Event.CreateNew());
+        transaction.AddOrAppend("A", null, Event.CreateNew());
+        transaction.AddOrAppend("A", null, EventDerived.CreateNew());
+        transaction.AddOrAppend("Z", null, Event.CreateNew(), EventDerived.CreateNew());
+
+        Assert.Throws<InvalidOperationException>(
+                () => transaction.Add("A", null, Event.CreateNew()))
+            .Message.ShouldBe("Stream 'A' already exists in the transaction.");
+        Assert.Throws<InvalidOperationException>(
+                () => transaction.AddOrAppend("A", 1, Event.CreateNew()))
+            .Message.ShouldBe("Expected revision mismatch.");
+
+        var result = transaction.ToUncommittedTransaction();
+        result.Should().HaveCount(2);
+        result.Select(r => r.StreamId)
+            .Should().BeEquivalentTo(["Z", "A"], "should preserve order of streams added");
+        await store.SubmitTransaction(result, CancellationToken);
+
+        await AssertEqual(
+            result.SelectMany(r => r.Events),
+            direction => store.ReadAll(direction));
+
+        await AssertEqual(
+            result.SelectMany(r => r.Events),
+            direction => store.ReadByEventType(direction, typeof(Event)));
+
+        await AssertEqual(
+            result.SelectMany(r => r.Events).Where(e => e.Event is EventDerived),
+            direction => store.ReadByEventType(direction, typeof(EventDerived)));
+    }
+
     protected static async Task AssertEqual(IEnumerable<UncommittedEvent> source, Func<Direction, IAsyncEnumerable<EventEnvelope>> readEvents)
     {
         var list = source.ToList();
@@ -907,7 +946,7 @@ public abstract class EventStoreTestsBase
 
         object Props(object @event, object? metadata) => new
         {
-            EventId = @event.ShouldBeOfType<Event>().Id,
+            EventId = @event.ShouldBeAssignableTo<Event>().ShouldNotBeNull().Id,
             Metadata = metadata != null
         };
     }
@@ -916,8 +955,7 @@ public abstract class EventStoreTestsBase
 
     protected static UncommittedEvent NewEvent(bool includeMetadata = true)
     {
-        var id = Guid.NewGuid();
-        return new UncommittedEvent(new Event(id))
+        return new UncommittedEvent(Event.CreateNew())
         {
             Metadata = includeMetadata ? new Metadata() : null
         };
@@ -925,16 +963,21 @@ public abstract class EventStoreTestsBase
     
     private static UncommittedEvent NewEventDerived()
     {
-        var id = Guid.NewGuid();
-        return new UncommittedEvent(new EventDerived(id))
+        return new UncommittedEvent(EventDerived.CreateNew())
         {
             Metadata = new Metadata()
         };
     }
 
-    protected record Event(Guid Id);
-    
-    private record EventDerived(Guid Id) : Event(Id);
+    protected record Event(Guid Id)
+    {
+        public static Event CreateNew() => new(Guid.NewGuid());
+    }
+
+    private record EventDerived(Guid Id) : Event(Id)
+    {
+        public new static EventDerived CreateNew() => new(Guid.NewGuid());
+    }
 
     private record Metadata;
 }

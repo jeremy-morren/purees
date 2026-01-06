@@ -23,6 +23,14 @@ internal record EventStoreEvent
     public DateTimeOffset Timestamp { get; set; }
 
     /// <summary>
+    /// Index of the event in a transaction, if this event was added as part of a transaction
+    /// </summary>
+    /// <remarks>
+    /// This allows reading events in the order they were added in a transaction
+    /// </remarks>
+    public required int? TransactionIndex { get; init; }
+
+    /// <summary>
     /// The event type of the event (full hierarchy)
     /// </summary>
     public required List<EventType> EventTypes { get; init; }

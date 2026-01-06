@@ -47,6 +47,7 @@ public class EfCoreSqliteEventStoreTests(ITestOutputHelper output) : EfCoreEvent
     {
         StreamId = stream,
         StreamPos = position,
+        TransactionIndex = null,
         EventTypes = EventType.New(["TestEvent" ]),
         Event = JsonSerializer.SerializeToElement(new Dictionary<string, string>()),
         Metadata = JsonSerializer.SerializeToElement(new Dictionary<string, string>()),
@@ -85,7 +86,6 @@ public class EfCoreSqliteEventStoreTests(ITestOutputHelper output) : EfCoreEvent
             cmd.ExecuteNonQuery();
         }
     }
-
     
     protected override Task<EventStoreTestHarness> CreateStore(string testName, Action<IServiceCollection> configureServices, CancellationToken ct)
     {

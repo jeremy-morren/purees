@@ -87,15 +87,17 @@ internal class EventStoreDbContext : DbContext
                 .IsRequired()
                 .HasMaxLength(4096);
 
+            entity.HasIndex(e => e.Timestamp); // For reading across multiple streams
+
             entity.OwnsMany(e => e.EventTypes, b =>
             {
                 b.Property(x => x.TypeName)
                     .IsRequired()
                     .HasMaxLength(4096);
                 
-                //Event type filters use an exists query
-                //Index on composite key and value
-                //Composite key uses shadow properties
+                // Event type filters use an exists query
+                // Index on composite key and value
+                // Composite key uses shadow properties
                 b.HasIndex(
                     $"{nameof(EventStoreEvent)}{nameof(EventStoreEvent.StreamId)}",
                     $"{nameof(EventStoreEvent)}{nameof(EventStoreEvent.StreamPos)}",
