@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Moq;
 using PureES.EventStore.InMemory;
@@ -87,7 +88,7 @@ public class InMemoryEventStoreTests : EventStoreTestsBase
         await store.Load(harness.EventStore.ReadAll(Direction.Forwards), default);
 
         store.ReadAllSync().Should().HaveCount(100);
-        store.Save().Should().HaveCount(100);
+        store.Serialize().Should().HaveCount(100);
         Assert.All(Enumerable.Range(0, 10), i =>
         {
             var sId = $"{streamId}-{i}";
@@ -116,7 +117,11 @@ public class InMemoryEventStoreTests : EventStoreTestsBase
                 default)).ShouldBe(9u);
         }
 
-        var serialized = store.Save();
+        var serialized = store.Serialize().ToList();
+        var jsonTypeInfo = InMemoryEventStoreJsonSerializerContext.Default.ListSerializedInMemoryEventRecord;
+        serialized = JsonSerializer.SerializeToElement(serialized, jsonTypeInfo)
+            .Deserialize<List<SerializedInMemoryEventRecord>>(jsonTypeInfo)
+            .ShouldNotBeNull();
         
         store = new ServiceCollection()
             .AddInMemoryEventStore()

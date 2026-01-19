@@ -446,9 +446,9 @@ internal class InMemoryEventStore : IInMemoryEventStore
             .ToHashSet();
     }
 
-    #region Load
+    #region Load & Save
 
-    private void Load(List<InMemoryEventRecord> records)
+    private void Load(IReadOnlyList<SerializedInMemoryEventRecord> records)
     {
         ArgumentNullException.ThrowIfNull(records);
         lock (_events)
@@ -465,40 +465,44 @@ internal class InMemoryEventStore : IInMemoryEventStore
                         throw new InvalidOperationException(
                             $"Stream {e.StreamId} is not sequential. Expected {expected}, got {e.StreamPos}");
 
-                    _events = _events.Append(e.StreamId, [e], out _);
+                    _events = _events.Append(e.StreamId, [e.Source], out _);
                 }
                 else
                 {
                     if (e.StreamPos != 0)
                         throw new InvalidOperationException($"Stream {e.StreamId} does not start at 0");
 
-                    _events = _events.Append(e.StreamId, [e], out _);
+                    _events = _events.Append(e.StreamId, [e.Source], out _);
                 }
             }
         }
     }
 
-    public async Task Load(IAsyncEnumerable<EventEnvelope> @events, CancellationToken ct)
+    public async Task Load(IAsyncEnumerable<EventEnvelope> events, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(events);
-        var records = await events.Select(_serializer.Serialize).ToListAsync(ct);
+        var records = await events
+            .Select(_serializer.Serialize)
+            .Select(r => new SerializedInMemoryEventRecord(r))
+            .ToListAsync(ct);
 
         Load(records);
     }
 
-    public async Task Load(IAsyncEnumerable<InMemoryEventRecord> events, CancellationToken ct)
+    public async Task Load(IAsyncEnumerable<SerializedInMemoryEventRecord> events, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(events);
         Load(await events.ToListAsync(ct));
     }
 
-    public void Load(IEnumerable<InMemoryEventRecord> events)
+    public void Load(IEnumerable<SerializedInMemoryEventRecord> events)
     {
         ArgumentNullException.ThrowIfNull(events);
-        Load(events.ToList());
+        Load(events as IReadOnlyList<SerializedInMemoryEventRecord> ?? events.ToList());
     }
 
-    public ImmutableList<InMemoryEventRecord> Save() => _events.Records;
+    public IEnumerable<SerializedInMemoryEventRecord> Serialize() =>
+        _events.Records.Select(r => new SerializedInMemoryEventRecord(r));
 
     #endregion
 }

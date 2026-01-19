@@ -3,6 +3,9 @@ using JetBrains.Annotations;
 
 namespace PureES.EventStore.InMemory;
 
+/// <summary>
+/// An event store that keeps events in memory
+/// </summary>
 [PublicAPI]
 public interface IInMemoryEventStore : IEventStore
 {
@@ -38,7 +41,7 @@ public interface IInMemoryEventStore : IEventStore
     /// </summary>
     uint CountByEventTypeSync(Type[] eventTypes);
 
-    #region Load
+    #region Load & Save
 
     /// <summary>
     /// Initializes the event store from the given envelopes.
@@ -55,18 +58,17 @@ public interface IInMemoryEventStore : IEventStore
     /// <param name="events"></param>
     /// <param name="ct"></param>
     /// <exception cref="InvalidOperationException">The event store already events</exception>
-    Task Load(IAsyncEnumerable<InMemoryEventRecord> events, CancellationToken ct);
+    Task Load(IAsyncEnumerable<SerializedInMemoryEventRecord> events, CancellationToken ct);
 
     /// <summary>
     /// Initializes the event store from the given records.
     /// </summary>
-    public void Load(IEnumerable<InMemoryEventRecord> events);
+    public void Load(IEnumerable<SerializedInMemoryEventRecord> events);
 
     /// <summary>
     /// Serializes the event store to a list of records.
     /// </summary>
-    /// <returns></returns>
-    public ImmutableList<InMemoryEventRecord> Save();
+    public IEnumerable<SerializedInMemoryEventRecord> Serialize();
 
     #endregion
 }

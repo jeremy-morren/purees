@@ -6,7 +6,7 @@ namespace PureES.EventStore.InMemory;
 /// <summary>
 /// An event stored in memory
 /// </summary>
-public record InMemoryEventRecord
+internal record InMemoryEventRecord
 {
     /// <summary>
     /// Stream position
