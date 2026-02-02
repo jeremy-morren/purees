@@ -6,10 +6,23 @@ namespace PureES.EventStore.InMemory;
 
 internal class EventRecordList : IReadOnlyList<InMemoryEventRecord>
 {
+    /// <summary>
+    /// All event records
+    /// </summary>
     private readonly ImmutableList<InMemoryEventRecord> _records;
+
+    /// <summary>
+    /// Index of stream IDs to list of event record indexes in _records
+    /// </summary>
     private readonly ImmutableDictionary<string, ImmutableList<int>> _streams;
 
-    private EventRecordList(ImmutableList<InMemoryEventRecord> records,
+    /// <summary>
+    /// Index of event types to list of event record indexes in _records
+    /// </summary>
+    // private readonly ImmutableDictionary<string, ImmutableList<int>> _eventTypes;
+
+    private EventRecordList(
+        ImmutableList<InMemoryEventRecord> records,
         ImmutableDictionary<string, ImmutableList<int>> streams)
     {
         _records = records;
@@ -67,18 +80,23 @@ internal class EventRecordList : IReadOnlyList<InMemoryEventRecord>
     public IEnumerable<InMemoryEventRecord> ReadAll(Direction direction, uint maxCount) =>
         ReadAll(direction).Take((int)maxCount);
 
-    public IEnumerable<InMemoryEventRecord> ReadStream(Direction direction, string streamId, out uint revision)
+    /// <summary>
+    /// Reads a stream of events
+    /// </summary>
+    public EventStreamReader ReadStream(string streamId, Direction direction)
     {
-        if (!_streams.TryGetValue(streamId, out var stream))
+        if (!_streams.TryGetValue(streamId, out var indexes))
             throw new StreamNotFoundException(streamId);
-        revision = (uint)stream.Count - 1;
-        var indexes = direction switch
+
+        var revision = (uint)indexes.Count - 1;
+        var read = new EventStreamReader(_records, indexes, revision);
+
+        return direction switch
         {
-            Direction.Forwards => stream,
-            Direction.Backwards => stream.Reverse(),
+            Direction.Forwards => read,
+            Direction.Backwards => read.Reverse(),
             _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
         };
-        return indexes.Select(i => _records[i]);
     }
 
     #endregion

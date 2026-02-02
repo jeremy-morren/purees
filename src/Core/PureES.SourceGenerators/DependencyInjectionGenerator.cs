@@ -30,7 +30,6 @@ internal class DependencyInjectionGenerator
     private string GenerateInternal()
     {
         _w.WriteFileHeader(true);
-        _w.WriteLine($"using {ExternalTypes.DINamespace};");
         _w.WriteLine($"using {ExternalTypes.DINamespace}.Extensions;"); //RemoveAll extension method
         _w.WriteLine();
         

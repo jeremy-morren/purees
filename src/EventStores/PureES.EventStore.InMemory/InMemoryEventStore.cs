@@ -158,7 +158,7 @@ internal class InMemoryEventStore : IInMemoryEventStore
     {
         ArgumentNullException.ThrowIfNull(@event);
 
-        return Append(streamId, expectedRevision, [@event], _);
+        return Append(streamId, expectedRevision, new [] { @event }, _);
     }
 
     public Task<uint> Append(string streamId, UncommittedEvent @event, CancellationToken _)
@@ -225,7 +225,7 @@ internal class InMemoryEventStore : IInMemoryEventStore
     public IEnumerable<EventEnvelope> ReadAllSync() => _events.Select(_serializer.Deserialize);
 
     public IEnumerable<EventEnvelope> ReadSync(Direction direction, string streamId) =>
-        _events.ReadStream(direction, streamId, out _).Select(_serializer.Deserialize);
+        _events.ReadStream(streamId, direction).GetEvents(_serializer);
 
     public bool ExistsSync(string streamId) => _events.Exists(streamId);
 
@@ -258,8 +258,8 @@ internal class InMemoryEventStore : IInMemoryEventStore
     {
         ArgumentNullException.ThrowIfNull(streamId);
 
-        var records = _events.ReadStream(direction, streamId, out var _);
-        return new InMemoryEventStream(direction, streamId, records, _serializer);
+        var stream = _events.ReadStream(streamId, direction);
+        return new InMemoryEventStream(direction, streamId, stream, _serializer);
     }
 
 
@@ -267,15 +267,16 @@ internal class InMemoryEventStore : IInMemoryEventStore
     {
         ArgumentNullException.ThrowIfNull(streamId);
 
-        var records = _events.ReadStream(direction, streamId, out var actual);
+        var stream = _events.ReadStream(streamId, direction);
 
-        if (actual != expectedRevision)
-            throw new WrongStreamRevisionException(streamId, expectedRevision, actual);
+        if (stream.ActualRevision != expectedRevision)
+            throw new WrongStreamRevisionException(streamId, expectedRevision, stream.ActualRevision);
 
-        return new InMemoryEventStream(direction, streamId, records, _serializer);
+        return new InMemoryEventStream(direction, streamId, stream, _serializer);
     }
 
-    public IEventStoreStream Read(Direction direction,
+    public IEventStoreStream Read(
+        Direction direction,
         string streamId,
         uint startRevision,
         uint expectedRevision,
@@ -285,20 +286,20 @@ internal class InMemoryEventStore : IInMemoryEventStore
 
         ArgumentOutOfRangeException.ThrowIfGreaterThan(startRevision, expectedRevision);
 
-        var records = _events.ReadStream(direction, streamId, out var actual);
+        var stream = _events.ReadStream(streamId, direction);
 
-        if (actual != expectedRevision)
-            throw new WrongStreamRevisionException(streamId, expectedRevision, actual);
+        if (stream.ActualRevision != expectedRevision)
+            throw new WrongStreamRevisionException(streamId, expectedRevision, stream.ActualRevision);
 
         var skip = (int)startRevision;
-        records = direction switch
+        stream = direction switch
         {
-            Direction.Forwards => records.Skip(skip),
-            Direction.Backwards => records.SkipLast(skip),
+            Direction.Forwards => stream.Skip(skip),
+            Direction.Backwards => stream.SkipLast(skip),
             _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
         };
 
-        return new InMemoryEventStream(direction, streamId, records, _serializer);
+        return new InMemoryEventStream(direction, streamId, stream, _serializer);
     }
 
     public IEventStoreStream ReadPartial(Direction direction,
@@ -309,11 +310,12 @@ internal class InMemoryEventStore : IInMemoryEventStore
         ArgumentNullException.ThrowIfNull(streamId);
         ArgumentOutOfRangeException.ThrowIfLessThan(count, 0u);
 
-        var stream = _events.ReadStream(direction, streamId, out var actual);
-        if (actual < count - 1)
-            throw new WrongStreamRevisionException(streamId, count - 1, actual);
+        var stream = _events.ReadStream(streamId, direction);
+        if (stream.ActualRevision < count - 1)
+            throw new WrongStreamRevisionException(streamId, count - 1, stream.ActualRevision);
 
-        return new InMemoryEventStream(direction, streamId, stream.Take((int)count), _serializer);
+        stream = stream.Take((int)count);
+        return new InMemoryEventStream(direction, streamId, stream, _serializer);
     }
 
     public IEventStoreStream ReadSlice(string streamId,
@@ -324,30 +326,28 @@ internal class InMemoryEventStore : IInMemoryEventStore
         ArgumentNullException.ThrowIfNull(streamId);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(startRevision, endRevision);
 
-        var stream = _events.ReadStream(Direction.Forwards, streamId, out var actual);
+        var stream = _events.ReadStream(streamId, Direction.Forwards);
 
-        if (endRevision > actual)
-            throw new WrongStreamRevisionException(streamId, endRevision, actual);
+        if (endRevision > stream.ActualRevision)
+            throw new WrongStreamRevisionException(streamId, endRevision, stream.ActualRevision);
 
-        return new InMemoryEventStream(Direction.Forwards,
-            streamId,
-            stream.Take((int)endRevision + 1).Skip((int)startRevision),
-            _serializer);
+        stream = stream.Take((int)endRevision + 1).Skip((int)startRevision);
+
+        return new InMemoryEventStream(Direction.Forwards, streamId,stream, _serializer);
     }
 
     public IEventStoreStream ReadSlice(string streamId, uint startRevision, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(streamId);
 
-        var stream = _events.ReadStream(Direction.Forwards, streamId, out var actual);
+        var stream = _events.ReadStream(streamId, Direction.Forwards);
 
-        if (actual < startRevision)
-            throw new WrongStreamRevisionException(streamId, startRevision, actual);
+        if (stream.ActualRevision < startRevision)
+            throw new WrongStreamRevisionException(streamId, startRevision, stream.ActualRevision);
 
-        return new InMemoryEventStream(Direction.Forwards,
-            streamId,
-            stream.Skip((int)startRevision),
-            _serializer);
+        stream = stream.Skip((int)startRevision);
+
+        return new InMemoryEventStream(Direction.Forwards, streamId, stream, _serializer);
     }
 
     public IAsyncEnumerable<IEventStoreStream> ReadMany(Direction direction,
@@ -385,7 +385,7 @@ internal class InMemoryEventStore : IInMemoryEventStore
 
         var result =
             from id in list
-            let stream = _events.ReadStream(direction, id, out _)
+            let stream = _events.ReadStream(id, direction)
             select new InMemoryEventStream(direction, id, stream, _serializer);
 
         return result.ToAsyncEnumerable();
@@ -446,7 +446,7 @@ internal class InMemoryEventStore : IInMemoryEventStore
             .ToHashSet();
     }
 
-    #region Load & Save
+    #region Load
 
     private void Load(IReadOnlyList<SerializedInMemoryEventRecord> records)
     {

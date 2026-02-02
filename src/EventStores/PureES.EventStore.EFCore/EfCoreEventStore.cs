@@ -38,13 +38,10 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore where TContext : D
         [EnumeratorCancellation] CancellationToken ct)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
-        var provider = context.Provider;
-        var query = createQuery(context);
 
-        //Only select the columns we need
-        var src =
-            from x in query
-            select new
+        var query = createQuery(context)
+            // Only select the columns we need
+            .Select(x => new
             {
                 x.StreamId,
                 x.StreamPos,
@@ -52,41 +49,16 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore where TContext : D
                 x.EventType,
                 x.Event,
                 x.Metadata
-            };
+            });
 
-        await using var command = src.CreateDbCommand();
-        await using var _ = await OpenConnectionWrapper.OpenAsync(command, ct);
-        await command.PrepareAsync(ct); //This is a frequent operation, prepare the command
-        await using var reader = await command.ExecuteReaderAsync(ct);
-        while (await reader.ReadAsync(ct))
+        await foreach (var e in query.AsAsyncEnumerable().WithCancellation(ct))
         {
-            var streamId = reader.GetString(0);
-            var streamPos = reader.GetInt32(1);
-            var timestamp = provider.ReadTimestamp(reader, 2);
-            var eventType = reader.GetString(3);
-            var @event = reader.GetString(4);
-            var metadata = reader.IsDBNull(5) ? null : reader.GetString(5);
-
-            yield return CreateEnvelope(streamId, streamPos, timestamp, eventType, @event, metadata, _serializer);
-        }
-
-        yield break;
-
-        static EventEnvelope CreateEnvelope(
-            string streamId,
-            int streamPos,
-            DateTime timestamp,
-            string eventType,
-            string @event,
-            string? metadata,
-            EfCoreEventSerializer serializer)
-        {
-            return new EventEnvelope(
-                streamId,
-                (uint)streamPos,
-                timestamp,
-                serializer.DeserializeEvent(streamId, streamPos, eventType, @event),
-                serializer.DeserializeMetadata(streamId, streamPos, metadata));
+            yield return new EventEnvelope(
+                e.StreamId,
+                (uint)e.StreamPos,
+                e.Timestamp.UtcDateTime,
+                _serializer.DeserializeEvent(e.StreamId, e.StreamPos, e.EventType, e.Event),
+                _serializer.DeserializeMetadata(e.StreamId, e.StreamPos, e.Metadata));
         }
     }
     

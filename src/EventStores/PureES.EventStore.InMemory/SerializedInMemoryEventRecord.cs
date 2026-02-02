@@ -1,6 +1,7 @@
 ﻿using System.Collections.Immutable;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 using JetBrains.Annotations;
 
 namespace PureES.EventStore.InMemory;
@@ -65,5 +66,6 @@ public readonly struct SerializedInMemoryEventRecord
 [JsonSerializable(typeof(List<SerializedInMemoryEventRecord>))]
 public partial class InMemoryEventStoreJsonSerializerContext : JsonSerializerContext
 {
-
+    public static JsonTypeInfo<IEnumerable<SerializedInMemoryEventRecord>> RecordsTypeInfo =>
+        Default.IEnumerableSerializedInMemoryEventRecord;
 }

@@ -22,13 +22,18 @@ internal class EfCoreEventSerializer
         ArgumentNullException.ThrowIfNull(streamId);
         ArgumentOutOfRangeException.ThrowIfNegative(streamPos);
 
+        // Clone the list to avoid issues with EF Core
+        var eventTypes = EventType.New(@event.Event.GetType(), _map);
+
         return new EventStoreEvent()
         {
             StreamId = streamId,
             StreamPos = streamPos,
             TransactionIndex = transactionIndex,
-            // Clone the list to avoid issues with EF Core
-            EventTypes = EventType.New(@event.Event.GetType(), _map),
+
+            EventTypes = eventTypes,
+            EventType = eventTypes[^1].TypeName,
+
             Event = JsonSerializer.SerializeToElement(@event.Event, _jsonOptions),
             Metadata = @event.Metadata != null 
                 ? JsonSerializer.SerializeToElement(@event.Metadata, _jsonOptions) 
@@ -69,7 +74,6 @@ internal class EfCoreEventSerializer
     #endregion
 
     #region Deserialize Element
-
 
     public object DeserializeEvent(string streamId, int streamPos, string eventType, JsonElement json)
     {

@@ -23,9 +23,4 @@ internal interface IEfCoreProvider
     /// Returns true if the exception indicates that the entity already exists
     /// </summary>
     bool IsUniqueConstraintFailedException(DbException e);
-
-    /// <summary>
-    /// Read a timestamp from the data reader
-    /// </summary>
-    DateTime ReadTimestamp(DbDataReader reader, int ordinal);
 }

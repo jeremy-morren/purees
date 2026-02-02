@@ -41,13 +41,7 @@ internal record EventStoreEvent
     /// <remarks>
     /// When reading events, we can read this column (instead of referencing the EventTypes table)
     /// </remarks>
-    public string EventType
-    {
-        get => EventTypes[^1].TypeName;
-        // ReSharper disable once ValueParameterNotUsed
-        // ReSharper disable once UnusedMember.Local
-        private set {}
-    }
+    public required string EventType { get; init; }
 
     /// <summary>
     /// Event data

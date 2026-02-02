@@ -51,9 +51,6 @@ internal class SqliteProvider(EventStoreDbContext context) : IEfCoreProvider
                && ((dynamic)e).SqliteExtendedErrorCode == SQLITE_CONSTRAINT_PRIMARYKEY;
     }
 
-    public DateTime ReadTimestamp(DbDataReader reader, int ordinal) =>
-        UtcDateConverter.Parse(reader.GetString(ordinal)).UtcDateTime;
-
     #region Converters
 
     private class UtcDateConverter : ValueConverter<DateTimeOffset, string>
