@@ -1,5 +1,4 @@
-﻿using System.Collections.Immutable;
-using JetBrains.Annotations;
+﻿using JetBrains.Annotations;
 
 namespace PureES.EventStore.InMemory;
 

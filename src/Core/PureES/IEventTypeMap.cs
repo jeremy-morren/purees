@@ -4,6 +4,9 @@ using System.Collections.Immutable;
 
 namespace PureES;
 
+/// <summary>
+/// A service for persisting event types.
+/// </summary>
 [PublicAPI]
 public interface IEventTypeMap
 {

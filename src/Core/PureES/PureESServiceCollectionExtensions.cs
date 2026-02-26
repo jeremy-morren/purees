@@ -64,10 +64,7 @@ public static class PureESServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        builder.Services.RemoveAll(typeof(IEventTypeMap));
-        builder.Services.AddSingleton<IEventTypeMap, BasicEventTypeMap>();
-        
-        return builder;
+        return builder.AddEventTypeMap<BasicEventTypeMap>();
     }
 
     /// <summary>
