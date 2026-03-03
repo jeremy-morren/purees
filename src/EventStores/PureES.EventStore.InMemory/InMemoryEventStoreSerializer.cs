@@ -69,15 +69,24 @@ internal class InMemoryEventStoreSerializer
 
     private object DeserializeEvent(string streamId, int streamPos, string eventType, JsonElement @event)
     {
+        Type clrType;
         try
         {
-            var clrType = _typeMap.GetCLRType(eventType);
-            return @event.Deserialize(clrType, _options.JsonOptions)
-                   ?? throw new InvalidOperationException($"Event data is null for event {streamId}/{streamPos}");
+            clrType = _typeMap.GetCLRType(eventType);
         }
         catch (Exception ex)
         {
-            throw new Exception($"Failed to deserialize event {streamId}/{streamPos}", ex);
+            throw new Exception($"Failed to determine CLR type for event {streamId}/{streamPos}", ex);
+        }
+
+        try
+        {
+            return @event.Deserialize(clrType, _options.JsonOptions)
+                   ?? throw new Exception($"Event {streamId}/{streamPos} data is null");
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Failed to deserialize event {streamId}/{streamPos} to {clrType}", ex);
         }
     }
 

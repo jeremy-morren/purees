@@ -8,13 +8,13 @@ internal class EfCoreEventSerializer
 {
     private readonly Type _metadataType;
     private readonly JsonSerializerOptions _jsonOptions;
-    private readonly IEventTypeMap _map;
+    private readonly IEventTypeMap _typeMap;
 
-    public EfCoreEventSerializer(IOptions<EfCoreEventStoreOptions> options, IEventTypeMap map)
+    public EfCoreEventSerializer(IOptions<EfCoreEventStoreOptions> options, IEventTypeMap typeMap)
     {
         _jsonOptions = options.Value.JsonOptions;
         _metadataType = options.Value.MetadataType;
-        _map = map;
+        _typeMap = typeMap;
     }
     
     public EventStoreEvent Serialize(string streamId, int streamPos, int? transactionIndex, UncommittedEvent @event)
@@ -23,7 +23,7 @@ internal class EfCoreEventSerializer
         ArgumentOutOfRangeException.ThrowIfNegative(streamPos);
 
         // Clone the list to avoid issues with EF Core
-        var eventTypes = EventType.New(@event.Event.GetType(), _map);
+        var eventTypes = EventType.New(@event.Event.GetType(), _typeMap);
 
         return new EventStoreEvent()
         {
@@ -47,7 +47,7 @@ internal class EfCoreEventSerializer
     {
         try
         {
-            var type = _map.GetCLRType(eventType);
+            var type = _typeMap.GetCLRType(eventType);
             return JsonSerializer.Deserialize(json, type, _jsonOptions)
                    ?? throw new Exception($"Event {streamId}/{streamPos} data is null");
         }
@@ -75,17 +75,26 @@ internal class EfCoreEventSerializer
 
     #region Deserialize Element
 
-    public object DeserializeEvent(string streamId, int streamPos, string eventType, JsonElement json)
+    public object DeserializeEvent(string streamId, int streamPos, string eventType, JsonElement @event)
     {
+        Type clrType;
         try
         {
-            var clrType = _map.GetCLRType(eventType);
-            return json.Deserialize(clrType, _jsonOptions)
+            clrType = _typeMap.GetCLRType(eventType);
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Failed to determine CLR type for event {streamId}/{streamPos}", ex);
+        }
+
+        try
+        {
+            return @event.Deserialize(clrType, _jsonOptions)
                    ?? throw new Exception($"Event {streamId}/{streamPos} data is null");
         }
         catch (Exception ex)
         {
-            throw new Exception($"Failed to deserialize event {streamId}/{streamPos}", ex);
+            throw new Exception($"Failed to deserialize event {streamId}/{streamPos} to {clrType}", ex);
         }
     }
 
