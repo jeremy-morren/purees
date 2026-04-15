@@ -4,20 +4,13 @@ using System.Collections.ObjectModel;
 using FluentAssertions;
 using Shouldly;
 using Xunit;
-using Xunit.Abstractions;
+
 // ReSharper disable UnusedTypeParameter
 
 namespace PureES.Tests;
 
 public class BasicEventTypeMapTests
 {
-    private readonly ITestOutputHelper _output;
-
-    public BasicEventTypeMapTests(ITestOutputHelper output)
-    {
-        _output = output;
-    }
-
     [Theory]
     [InlineData(typeof(int))]
     [InlineData(typeof(List<int>))]
@@ -46,8 +39,6 @@ public class BasicEventTypeMapTests
             .And.NotContain(t => t.Contains("ICloneable"), "Should not include ICloneable")
 
             .And.OnlyContain(t => type.IsAssignableTo(BasicEventTypeMap.GetCLRType(t)), "All types should be assignable to the original type");
-
-        _output.WriteLine(string.Join(Environment.NewLine, list));
 
         var mapped = BasicEventTypeMap.GetCLRType(list[^1]);
         mapped.ShouldBe(type);

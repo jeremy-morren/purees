@@ -17,6 +17,8 @@ public class EfCoreSqliteEventStoreTests(ITestOutputHelper output) : EfCoreEvent
     [Fact]
     public async Task EventsShouldSetTimestamp()
     {
+        var ct = TestContext.Current.CancellationToken;
+
         using var connection = new SqliteConnection("Data Source=:memory:");
         connection.Open();
         
@@ -25,7 +27,7 @@ public class EfCoreSqliteEventStoreTests(ITestOutputHelper output) : EfCoreEvent
             .Options;
         
         await using var context = new EventStoreDbContext(options, Options.Create(new EfCoreEventStoreOptions()));
-        context.Database.EnsureCreated();
+        await context.Database.EnsureCreatedAsync(ct);
 
         output.WriteLine(context.Database.GenerateCreateScript());
 
@@ -33,7 +35,7 @@ public class EfCoreSqliteEventStoreTests(ITestOutputHelper output) : EfCoreEvent
             .Select(i => CreateEvent($"test-{i / 2}", i % 2))
             .ToList();
         
-        var inserted = await context.Provider.WriteEvents(events, default);
+        var inserted = await context.Provider.WriteEvents(events, ct);
         inserted.Should().HaveCount(10);
         inserted.ShouldAllBe(i => i.Timestamp != default);
         inserted.GroupBy(i => i.Timestamp).Should().HaveCount(1, "All timestamps should be the same");
@@ -60,6 +62,8 @@ public class EfCoreSqliteEventStoreTests(ITestOutputHelper output) : EfCoreEvent
     [SuppressMessage("ReSharper", "AccessToDisposedClosure")]
     public async Task CreateScriptShouldBeIdempotent()
     {
+        var ct = TestContext.Current.CancellationToken;
+
         using var conn = new SqliteConnection("Data Source=:memory:");
         conn.Open();
 
@@ -75,10 +79,10 @@ public class EfCoreSqliteEventStoreTests(ITestOutputHelper output) : EfCoreEvent
         var store = sp.GetRequiredService<IEfCoreEventStore>();
         var script = store.GenerateIdempotentCreateScript();
         Execute(script);
-        Execute(script); //Should not throw
+        Execute(script); // Should not throw
         
-        //Read events should succeed
-        (await store.ReadAll().ToListAsync()).ShouldBeEmpty();
+        // Read events should succeed
+        (await store.ReadAll(ct).ToListAsync(ct)).ShouldBeEmpty();
 
         return;
         

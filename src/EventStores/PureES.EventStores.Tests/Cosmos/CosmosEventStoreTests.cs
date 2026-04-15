@@ -23,12 +23,14 @@ public class CosmosEventStoreTests : EventStoreTestsBase
     [Fact]
     public async Task StartSubscription()
     {
+        var ct = TestContext.Current.CancellationToken;
+
         var name = $"{nameof(StartSubscription)}+{Environment.Version}";
 
         await using var harness = await CosmosTestHarness.Create(name,
             services => services.AddCosmosEventStoreSubscriptionToAll());
         
-        await CosmosEventStoreSetup.InitializeEventStore(harness, CancellationToken);
+        await CosmosEventStoreSetup.InitializeEventStore(harness, ct);
         
         var subscription = (CosmosEventStoreSubscriptionToAll)harness.GetServices<IHostedService>()
             .Single(s => s.GetType() == typeof(CosmosEventStoreSubscriptionToAll));
@@ -37,7 +39,7 @@ public class CosmosEventStoreTests : EventStoreTestsBase
         
         await processor.StartAsync();
 
-        await Task.Delay(TimeSpan.FromSeconds(1));
+        await Task.Delay(TimeSpan.FromSeconds(1), ct);
 
         await processor.StopAsync();
     }
@@ -48,6 +50,8 @@ public class CosmosEventStoreTests : EventStoreTestsBase
     [Fact]
     public async Task Bulk_Create()
     {
+        var ct = TestContext.Current.CancellationToken;
+
         await using var harness = await CreateHarness();
         var store = harness.EventStore;
         const string stream = nameof(Bulk_Create);
@@ -55,20 +59,22 @@ public class CosmosEventStoreTests : EventStoreTestsBase
             .Select(_ => NewEvent())
             .ToList();
         var revision = (uint) events.Count - 1;
-        (await store.Exists(stream, CancellationToken)).ShouldBeFalse();
-        (await store.Create(stream, events, CancellationToken)).ShouldBe(revision);
+        (await store.Exists(stream, ct)).ShouldBeFalse();
+        (await store.Create(stream, events, ct)).ShouldBe(revision);
 
-        (await store.GetRevision(stream, CancellationToken)).ShouldBe(revision);
+        (await store.GetRevision(stream, ct)).ShouldBe(revision);
 
-        (await store.Exists(stream, CancellationToken)).ShouldBeTrue();
+        (await store.Exists(stream, ct)).ShouldBeTrue();
         
-        await AssertEqual(events, d => store.Read(d, stream, CancellationToken));
-        (await store.GetRevision(stream, CancellationToken)).ShouldBe((uint) events.Count - 1);
+        await AssertEqual(events, d => store.Read(d, stream, ct));
+        (await store.GetRevision(stream, ct)).ShouldBe((uint) events.Count - 1);
     }
     
     [Fact]
     public async Task Bulk_Create_With_Large_Event()
     {
+        var ct = TestContext.Current.CancellationToken;
+
         await using var harness = await CreateHarness();
         var store = harness.EventStore;
         const string stream = nameof(Bulk_Create_With_Large_Event);
@@ -76,15 +82,15 @@ public class CosmosEventStoreTests : EventStoreTestsBase
             .Select(_ => NewLargeEvent())
             .ToList();
         var revision = (uint) events.Count - 1;
-        (await store.Exists(stream, CancellationToken)).ShouldBeFalse();
-        (await store.Create(stream, events, CancellationToken)).ShouldBe(revision);
+        (await store.Exists(stream, ct)).ShouldBeFalse();
+        (await store.Create(stream, events, ct)).ShouldBe(revision);
 
-        (await store.GetRevision(stream, CancellationToken)).ShouldBe(revision);
+        (await store.GetRevision(stream, ct)).ShouldBe(revision);
 
-        (await store.Exists(stream, CancellationToken)).ShouldBeTrue();
+        (await store.Exists(stream, ct)).ShouldBeTrue();
         
-        await AssertEqual(events, d => store.Read(d, stream, CancellationToken));
-        (await store.GetRevision(stream, CancellationToken)).ShouldBe((uint) events.Count - 1);
+        await AssertEqual(events, d => store.Read(d, stream, ct));
+        (await store.GetRevision(stream, ct)).ShouldBe((uint) events.Count - 1);
     }
     
     [Theory]
@@ -92,6 +98,8 @@ public class CosmosEventStoreTests : EventStoreTestsBase
     [InlineData(false)]
     public async Task Bulk_Append(bool useOptimisticConcurrency)
     {
+        var ct = TestContext.Current.CancellationToken;
+
         await using var harness = await CreateHarness($"{nameof(Bulk_Append)}+{useOptimisticConcurrency}+{Environment.Version}");
         var store = harness.EventStore;
         const string stream = nameof(Bulk_Append);
@@ -99,14 +107,14 @@ public class CosmosEventStoreTests : EventStoreTestsBase
             .Select(_ => NewEvent())
             .ToList();
         const int create = 5;
-        Assert.Equal((uint) create - 1, await store.Create(stream, events.Take(create), CancellationToken));
+        Assert.Equal((uint) create - 1, await store.Create(stream, events.Take(create), ct));
         
         Assert.Equal((uint) events.Count - 1, useOptimisticConcurrency
-            ? await store.Append(stream, create - 1, events.Skip(create), CancellationToken)
-            : await store.Append(stream, events.Skip(create), CancellationToken));
-        await AssertEqual(events, d => store.Read(d, stream, CancellationToken));
+            ? await store.Append(stream, create - 1, events.Skip(create), ct)
+            : await store.Append(stream, events.Skip(create), ct));
+        await AssertEqual(events, d => store.Read(d, stream, ct));
         
-        Assert.Equal((uint) events.Count - 1, await store.GetRevision(stream, CancellationToken));
+        Assert.Equal((uint) events.Count - 1, await store.GetRevision(stream, ct));
     }
     
     [Theory]
@@ -114,6 +122,8 @@ public class CosmosEventStoreTests : EventStoreTestsBase
     [InlineData(false)]
     public async Task Bulk_Append_With_Large_Event(bool useOptimisticConcurrency)
     {
+        var ct = TestContext.Current.CancellationToken;
+
         await using var harness = await CreateHarness($"{nameof(Bulk_Append_With_Large_Event)}+{useOptimisticConcurrency}+{Environment.Version}");
         var store = harness.EventStore;
         const string stream = nameof(Bulk_Append_With_Large_Event);
@@ -121,14 +131,14 @@ public class CosmosEventStoreTests : EventStoreTestsBase
             .Select(_ => NewLargeEvent())
             .ToList();
         const int create = 5;
-        Assert.Equal((uint) create - 1, await store.Create(stream, events.Take(create), CancellationToken));
+        Assert.Equal((uint) create - 1, await store.Create(stream, events.Take(create), ct));
         
         Assert.Equal((uint) events.Count - 1, useOptimisticConcurrency
-            ? await store.Append(stream, create - 1, events.Skip(create), CancellationToken)
-            : await store.Append(stream, events.Skip(create), CancellationToken));
-        await AssertEqual(events, d => store.Read(d, stream, CancellationToken));
+            ? await store.Append(stream, create - 1, events.Skip(create), ct)
+            : await store.Append(stream, events.Skip(create), ct));
+        await AssertEqual(events, d => store.Read(d, stream, ct));
         
-        Assert.Equal((uint) events.Count - 1, await store.GetRevision(stream, CancellationToken));
+        Assert.Equal((uint) events.Count - 1, await store.GetRevision(stream, ct));
     }
 
     private static UncommittedEvent NewLargeEvent()
