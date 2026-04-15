@@ -1,6 +1,4 @@
 ﻿using System.Threading.Tasks.Dataflow;
-using FluentAssertions;
-using Xunit;
 
 namespace PureES.EventBus.Tests;
 

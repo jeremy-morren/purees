@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace PureES.EventStores.Tests;
 
+[SuppressMessage("Usage", "xUnit1051:Calls to methods which accept CancellationToken should use TestContext.Current.CancellationToken")]
 public class AsyncEnumerableGroupTests
 {
     [Fact]

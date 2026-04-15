@@ -11,17 +11,11 @@ namespace PureES.EventStores.Tests.EFCore;
 
 public class EfCoreNpgsqlEventStoreTests : EfCoreEventStoreTestsBase
 {
-    private readonly ITestOutputHelper _output;
-
-    public EfCoreNpgsqlEventStoreTests(ITestOutputHelper output)
-    {
-        _output = output;
-        EnsureDatabaseExists();
-    }
-
     [Fact]
     public async Task CreateScriptShouldBeIdempotent()
     {
+        var ct = TestContext.Current.CancellationToken;
+
         var schema = nameof(CreateScriptShouldBeIdempotent).ToLowerInvariant();
         
         await Execute($"DROP SCHEMA IF EXISTS \"{schema}\" CASCADE");
@@ -39,12 +33,11 @@ public class EfCoreNpgsqlEventStoreTests : EfCoreEventStoreTestsBase
         var store = sp.GetRequiredService<IEfCoreEventStore>();
         var script = store.GenerateIdempotentCreateScript();
         script.ShouldContain(schema);
-        _output.WriteLine(script);
         await Execute(script);
         await Execute(script); //Should not throw
         
         //Read events should succeed
-        (await store.ReadAll().ToListAsync()).ShouldBeEmpty();
+        (await store.ReadAll(ct).ToListAsync(ct)).ShouldBeEmpty();
     }
     
     private const string ConnString = "Host=localhost;Username=postgres;Password=postgres";

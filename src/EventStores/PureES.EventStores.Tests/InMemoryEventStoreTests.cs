@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Moq;
@@ -7,6 +8,7 @@ using PureES.EventStore.InMemory.Subscription;
 
 namespace PureES.EventStores.Tests;
 
+[SuppressMessage("Usage", "xUnit1051:Calls to methods which accept CancellationToken should use TestContext.Current.CancellationToken")]
 public class InMemoryEventStoreTests : EventStoreTestsBase
 {
     [Fact]
@@ -85,7 +87,7 @@ public class InMemoryEventStoreTests : EventStoreTestsBase
             .BuildServiceProvider()
             .GetRequiredService<IInMemoryEventStore>();
         
-        await store.Load(harness.EventStore.ReadAll(Direction.Forwards), default);
+        await store.Load(harness.EventStore.ReadAll(Direction.Forwards));
 
         store.ReadAllSync().Should().HaveCount(100);
         store.Serialize().Should().HaveCount(100);
@@ -120,7 +122,7 @@ public class InMemoryEventStoreTests : EventStoreTestsBase
         var serialized = store.Serialize().ToList();
         var jsonTypeInfo = InMemoryEventStoreJsonSerializerContext.Default.ListSerializedInMemoryEventRecord;
         serialized = JsonSerializer.SerializeToElement(serialized, jsonTypeInfo)
-            .Deserialize<List<SerializedInMemoryEventRecord>>(jsonTypeInfo)
+            .Deserialize(jsonTypeInfo)
             .ShouldNotBeNull();
         
         store = new ServiceCollection()

@@ -13,6 +13,8 @@ public abstract class EfCoreEventStoreTestsBase : EventStoreTestsBase
     [Fact]
     public async Task Subscription_To_All_Should_Handle_All_Events()
     {
+        var ct = TestContext.Current.CancellationToken;
+
         var start = DateTime.UtcNow;
         var handler = new Mock<IEventHandler>();
 
@@ -40,28 +42,28 @@ public abstract class EfCoreEventStoreTestsBase : EventStoreTestsBase
             .OfType<EfCoreEventStoreSubscriptionToAll>()
             .ShouldHaveSingleItem();
 
-        await subscription.StartAsync(default); //noop
+        await subscription.StartAsync(ct); //noop
 
         foreach (var i in Enumerable.Range(0, 10))
-            await store.Create(i.ToString(), NewEvent(), default);
+            await store.Create(i.ToString(), NewEvent(), ct);
 
         var transaction = new EventsTransaction();
         foreach (var i in Enumerable.Range(100, 10))
             transaction.Add(i.ToString(), null, Enumerable.Range(0, 10).Select(_ => NewEvent()));
 
-        await store.SubmitTransaction(transaction.ToUncommittedTransaction(), default);
+        await store.SubmitTransaction(transaction.ToUncommittedTransaction(), ct);
 
         transaction.Clear();
 
         foreach (var i in Enumerable.Range(0, 10))
             transaction.Add(i.ToString(), 0, [NewEvent()]);
 
-        await store.SubmitTransaction(transaction.ToUncommittedTransaction(), default);
+        await store.SubmitTransaction(transaction.ToUncommittedTransaction(), ct);
 
         foreach (var i in Enumerable.Range(0, 10))
-            await store.Append(i.ToString(), 1, NewEvent(), default);
+            await store.Append(i.ToString(), 1, NewEvent(), ct);
 
-        await subscription.StopAsync(default);
+        await subscription.StopAsync(ct);
 
         handler.Verify();
 

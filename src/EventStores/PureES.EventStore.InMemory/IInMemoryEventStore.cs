@@ -49,7 +49,7 @@ public interface IInMemoryEventStore : IEventStore
     /// <param name="ct"></param>
     /// <returns></returns>
     /// <exception cref="InvalidOperationException">The event store already events</exception>
-    Task Load(IAsyncEnumerable<EventEnvelope> @events, CancellationToken ct);
+    Task Load(IAsyncEnumerable<EventEnvelope> @events, CancellationToken ct = default);
 
     /// <summary>
     /// Initializes the event store from the given records.
@@ -57,7 +57,7 @@ public interface IInMemoryEventStore : IEventStore
     /// <param name="events"></param>
     /// <param name="ct"></param>
     /// <exception cref="InvalidOperationException">The event store already events</exception>
-    Task Load(IAsyncEnumerable<SerializedInMemoryEventRecord> events, CancellationToken ct);
+    Task Load(IAsyncEnumerable<SerializedInMemoryEventRecord> events, CancellationToken ct = default);
 
     /// <summary>
     /// Initializes the event store from the given records.

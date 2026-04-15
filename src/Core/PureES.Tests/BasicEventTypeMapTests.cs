@@ -4,20 +4,13 @@ using System.Collections.ObjectModel;
 using FluentAssertions;
 using Shouldly;
 using Xunit;
-using Xunit.Abstractions;
+
 // ReSharper disable UnusedTypeParameter
 
 namespace PureES.Tests;
 
 public class BasicEventTypeMapTests
 {
-    private readonly ITestOutputHelper _output;
-
-    public BasicEventTypeMapTests(ITestOutputHelper output)
-    {
-        _output = output;
-    }
-
     [Theory]
     [InlineData(typeof(int))]
     [InlineData(typeof(List<int>))]
@@ -46,8 +39,6 @@ public class BasicEventTypeMapTests
             .And.NotContain(t => t.Contains("ICloneable"), "Should not include ICloneable")
 
             .And.OnlyContain(t => type.IsAssignableTo(BasicEventTypeMap.GetCLRType(t)), "All types should be assignable to the original type");
-
-        _output.WriteLine(string.Join(Environment.NewLine, list));
 
         var mapped = BasicEventTypeMap.GetCLRType(list[^1]);
         mapped.ShouldBe(type);
@@ -92,6 +83,29 @@ public class BasicEventTypeMapTests
             .And.NotContain(t => t.Contains("Comparable"), "Should not include IComparable")
             .And.NotContain(t => t.Contains("Parsable"), "Should not include Parsable")
             .And.NotContain(t => t.Contains("Formattable"), "Should not include Formattable");
+    }
+
+    [Theory]
+    [InlineData(typeof(int))]
+    [InlineData(typeof(DateTime))]
+    [InlineData(typeof(Exception))]
+    public void GetTypeNameForCoreTypeShouldNotIncludeAssembly(Type type)
+    {
+        var name = BasicEventTypeMap.GetTypeName(type, out var includesAssembly);
+        name.Should().NotContain(", ");
+        includesAssembly.ShouldBeFalse();
+        Type.GetType(name).ShouldBe(type);
+    }
+
+    [Theory]
+    [InlineData(typeof(NestedType))]
+    [InlineData(typeof(IBaseInterface))]
+    public void GetTypeNameForCustomTYpeShouldIncludeAssembly(Type type)
+    {
+        var name = BasicEventTypeMap.GetTypeName(type, out var includesAssembly);
+        name.Should().Contain(", ");
+        includesAssembly.ShouldBeTrue();
+        Type.GetType(name).ShouldBe(type);
     }
 
     private interface ISubInterface<T>;

@@ -23,7 +23,7 @@ public class IncrementalGeneratorTests
     public Task Generate()
     {
         var syntaxTrees = Directory.GetFiles(Source)
-            .Concat(new[] { CompilerAttributes })
+            .Concat([CompilerAttributes])
             .Select(file => CSharpSyntaxTree.ParseText(File.ReadAllText(file)));
         
         var compilation = CSharpCompilation.Create(
@@ -41,13 +41,15 @@ public class IncrementalGeneratorTests
             syntaxTrees: syntaxTrees,
             options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
 
-        compilation.GetDiagnostics().ShouldBeEmpty();
+        var ct = TestContext.Current.CancellationToken;
+
+        compilation.GetDiagnostics(ct).ShouldBeEmpty();
 
         var generator = new PureESIncrementalGenerator();
 
         GeneratorDriver driver = CSharpGeneratorDriver.Create(generator);
 
-        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out var diagnostics);
+        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out _, out var diagnostics, ct);
 
         diagnostics.ShouldBeEmpty();
 

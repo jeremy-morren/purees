@@ -54,8 +54,7 @@ public class BasicEventTypeMap : IEventTypeMap
         var result = new List<string>();
         while (true)
         {
-            GetTypeName(type, out var name, out _);
-            result.Add(name);
+            result.Add(GetTypeName(type, out _));
             result.AddRange(GetInterfaces(type));
 
             // Do not include System.Object or System.ValueType
@@ -98,8 +97,7 @@ public class BasicEventTypeMap : IEventTypeMap
                     continue;
             }
 
-            GetTypeName(@interface, out var name, out _);
-            yield return name;
+            yield return GetTypeName(@interface, out _);
         }
     }
     
@@ -109,7 +107,7 @@ public class BasicEventTypeMap : IEventTypeMap
     /// <remarks>
     /// Includes assembly information without version (except for <c>System.Private.CoreLib</c> and <c>mscorlib</c>)
     /// </remarks>
-    public static void GetTypeName(Type type, out string name, out bool includesAssembly)
+    public static string GetTypeName(Type type, out bool includesAssembly)
     {
         ArgumentNullException.ThrowIfNull(type);
 
@@ -130,7 +128,7 @@ public class BasicEventTypeMap : IEventTypeMap
             sb.Append('[');
             foreach (var t in type.GetGenericArguments())
             {
-                GetTypeName(t, out var genericName, out var hasAssembly);
+                var genericName = GetTypeName(t, out var hasAssembly);
                 
                 //Surrounding braces are only necessary if type contains assembly information
                 if (hasAssembly)
@@ -166,8 +164,8 @@ public class BasicEventTypeMap : IEventTypeMap
                 sb.Append(assembly);
                 break;
         }
-        
-        name = sb.ToString();
+
+        return sb.ToString();
     }
 
     private static string GetNestedName(Type type) => type.IsNested ? $"{GetNestedName(type.DeclaringType!)}+{type.Name}" : type.Name;

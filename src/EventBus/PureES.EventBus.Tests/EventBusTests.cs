@@ -1,8 +1,6 @@
 ﻿using System.Threading.Tasks.Dataflow;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
-using Shouldly;
-using Xunit;
 
 namespace PureES.EventBus.Tests;
 
