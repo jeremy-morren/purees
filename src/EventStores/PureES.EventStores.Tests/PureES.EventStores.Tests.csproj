@@ -18,6 +18,10 @@
 
         <PackageReference Include="Serilog" Version="4.0.0" />
         <PackageReference Include="Serilog.Extensions.Logging" Version="8.0.0" />
+
+        <!-- See https://github.com/advisories/GHSA-2m69-gcr7-jv3q: Include modern SQLite manually -->
+        <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
+        <PackageReference Include="SQLitePCLRaw.core" Version="3.0.3" />
     </ItemGroup>
 
     <ItemGroup>

@@ -1,6 +1,6 @@
 <Project>
     <ItemGroup>
-        <PackageReference Update="JetBrains.Annotations" Version="2025.2.4" />
+        <PackageReference Update="JetBrains.Annotations" Version="2026.2.0" />
         <PackageReference Update="System.Linq.AsyncEnumerable" Version="10.0.1" />
     </ItemGroup>
 
