@@ -1,5 +1,8 @@
 <Project>
     <PropertyGroup>
         <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb;</AllowedOutputExtensionsInPackageBuildOutputFolder>
+
+        <!-- Make all builds reproducible -->
+        <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
     </PropertyGroup>
 </Project>

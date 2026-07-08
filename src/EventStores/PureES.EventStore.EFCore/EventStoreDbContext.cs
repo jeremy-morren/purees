@@ -56,7 +56,7 @@ internal class EventStoreDbContext : DbContext
     
     public async Task<List<EventStoreEvent>> WriteAndSaveChanges(List<EventStoreEvent> events, CancellationToken ct)
     {
-        //Create a new context to avoid issues with tracking
+        // Create a new context to avoid issues with tracking
         await using var context = new EventStoreDbContext(_dbContextOptions, _storeOptions);
         context.Set<EventStoreEvent>().AddRange(events);
         await context.SaveChangesAsync(ct);

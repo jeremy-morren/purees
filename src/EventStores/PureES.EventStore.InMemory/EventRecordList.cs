@@ -77,8 +77,11 @@ internal class EventRecordList : IReadOnlyList<InMemoryEventRecord>
     }
 
     [Pure]
-    public IEnumerable<InMemoryEventRecord> ReadAll(Direction direction, uint maxCount) =>
-        ReadAll(direction).Take((int)maxCount);
+    public IEnumerable<InMemoryEventRecord> ReadAll(Direction direction, uint maxCount)
+    {
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(maxCount, (uint)int.MaxValue);
+        return ReadAll(direction).Take((int)maxCount);
+    }
 
     /// <summary>
     /// Reads a stream of events

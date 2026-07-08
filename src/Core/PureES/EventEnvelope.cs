@@ -1,5 +1,7 @@
 ﻿// ReSharper disable InconsistentNaming
 
+using NodaTime;
+
 namespace PureES;
 
 /// <inheritdoc />
@@ -8,13 +10,10 @@ public class EventEnvelope : IEventEnvelope
     public EventEnvelope(
         string streamId,
         uint streamPosition, 
-        DateTime timestamp,
+        Instant timestamp,
         object _event,
         object? _metadata)
     {
-        if (timestamp.Kind != DateTimeKind.Utc)
-            throw new ArgumentException("Timestamp must be in UTC", nameof(timestamp));
-
         StreamId = streamId ?? throw new ArgumentNullException(nameof(streamId));
         StreamPosition = streamPosition;
         Timestamp = timestamp;
@@ -38,7 +37,7 @@ public class EventEnvelope : IEventEnvelope
     public uint StreamPosition { get; }
 
     /// <inheritdoc />
-    public DateTime Timestamp { get; }
+    public Instant Timestamp { get; }
 
     /// <inheritdoc />
     public object Event { get; }
@@ -138,13 +137,10 @@ public class EventEnvelope<TEvent, TMetadata> : IEventEnvelope<TEvent, TMetadata
     public EventEnvelope(
         string streamId,
         uint streamPosition,
-        DateTime timestamp,
+        Instant timestamp,
         TEvent @event,
         object? metadata)
     {
-        if (timestamp.Kind != DateTimeKind.Utc)
-            throw new ArgumentException("Timestamp must be in UTC", nameof(timestamp));
-
         StreamId = streamId ?? throw new ArgumentNullException(nameof(streamId));
         StreamPosition = streamPosition;
         Timestamp = timestamp;
@@ -196,7 +192,7 @@ public class EventEnvelope<TEvent, TMetadata> : IEventEnvelope<TEvent, TMetadata
     public uint StreamPosition { get; }
 
     /// <inheritdoc />
-    public DateTime Timestamp { get; }
+    public Instant Timestamp { get; }
 
     /// <inheritdoc />
     public TEvent Event { get; }

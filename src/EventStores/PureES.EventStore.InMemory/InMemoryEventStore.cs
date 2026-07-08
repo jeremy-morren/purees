@@ -228,8 +228,11 @@ internal class InMemoryEventStore : IInMemoryEventStore
 
     public bool ExistsSync(string streamId) => _events.Exists(streamId);
 
-    public IEnumerable<EventEnvelope> ReadByEventTypeSync(Direction direction, Type[] eventTypes)
+    public IEnumerable<EventEnvelope> ReadByEventTypeSync(Direction direction, IReadOnlyCollection<Type> eventTypes)
     {
+        if (eventTypes.Count == 0)
+            return [];
+        
         var types = GetTypeNames(eventTypes);
         return _events.ReadAll(direction)
             .Where(r => r.TypeContains(types))
@@ -246,12 +249,11 @@ internal class InMemoryEventStore : IInMemoryEventStore
     public IAsyncEnumerable<EventEnvelope> ReadAll(Direction direction, CancellationToken cancellationToken) =>
         ToAsyncEnumerable(_events.ReadAll(direction));
 
-    public IAsyncEnumerable<EventEnvelope> ReadAll(Direction direction,
+    public IAsyncEnumerable<EventEnvelope> ReadAll(
+        Direction direction,
         uint maxCount,
-        CancellationToken cancellationToken)
-    {
-        return ToAsyncEnumerable(_events.ReadAll(direction, maxCount));
-    }
+        CancellationToken cancellationToken) =>
+        ToAsyncEnumerable(_events.ReadAll(direction, maxCount));
 
     public IEventStoreStream Read(Direction direction, string streamId, CancellationToken _)
     {
@@ -290,34 +292,35 @@ internal class InMemoryEventStore : IInMemoryEventStore
         if (stream.ActualRevision != expectedRevision)
             throw new WrongStreamRevisionException(streamId, expectedRevision, stream.ActualRevision);
 
-        var skip = (int)startRevision;
         stream = direction switch
         {
-            Direction.Forwards => stream.Skip(skip),
-            Direction.Backwards => stream.SkipLast(skip),
+            Direction.Forwards => stream.Skip(startRevision),
+            Direction.Backwards => stream.SkipLast(startRevision),
             _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
         };
 
         return new InMemoryEventStream(direction, streamId, stream, _serializer);
     }
 
-    public IEventStoreStream ReadPartial(Direction direction,
+    public IEventStoreStream ReadPartial(
+        Direction direction,
         string streamId,
         uint count,
         CancellationToken _)
     {
         ArgumentNullException.ThrowIfNull(streamId);
-        ArgumentOutOfRangeException.ThrowIfLessThan(count, 0u);
 
         var stream = _events.ReadStream(streamId, direction);
         if (stream.ActualRevision < count - 1)
             throw new WrongStreamRevisionException(streamId, count - 1, stream.ActualRevision);
 
-        stream = stream.Take((int)count);
+        stream = stream.Take(count);
         return new InMemoryEventStream(direction, streamId, stream, _serializer);
     }
 
-    public IEventStoreStream ReadSlice(string streamId,
+    public IEventStoreStream ReadSlice(
+        Direction direction,
+        string streamId,
         uint startRevision,
         uint endRevision,
         CancellationToken cancellationToken = default)
@@ -325,17 +328,31 @@ internal class InMemoryEventStore : IInMemoryEventStore
         ArgumentNullException.ThrowIfNull(streamId);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(startRevision, endRevision);
 
-        var stream = _events.ReadStream(streamId, Direction.Forwards);
+        var stream = _events.ReadStream(streamId, direction);
 
         if (endRevision > stream.ActualRevision)
             throw new WrongStreamRevisionException(streamId, endRevision, stream.ActualRevision);
 
-        stream = stream.Take((int)endRevision + 1).Skip((int)startRevision);
+        // Skip the events from the start of the stream
+        stream = direction switch
+        {
+            Direction.Forwards => stream.Skip(startRevision),
+            Direction.Backwards => stream.Skip(stream.ActualRevision - endRevision),
+            
+            _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
+        };
+        
+        // Take only the requested portion
+        stream = stream.Take((endRevision - startRevision) + 1);
 
-        return new InMemoryEventStream(Direction.Forwards, streamId,stream, _serializer);
+        return new InMemoryEventStream(direction, streamId,stream, _serializer);
     }
 
-    public IEventStoreStream ReadSlice(string streamId, uint startRevision, CancellationToken cancellationToken = default)
+    public IEventStoreStream ReadSlice(
+        Direction direction, 
+        string streamId, 
+        uint startRevision, 
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(streamId);
 
@@ -344,9 +361,15 @@ internal class InMemoryEventStore : IInMemoryEventStore
         if (stream.ActualRevision < startRevision)
             throw new WrongStreamRevisionException(streamId, startRevision, stream.ActualRevision);
 
-        stream = stream.Skip((int)startRevision);
+        // Skip the events from the start of the stream
+        stream = direction switch
+        {
+            Direction.Forwards => stream.Skip(startRevision),
+            Direction.Backwards => stream.Reverse().SkipLast(startRevision),
+            _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
+        };
 
-        return new InMemoryEventStream(Direction.Forwards, streamId, stream, _serializer);
+        return new InMemoryEventStream(direction, streamId, stream, _serializer);
     }
 
     public IAsyncEnumerable<IEventStoreStream> ReadMany(Direction direction,
@@ -390,7 +413,8 @@ internal class InMemoryEventStore : IInMemoryEventStore
         return result.ToAsyncEnumerable();
     }
 
-    public async IAsyncEnumerable<IEventStoreStream> ReadMany(Direction direction,
+    public async IAsyncEnumerable<IEventStoreStream> ReadMany(
+        Direction direction,
         IAsyncEnumerable<string> streams,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
@@ -399,18 +423,19 @@ internal class InMemoryEventStore : IInMemoryEventStore
             yield return stream;
     }
 
-    public IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction,
-        Type[] eventTypes,
-        CancellationToken cancellationToken)
-    {
-        return ReadByEventTypeSync(direction, eventTypes).ToAsyncEnumerable();
-    }
+    public IAsyncEnumerable<EventEnvelope> ReadByEventType(
+        Direction direction,
+        IReadOnlyCollection<Type> eventTypes,
+        CancellationToken cancellationToken) =>
+        ReadByEventTypeSync(direction, eventTypes).ToAsyncEnumerable();
 
-    public IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction,
-        Type[] eventTypes,
+    public IAsyncEnumerable<EventEnvelope> ReadByEventType(
+        Direction direction,
+        IReadOnlyCollection<Type> eventTypes,
         uint maxCount,
         CancellationToken cancellationToken)
     {
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(maxCount, (uint)int.MaxValue);
         return ReadByEventTypeSync(direction, eventTypes).Take((int)maxCount).ToAsyncEnumerable();
     }
 
@@ -418,15 +443,16 @@ internal class InMemoryEventStore : IInMemoryEventStore
 
     #region Count
 
-    public Task<uint> CountByEventType(Type[] eventTypes, CancellationToken cancellationToken)
-    {
-        return Task.FromResult(CountByEventTypeSync(eventTypes));
-    }
+    public Task<uint> CountByEventType(IReadOnlyCollection<Type> eventTypes, CancellationToken cancellationToken) => 
+        Task.FromResult(CountByEventTypeSync(eventTypes));
 
     public Task<uint> Count(CancellationToken cancellationToken) => Task.FromResult(GetCountSync());
 
-    public uint CountByEventTypeSync(Type[] eventTypes)
+    public uint CountByEventTypeSync(IReadOnlyCollection<Type> eventTypes)
     {
+        if (eventTypes.Count == 0)
+            return 0;
+        
         var types = GetTypeNames(eventTypes);
         return (uint)_events.Count(r => r.TypeContains(types));
     }
@@ -435,13 +461,13 @@ internal class InMemoryEventStore : IInMemoryEventStore
 
     #endregion
 
-    private HashSet<string> GetTypeNames(Type[] eventTypes)
+    private HashSet<string> GetTypeNames(IReadOnlyCollection<Type> eventTypes)
     {
         ArgumentNullException.ThrowIfNull(eventTypes);
         return eventTypes
             .Distinct()
             .Select(_eventTypeMap.GetTypeNames)
-            .Select(l => l[^1])
+            .Select(list => list[^1])
             .ToHashSet();
     }
 

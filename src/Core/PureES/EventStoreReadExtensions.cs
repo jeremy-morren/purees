@@ -31,8 +31,7 @@ public static class EventStoreReadExtensions
         ///     An <see cref="IAsyncEnumerable{T}" /> of <see cref="EventEnvelope" />
         ///     from all events in the order in which they were added
         /// </returns>
-        public IAsyncEnumerable<EventEnvelope> ReadAll(uint maxCount,
-            CancellationToken cancellationToken = default)
+        public IAsyncEnumerable<EventEnvelope> ReadAll(uint maxCount, CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(eventStore);
             return eventStore.ReadAll(Direction.Forwards, maxCount, cancellationToken);
@@ -48,8 +47,7 @@ public static class EventStoreReadExtensions
         ///     from the events in the stream in the order in which they were added
         /// </returns>
         /// <exception cref="StreamNotFoundException">Stream <paramref name="streamId" /> not found</exception>
-        public IEventStoreStream Read(string streamId,
-            CancellationToken cancellationToken = default)
+        public IEventStoreStream Read(string streamId, CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(eventStore);
             return eventStore.Read(Direction.Forwards, streamId, cancellationToken);
@@ -70,7 +68,8 @@ public static class EventStoreReadExtensions
         /// <exception cref="WrongStreamRevisionException">
         ///     Stream <paramref name="streamId" /> not at revision <paramref name="expectedRevision" />
         /// </exception>
-        public IEventStoreStream Read(string streamId,
+        public IEventStoreStream Read(
+            string streamId,
             uint expectedRevision,
             CancellationToken cancellationToken = default)
         {
@@ -95,7 +94,8 @@ public static class EventStoreReadExtensions
         /// <exception cref="WrongStreamRevisionException">
         ///     Stream <paramref name="streamId" /> not at revision <paramref name="expectedRevision" />
         /// </exception>
-        public IEventStoreStream Read(string streamId,
+        public IEventStoreStream Read(
+            string streamId,
             uint startRevision,
             uint expectedRevision,
             CancellationToken cancellationToken = default)
@@ -105,7 +105,62 @@ public static class EventStoreReadExtensions
         }
 
         /// <summary>
-        ///     Loads events from stream <paramref name="streamId" />, returning at most <paramref name="count" /> elements
+        ///     Reads events from stream <paramref name="streamId" />
+        ///     starting from <paramref name="startRevision"/> until end of stream
+        /// </summary>
+        /// <param name="streamId">Id of stream to load events from</param>
+        /// <param name="startRevision">Revision to start reading from.</param>
+        /// <param name="cancellationToken"></param>
+        /// <returns>
+        ///     An <see cref="IAsyncEnumerable{T}" /> of <see cref="EventEnvelope" />
+        ///     from the events in the stream in the order in which they were added,
+        ///     starting from <paramref name="startRevision"/> to the end of the stream
+        /// </returns>
+        /// <exception cref="StreamNotFoundException">Stream <paramref name="streamId" /> not found</exception>
+        /// <exception cref="WrongStreamRevisionException">
+        ///     Revision of stream <paramref name="streamId" /> less than <paramref name="startRevision" />
+        /// </exception>
+        public IEventStoreStream ReadSlice(
+            string streamId,
+            uint startRevision,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(eventStore);
+            return eventStore.ReadSlice(Direction.Forwards, streamId, startRevision, cancellationToken);
+        }
+        
+        /// <summary>
+        ///     Reads events from stream <paramref name="streamId" />
+        ///     starting at <paramref name="startRevision"/> up
+        ///     to and including <paramref name="endRevision" />
+        /// </summary>
+        /// <param name="streamId">Id of stream to load events from</param>
+        /// <param name="startRevision">Revision to start reading from.</param>
+        /// <param name="endRevision">Minimum revision that stream must be at</param>
+        /// <param name="cancellationToken"></param>
+        /// <returns>
+        ///     An <see cref="IAsyncEnumerable{T}" /> of <see cref="EventEnvelope" />
+        ///     from the events in the stream in the order in which they were added,
+        ///     up to and including event at <paramref name="endRevision" />
+        /// </returns>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="startRevision" /> &gt; <paramref name="endRevision"/></exception>
+        /// <exception cref="StreamNotFoundException">Stream <paramref name="streamId" /> not found</exception>
+        /// <exception cref="WrongStreamRevisionException">
+        ///     Revision of stream <paramref name="streamId" /> less than <paramref name="endRevision" />
+        /// </exception>
+        public IEventStoreStream ReadSlice(
+            string streamId,
+            uint startRevision,
+            uint endRevision,
+            CancellationToken cancellationToken = default)
+        {
+            ArgumentNullException.ThrowIfNull(eventStore);
+            return eventStore.ReadSlice(Direction.Forwards, streamId, startRevision, endRevision, cancellationToken);
+        }
+                
+        /// <summary>
+        ///     Reads events from stream <paramref name="streamId" />,
+        ///     returning at most <paramref name="count" /> elements
         /// </summary>
         /// <param name="streamId">Id of stream to load events from</param>
         /// <param name="count">Maximum number of events to read</param>
@@ -119,7 +174,8 @@ public static class EventStoreReadExtensions
         /// <exception cref="WrongStreamRevisionException">
         ///     Revision of stream <paramref name="streamId" /> less than <paramref name="count" />
         /// </exception>
-        public IEventStoreStream ReadPartial(string streamId,
+        public IEventStoreStream ReadPartial(
+            string streamId,
             uint count,
             CancellationToken cancellationToken = default)
         {
@@ -132,7 +188,8 @@ public static class EventStoreReadExtensions
         /// </summary>
         /// <param name="streams">The streams to read</param>
         /// <param name="cancellationToken"></param>
-        public IAsyncEnumerable<IEventStoreStream> ReadMany(IEnumerable<string> streams,
+        public IAsyncEnumerable<IEventStoreStream> ReadMany(
+            IEnumerable<string> streams,
             CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(eventStore);
@@ -144,7 +201,8 @@ public static class EventStoreReadExtensions
         /// </summary>
         /// <param name="streams">The streams to read</param>
         /// <param name="cancellationToken"></param>
-        public IAsyncEnumerable<IEventStoreStream> ReadMany(IAsyncEnumerable<string> streams,
+        public IAsyncEnumerable<IEventStoreStream> ReadMany(
+            IAsyncEnumerable<string> streams,
             CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(eventStore);
@@ -152,7 +210,7 @@ public static class EventStoreReadExtensions
         }
 
         /// <summary>
-        ///     Loads events by <c>EventType</c>
+        ///     Reads events by <c>EventType</c>
         /// </summary>
         /// <param name="eventType">Type of event to query</param>
         /// <param name="cancellationToken"></param>
@@ -160,7 +218,8 @@ public static class EventStoreReadExtensions
         ///     An <see cref="IAsyncEnumerable{T}" /> of <see cref="EventEnvelope" />
         ///     from the events in the stream in the order in which they were added
         /// </returns>
-        public IAsyncEnumerable<EventEnvelope> ReadByEventType(Type eventType,
+        public IAsyncEnumerable<EventEnvelope> ReadByEventType(
+            Type eventType,
             CancellationToken cancellationToken = default)
         {
             ArgumentNullException.ThrowIfNull(eventStore);
@@ -168,7 +227,7 @@ public static class EventStoreReadExtensions
         }
 
         /// <summary>
-        ///     Loads events by <c>EventType</c>
+        ///     Reads events by <c>EventType</c>
         /// </summary>
         /// <param name="direction">Read direction</param>
         /// <param name="eventType">Type of event to query</param>
@@ -177,7 +236,8 @@ public static class EventStoreReadExtensions
         ///     An <see cref="IAsyncEnumerable{T}" /> of <see cref="EventEnvelope" />
         ///     from the events in the stream in the order in which they were added
         /// </returns>
-        public IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction,
+        public IAsyncEnumerable<EventEnvelope> ReadByEventType(
+            Direction direction,
             Type eventType,
             CancellationToken cancellationToken = default)
         {
@@ -186,7 +246,7 @@ public static class EventStoreReadExtensions
         }
 
         /// <summary>
-        ///     Loads events by <c>EventType</c>
+        ///     Reads events by <c>EventType</c>
         /// </summary>
         /// <param name="eventType">Type of event to query</param>
         /// <param name="maxCount">The maximum number of events to return</param>
@@ -195,7 +255,8 @@ public static class EventStoreReadExtensions
         ///     An <see cref="IAsyncEnumerable{T}" /> of <see cref="EventEnvelope" />
         ///     from the events in the stream in the order in which they were added
         /// </returns>
-        public IAsyncEnumerable<EventEnvelope> ReadByEventType(Type eventType,
+        public IAsyncEnumerable<EventEnvelope> ReadByEventType(
+            Type eventType,
             uint maxCount,
             CancellationToken cancellationToken = default)
         {

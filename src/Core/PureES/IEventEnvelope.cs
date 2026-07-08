@@ -2,6 +2,8 @@
 
 // ReSharper disable InconsistentNaming
 
+using NodaTime;
+
 namespace PureES;
 
 /// <summary>
@@ -16,8 +18,8 @@ public interface IEventEnvelope : IEquatable<IEventEnvelope>
     /// <summary>The position of the event within the stream</summary>
     public uint StreamPosition { get; }
 
-    /// <summary>The UTC timestamp that the event was persisted</summary>
-    public DateTime Timestamp { get; }
+    /// <summary>The timestamp that the event was created</summary>
+    public Instant Timestamp { get; }
 
     /// <summary>The underlying event</summary>
     object Event { get; }

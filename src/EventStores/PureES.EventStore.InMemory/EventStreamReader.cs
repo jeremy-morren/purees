@@ -12,7 +12,11 @@ internal class EventStreamReader
     /// All event records in the event store
     /// </summary>
     private readonly ImmutableList<InMemoryEventRecord> _eventStore;
-    private readonly IReadOnlyList<int> _stream;
+    
+    /// <summary>
+    /// Indexes of the events we are reading in the stream
+    /// </summary>
+    private readonly IEnumerable<int> _stream;
 
     /// <summary>
     /// Actual stream revision
@@ -21,7 +25,7 @@ internal class EventStreamReader
 
     public EventStreamReader(
         ImmutableList<InMemoryEventRecord> eventStore,
-        IReadOnlyList<int> stream,
+        IEnumerable<int> stream,
         uint actualRevision)
     {
         _eventStore = eventStore;
@@ -43,21 +47,42 @@ internal class EventStreamReader
     /// Skips the given number of events in the stream
     /// </summary>
     [Pure]
-    public EventStreamReader Skip(int count) => Clone(_stream.Skip(count));
+    public EventStreamReader Skip(uint count)
+    {
+        if (count == 0)
+            return this;
+        
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(count, (uint)int.MaxValue);
+        return Clone(_stream.Skip((int)count));
+    }
 
     /// <summary>
     /// Skips the given number of events at the end of the stream
     /// </summary>
     [Pure]
-    public EventStreamReader SkipLast(int count) => Clone(_stream.SkipLast(count).ToList());
+    public EventStreamReader SkipLast(uint count)
+    {
+        if (count == 0)
+            return this;
+        
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(count, (uint)int.MaxValue);
+        return Clone(_stream.SkipLast((int)count));
+    }
 
     /// <summary>
     /// Takes the given number of events from the start of the stream
     /// </summary>
     [Pure]
-    public EventStreamReader Take(int count) => Clone(_stream.Take(count));
+    public EventStreamReader Take(uint count)
+    {
+        if (count == 0)
+            return this;
+        
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(count, (uint)int.MaxValue);
+        return Clone(_stream.Take((int)count));
+    }
 
     [Pure]
     private EventStreamReader Clone(IEnumerable<int> stream) =>
-        new(_eventStore, stream.ToList(), ActualRevision);
+        new(_eventStore, stream, ActualRevision);
 }

@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using NodaTime;
 
 namespace PureES.EventStore.EFCore.Models;
 
@@ -20,7 +21,7 @@ internal record EventStoreEvent
     /// <summary>
     /// Timestamp of the event in UTC
     /// </summary>
-    public DateTimeOffset Timestamp { get; set; }
+    public Instant Timestamp { get; set; }
 
     /// <summary>
     /// Index of the event in a transaction, if this event was added as part of a transaction

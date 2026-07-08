@@ -63,7 +63,7 @@ public class EfCoreNpgsqlEventStoreTests : EfCoreEventStoreTestsBase
 
         var store = sp.GetRequiredService<IEventStore>();
         var harness = new NpgsqlEventStoreTestHarness(sp, schema);
-        await harness.DropSchema(); //Drop the schema to ensure a clean slate
+        await harness.DropSchema(); // Drop the schema to ensure a clean slate
 
         using (var context = sp.GetRequiredService<EventStoreDbContext<EmptyDbContext>>())
         {
@@ -83,6 +83,7 @@ public class EfCoreNpgsqlEventStoreTests : EfCoreEventStoreTestsBase
         {
             _services = services;
             _schema = schema;
+            EnsureDatabaseExists();
         }
         
         public async ValueTask DisposeAsync()
@@ -97,7 +98,7 @@ public class EfCoreNpgsqlEventStoreTests : EfCoreEventStoreTestsBase
     
     private static void EnsureDatabaseExists()
     {
-        //Create database if it doesn't exist
+        // Create database if it doesn't exist
         try
         {
             ExecuteMaster($"CREATE DATABASE \"{DbName}\"");

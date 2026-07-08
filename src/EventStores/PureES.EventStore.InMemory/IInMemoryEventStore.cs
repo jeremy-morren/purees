@@ -8,10 +8,10 @@ namespace PureES.EventStore.InMemory;
 [PublicAPI]
 public interface IInMemoryEventStore : IEventStore
 {
+    #region Read Sync
     /// <summary>
     /// Gets the number of events in the store
     /// </summary>
-    /// <returns></returns>
     uint GetCountSync();
     
     /// <summary>
@@ -33,12 +33,14 @@ public interface IInMemoryEventStore : IEventStore
     /// <summary>
     /// Reads events by type as a synchronous operation
     /// </summary>
-    IEnumerable<EventEnvelope> ReadByEventTypeSync(Direction direction, Type[] eventTypes);
+    IEnumerable<EventEnvelope> ReadByEventTypeSync(Direction direction, IReadOnlyCollection<Type> eventTypes);
 
     /// <summary>
     /// Counts the number of events by type as a synchronous operation
     /// </summary>
-    uint CountByEventTypeSync(Type[] eventTypes);
+    uint CountByEventTypeSync(IReadOnlyCollection<Type> eventTypes);
+    
+    #endregion
 
     #region Load & Save
 

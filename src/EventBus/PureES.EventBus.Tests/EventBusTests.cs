@@ -1,6 +1,7 @@
 ﻿using System.Threading.Tasks.Dataflow;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
+using NodaTime;
 
 namespace PureES.EventBus.Tests;
 
@@ -12,7 +13,7 @@ public class EventBusTests
         var executed1 = false;
         var executed2 = false;
 
-        //TODO: implement own version of IEventHandlerCollection to remove GetType() distinct call
+        // TODO: implement own version of IEventHandlerCollection to remove GetType() distinct call
         var services = new EventHandlerServices(new Dictionary<Type, Action<EventEnvelope>[]>()
         {
             {
@@ -70,7 +71,7 @@ public class EventBusTests
     private static EventEnvelope NewEnvelope() => new(
         Guid.NewGuid().ToString(),
         0,
-        DateTime.UtcNow,
+        SystemClock.Instance.GetCurrentInstant(),
         Object,
         Object);
 

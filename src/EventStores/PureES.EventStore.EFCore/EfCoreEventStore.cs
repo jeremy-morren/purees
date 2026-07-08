@@ -56,7 +56,7 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore where TContext : D
             yield return new EventEnvelope(
                 e.StreamId,
                 (uint)e.StreamPos,
-                e.Timestamp.UtcDateTime,
+                e.Timestamp,
                 _serializer.DeserializeEvent(e.StreamId, e.StreamPos, e.EventType, e.Event),
                 _serializer.DeserializeMetadata(e.StreamId, e.StreamPos, e.Metadata));
         }
@@ -302,7 +302,8 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore where TContext : D
         };
     }
     
-    private async IAsyncEnumerable<EventEnvelope> ReadInternal(Direction direction, string streamId, [EnumeratorCancellation] CancellationToken cancellationToken)
+    private async IAsyncEnumerable<EventEnvelope> ReadInternal(
+        Direction direction, string streamId, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(streamId);
 
@@ -435,6 +436,7 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore where TContext : D
         new EfCoreEventStoreStream(direction, streamId, ReadPartialInternal(direction, streamId, count, cancellationToken));
 
     private async IAsyncEnumerable<EventEnvelope> ReadSliceInternal(
+        Direction direction,
         string streamId, 
         uint startRevision, 
         uint endRevision,
@@ -449,7 +451,7 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore where TContext : D
         var events = ReadEvents(
             context =>
             {
-                var query = ReadStream(context, Direction.Forwards, streamId);
+                var query = ReadStream(context, direction, streamId);
 
                 // Ensure we read the first event, to check stream exists
                 // If startRevision is 0, no filter is needed (i.e. we read up to endRevision)
@@ -462,27 +464,29 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore where TContext : D
         
         var exists = false;
         uint? actual = null;
-        await foreach (var e in events)
+        await foreach (var env in events)
         {
             exists = true;
-            if (e.StreamPosition == 0 && startRevision != 0) continue;
-            yield return e;
-            actual = e.StreamPosition;
+            if (env.StreamPosition == 0 && startRevision != 0) continue;
+            yield return env;
+            // Actual: we want the max version
+            actual = actual > env.StreamPosition ? actual.Value : env.StreamPosition;
         }
         
         if (!exists)
             throw new StreamNotFoundException(streamId);
 
-        //Stream does exist, ensure we read to the end
+        // Stream does exist, ensure we read to the end
         actual ??= await GetRevision(streamId, cancellationToken);
         if (actual.Value != endRevision)
             throw new WrongStreamRevisionException(streamId, endRevision, actual.Value);
     }
 
-    public IEventStoreStream ReadSlice(string streamId, uint startRevision, uint endRevision, CancellationToken cancellationToken) =>
-        new EfCoreEventStoreStream(Direction.Forwards, streamId, ReadSliceInternal(streamId, startRevision, endRevision, cancellationToken));
+    public IEventStoreStream ReadSlice(Direction direction, string streamId, uint startRevision, uint endRevision, CancellationToken cancellationToken) =>
+        new EfCoreEventStoreStream(direction, streamId, ReadSliceInternal(direction, streamId, startRevision, endRevision, cancellationToken));
 
     private async IAsyncEnumerable<EventEnvelope> ReadSliceInternal(
+        Direction direction,
         string streamId, 
         uint startRevision, 
         [EnumeratorCancellation] CancellationToken cancellationToken)
@@ -493,9 +497,9 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore where TContext : D
         var events = ReadEvents(
             context =>
             {
-                var query = ReadStream(context, Direction.Forwards, streamId);
+                var query = ReadStream(context, direction, streamId);
 
-                //See comment in ReadSlice(string, uint, uint, CancellationToken)
+                // See comment in ReadSliceInternal
                 if (startRevision != 0)
                     query = query.Where(e => e.StreamPos == 0 || e.StreamPos >= (int)startRevision);
 
@@ -505,26 +509,28 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore where TContext : D
         
         var exists = false;
         uint? actual = null;
-        await foreach (var e in events)
+        await foreach (var env in events)
         {
             exists = true;
-            if (e.StreamPosition == 0 && startRevision != 0) continue;
-            yield return e;
-            actual = e.StreamPosition;
+            if (env.StreamPosition == 0 && startRevision != 0) continue;
+            yield return env;
+            // Actual: we want the max version
+            actual = actual > env.StreamPosition ? actual.Value : env.StreamPosition;
         }
         
         if (!exists)
             throw new StreamNotFoundException(streamId);
 
-        if (actual.HasValue) yield break;
+        if (actual.HasValue) 
+            yield break;
         
-        //Stream exists, but before start
+        // Stream exists, but before start
         actual = await GetRevision(streamId, cancellationToken);
         throw new WrongStreamRevisionException(streamId, startRevision, actual.Value);
     }
 
-    public IEventStoreStream ReadSlice(string streamId, uint startRevision, CancellationToken cancellationToken) =>
-        new EfCoreEventStoreStream(Direction.Forwards, streamId, ReadSliceInternal(streamId, startRevision, cancellationToken));
+    public IEventStoreStream ReadSlice(Direction direction, string streamId, uint startRevision, CancellationToken cancellationToken) =>
+        new EfCoreEventStoreStream(direction, streamId, ReadSliceInternal(direction, streamId, startRevision, cancellationToken));
     
     #endregion
     
@@ -598,27 +604,27 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore where TContext : D
 
     public IAsyncEnumerable<EventEnvelope> ReadByEventType(
         Direction direction, 
-        Type[] eventTypes, 
+        IReadOnlyCollection<Type> eventTypes, 
         CancellationToken cancellationToken) =>
         ReadByEventTypeInternal(direction, eventTypes, null, cancellationToken);
 
     public IAsyncEnumerable<EventEnvelope> ReadByEventType(
         Direction direction, 
-        Type[] eventTypes, 
+        IReadOnlyCollection<Type> eventTypes, 
         uint maxCount,
         CancellationToken cancellationToken) =>
         ReadByEventTypeInternal(direction, eventTypes, maxCount, cancellationToken);
 
     private IAsyncEnumerable<EventEnvelope> ReadByEventTypeInternal(
         Direction direction, 
-        Type[] eventTypes, 
+        IReadOnlyCollection<Type> eventTypes, 
         uint? maxCount,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(eventTypes);
 
-        if (eventTypes.Length == 0)
-            return AsyncEnumerable.Empty<EventEnvelope>(); //No events to read
+        if (eventTypes.Count == 0)
+            return AsyncEnumerable.Empty<EventEnvelope>(); // No events to read
 
         return ReadEvents(
             context =>
@@ -646,7 +652,7 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore where TContext : D
             cancellationToken);
     }
 
-    private IQueryable<EventStoreEvent> FilterByEventType(EventStoreDbContext<TContext> context, Type[] eventTypes)
+    private IQueryable<EventStoreEvent> FilterByEventType(EventStoreDbContext<TContext> context, IReadOnlyCollection<Type> eventTypes)
     {
         ArgumentNullException.ThrowIfNull(eventTypes);
         var names = eventTypes
@@ -668,7 +674,7 @@ internal class EfCoreEventStore<TContext> : IEfCoreEventStore where TContext : D
         return (uint)count;
     }
 
-    public async Task<uint> CountByEventType(Type[] eventTypes, CancellationToken cancellationToken)
+    public async Task<uint> CountByEventType(IReadOnlyCollection<Type> eventTypes, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(eventTypes);
         await using var context = await _contextFactory.CreateDbContextAsync(cancellationToken);

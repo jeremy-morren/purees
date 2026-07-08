@@ -34,7 +34,7 @@ internal class BasicAggregateStore<TAggregate> : IAggregateStore<TAggregate> whe
 
     public ValueTask<TAggregate> LoadAt(string streamId, uint endRevision, CancellationToken cancellationToken)
     {
-        var stream = _eventStore.ReadSlice(streamId, 0, endRevision, cancellationToken);
+        var stream = _eventStore.ReadSlice(Direction.Forwards, streamId, 0, endRevision, cancellationToken);
         return _factory.RehydrateAggregate(stream, cancellationToken);
     }
 

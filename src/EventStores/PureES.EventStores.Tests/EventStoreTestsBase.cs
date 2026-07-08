@@ -2,6 +2,7 @@
 using System.Runtime.CompilerServices;
 using JetBrains.Annotations;
 using Microsoft.Extensions.DependencyInjection;
+using NodaTime;
 
 namespace PureES.EventStores.Tests;
 
@@ -55,8 +56,7 @@ public abstract class EventStoreTestsBase
             .GroupBy(s => s.Timestamp)
             .Select(s => s.Key)
             .SingleAsync(ct);
-        ts.Kind.ShouldBe(DateTimeKind.Utc);
-        ts.Should().BeAfter(start).And.BeBefore(DateTime.UtcNow, "Timestamp should be set to now");
+        ts.ToDateTimeUtc().Should().BeAfter(start).And.BeBefore(DateTime.UtcNow, "Timestamp should be set to now");
     }
     
     [Fact]
@@ -377,10 +377,14 @@ public abstract class EventStoreTestsBase
             await store.ReadPartial(Direction.Backwards, stream, RandVersion(), ct).FirstAsync(ct));
         
         await Assert.ThrowsAsync<StreamNotFoundException>(async () =>
-            await store.ReadSlice(stream, RandVersion() % (int)short.MaxValue, ct).FirstAsync(ct));
+            await store.ReadSlice(Direction.Forwards, stream, RandVersion() % (int)short.MaxValue, ct).FirstAsync(ct));
+        await Assert.ThrowsAsync<StreamNotFoundException>(async () =>
+            await store.ReadSlice(Direction.Backwards, stream, RandVersion() % (int)short.MaxValue, ct).FirstAsync(ct));
         
         await Assert.ThrowsAsync<StreamNotFoundException>(async () =>
-            await store.ReadSlice(stream, RandVersion() % (int)short.MaxValue, RandVersion(short.MaxValue), ct).FirstAsync(ct));
+            await store.ReadSlice(Direction.Forwards, stream, RandVersion() % (int)short.MaxValue, RandVersion(short.MaxValue), ct).FirstAsync(ct));
+        await Assert.ThrowsAsync<StreamNotFoundException>(async () =>
+            await store.ReadSlice(Direction.Backwards, stream, RandVersion() % (int)short.MaxValue, RandVersion(short.MaxValue), ct).FirstAsync(ct));
     }
 
     [Fact]
@@ -412,20 +416,24 @@ public abstract class EventStoreTestsBase
         
         await AssertEqual(events.TakeLast(3).Reverse(), store.ReadPartial(Direction.Backwards, stream, 3, ct));
         
-        await AssertEqual(events, store.ReadSlice(stream, 0, ct));
+        await AssertEqual(events, store.ReadSlice(Direction.Forwards, stream, 0, ct));
+        await AssertEqual(events.AsEnumerable().Reverse(), store.ReadSlice(Direction.Backwards, stream, 0, ct));
         
-        await AssertEqual(events.Skip(5), store.ReadSlice(stream, 5, ct));
+        await AssertEqual(events.Skip(5), store.ReadSlice(Direction.Forwards, stream, 5, ct));
+        await AssertEqual(events.Skip(5).Reverse(), store.ReadSlice(Direction.Backwards, stream, 5, ct));
         
-        await AssertEqual(events.Take(3), store.ReadSlice(stream, 0, 2, ct));
+        await AssertEqual(events.Take(3), store.ReadSlice(Direction.Forwards, stream, 0, 2, ct));
+        await AssertEqual(events.Take(3).Reverse(), store.ReadSlice(Direction.Backwards, stream, 0, 2, ct));
         
-        await AssertEqual(events.Skip(4).Take(2), store.ReadSlice(stream, 4, 5, ct));
+        await AssertEqual(events.Skip(4).Take(2), store.ReadSlice(Direction.Forwards, stream, 4, 5, ct));
+        await AssertEqual(events.Skip(4).Take(2).Reverse(), store.ReadSlice(Direction.Backwards, stream, 4, 5, ct));
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => 
-            store.ReadSlice(stream, 3, 2, ct)
-                .ToListAsync(ct).AsTask());
+            store.ReadSlice(Direction.Forwards, stream, 3, 2, ct).ToListAsync(ct).AsTask());
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() => 
+            store.ReadSlice(Direction.Backwards, stream, 3, 2, ct).ToListAsync(ct).AsTask());
 
-        //Reading existing stream starting from wrong revision should throw wrong version, not stream not found
-
+        // Reading existing stream starting from wrong revision should throw wrong version, not stream not found
         await AssertWrongVersion(d => 
             store.Read(d, stream, RandVersion(events.Count + 1), ct));
 
@@ -441,14 +449,14 @@ public abstract class EventStoreTestsBase
         await AssertWrongVersion(d => 
             store.ReadPartial(d, stream, RandVersion(events.Count + 1), ct));
         
-        await AssertWrongVersion(_ => 
-            store.ReadSlice(stream, 1, RandVersion(events.Count + 1), ct));
+        await AssertWrongVersion(d => 
+            store.ReadSlice(d, stream, 1, RandVersion(events.Count + 1), ct));
         
-        await AssertWrongVersion(_ => 
-            store.ReadSlice(stream, RandVersion(events.Count + 1), int.MaxValue, ct));
+        await AssertWrongVersion(d => 
+            store.ReadSlice(d, stream, RandVersion(events.Count + 1), int.MaxValue, ct));
         
-        await AssertWrongVersion(_ => 
-            store.ReadSlice(stream, RandVersion(events.Count + 1), ct));
+        await AssertWrongVersion(d => 
+            store.ReadSlice(d, stream, RandVersion(events.Count + 1), ct));
 
         await AssertWrongVersion(d =>
             store.Read(d, stream, RandVersion(events.Count + 1) % (uint)short.MaxValue, int.MaxValue, ct));
@@ -983,18 +991,17 @@ public abstract class EventStoreTestsBase
             .Should().BeEquivalentTo(
                 source.Select(e => Props(e.Event, e.Metadata)),
                 o => o.WithStrictOrdering());
-        
-        other.Should().AllSatisfy(o =>
-        {
-            o.Timestamp.Kind.ShouldBe(DateTimeKind.Utc);
-            o.Timestamp.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromMinutes(1));
-        });
+
+        other.Should()
+            .OnlyContain(
+                e => (SystemClock.Instance.GetCurrentInstant() - e.Timestamp) < Duration.FromMinutes(1),
+                "timestamps should be set to current time when events are appended");
 
         return;
 
         object Props(object @event, object? metadata) => new
         {
-            EventId = @event.ShouldBeAssignableTo<Event>().ShouldNotBeNull().Id,
+            EventId = @event.Should().NotBeNull().And.BeAssignableTo<Event>().Which.Id,
             Metadata = metadata != null
         };
     }

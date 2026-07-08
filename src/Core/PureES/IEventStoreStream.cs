@@ -6,7 +6,7 @@
 public interface IEventStoreStream : IAsyncEnumerable<EventEnvelope>
 {
     /// <summary>
-    /// The id of the stream
+    /// The ID of the stream
     /// </summary>
     string StreamId { get; }
 

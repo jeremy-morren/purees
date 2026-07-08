@@ -1,8 +1,10 @@
 ﻿using System.Data.Common;
 using System.Globalization;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
+using NodaTime;
 using PureES.EventStore.EFCore.Models;
 
 namespace PureES.EventStore.EFCore.Providers;
@@ -12,7 +14,12 @@ internal class SqliteProvider(EventStoreDbContext context) : IEfCoreProvider
     public void ConfigureEntity(EntityTypeBuilder<EventStoreEvent> builder)
     {
         builder.Property(e => e.Timestamp)
-            .HasConversion(new UtcDateConverter());
+            // SQLite does not have a native datetime type, so we store it as INTEGER (int64) as ticks since Unix epoch
+            .HasColumnType("INTEGER") 
+            // Store
+            .HasConversion(
+                instant => instant.ToUnixTimeTicks(),
+                ticks => Instant.FromUnixTimeTicks(ticks));
 
         builder.OwnsMany(x => x.EventTypes)
             .HasKey("Id"); //See https://stackoverflow.com/a/69826156/6614154
@@ -33,7 +40,9 @@ internal class SqliteProvider(EventStoreDbContext context) : IEfCoreProvider
 
     public Task<List<EventStoreEvent>> WriteEvents(IEnumerable<EventStoreEvent> events, CancellationToken ct)
     {
-        var ts = DateTimeOffset.Now;
+        // Set all events to a single timestamp
+        var ts = SystemClock.Instance.GetCurrentInstant();
+        
         var list = events.ToList();
         foreach (var e in list)
             e.Timestamp = ts;

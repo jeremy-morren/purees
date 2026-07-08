@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using Microsoft.Extensions.Options;
+using NodaTime;
 
 namespace PureES.EventStore.CosmosDB.Serialization;
 
@@ -37,7 +38,7 @@ internal class CosmosEventStoreSerializer
         return new EventEnvelope(
             @event.EventStreamId,
             @event.EventStreamPosition,
-            @event.Created,
+            Instant.FromDateTimeUtc(@event.Created),
             DeserializeEvent(@event.EventStreamId,
                 @event.EventStreamPosition,
                 @event.EventType,

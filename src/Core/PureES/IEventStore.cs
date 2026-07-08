@@ -81,7 +81,8 @@ public interface IEventStore
     /// <param name="cancellationToken"></param>
     /// <returns><c>Revision</c> of stream after append</returns>
     /// <exception cref="StreamNotFoundException">Stream <paramref name="streamId" /> not found</exception>
-    public Task<uint> Append(string streamId,
+    public Task<uint> Append(
+        string streamId,
         IEnumerable<UncommittedEvent> events,
         CancellationToken cancellationToken);
 
@@ -94,7 +95,8 @@ public interface IEventStore
     /// <param name="cancellationToken"></param>
     /// <returns><c>Revision</c> of stream after append</returns>
     /// <exception cref="StreamNotFoundException">Stream <paramref name="streamId" /> not found</exception>
-    public Task<uint> Append(string streamId,
+    public Task<uint> Append(
+        string streamId,
         uint expectedRevision,
         UncommittedEvent @event,
         CancellationToken cancellationToken);
@@ -107,7 +109,8 @@ public interface IEventStore
     /// <param name="cancellationToken"></param>
     /// <returns><c>Revision</c> of stream after append</returns>
     /// <exception cref="StreamNotFoundException">Stream <paramref name="streamId" /> not found</exception>
-    public Task<uint> Append(string streamId,
+    public Task<uint> Append(
+        string streamId,
         UncommittedEvent @event,
         CancellationToken cancellationToken);
 
@@ -206,7 +209,7 @@ public interface IEventStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    ///     Loads events from stream <paramref name="streamId" />, returning at most <paramref name="count" /> elements
+    ///     Reads events from stream <paramref name="streamId" />, returning at most <paramref name="count" /> elements
     /// </summary>
     /// <param name="direction">Read direction</param>
     /// <param name="streamId">Id of stream to load events from</param>
@@ -221,16 +224,18 @@ public interface IEventStore
     /// <exception cref="WrongStreamRevisionException">
     ///     Revision of stream <paramref name="streamId" /> less than <paramref name="count" />
     /// </exception>
-    public IEventStoreStream ReadPartial(Direction direction,
+    public IEventStoreStream ReadPartial(
+        Direction direction,
         string streamId,
         uint count,
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    ///     Loads events from stream <paramref name="streamId" />
+    ///     Reads events from stream <paramref name="streamId" />
     ///     starting at <paramref name="startRevision"/> up
     ///     to and including <paramref name="endRevision" />
     /// </summary>
+    /// <param name="direction">Read direction</param>
     /// <param name="streamId">Id of stream to load events from</param>
     /// <param name="startRevision">Revision to start reading from.</param>
     /// <param name="endRevision">Minimum revision that stream must be at</param>
@@ -245,15 +250,18 @@ public interface IEventStore
     /// <exception cref="WrongStreamRevisionException">
     ///     Revision of stream <paramref name="streamId" /> less than <paramref name="endRevision" />
     /// </exception>
-    public IEventStoreStream ReadSlice(string streamId,
+    public IEventStoreStream ReadSlice(
+        Direction direction,
+        string streamId,
         uint startRevision,
         uint endRevision,
         CancellationToken cancellationToken = default);
     
     /// <summary>
-    ///     Loads events from stream <paramref name="streamId" />
+    ///     Reads events from stream <paramref name="streamId" />
     ///     starting from <paramref name="startRevision"/> until end of stream
     /// </summary>
+    /// <param name="direction">Read direction</param>
     /// <param name="streamId">Id of stream to load events from</param>
     /// <param name="startRevision">Revision to start reading from.</param>
     /// <param name="cancellationToken"></param>
@@ -266,7 +274,9 @@ public interface IEventStore
     /// <exception cref="WrongStreamRevisionException">
     ///     Revision of stream <paramref name="streamId" /> less than <paramref name="startRevision" />
     /// </exception>
-    public IEventStoreStream ReadSlice(string streamId,
+    public IEventStoreStream ReadSlice(
+        Direction direction,
+        string streamId,
         uint startRevision,
         CancellationToken cancellationToken = default);
 
@@ -293,7 +303,7 @@ public interface IEventStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    ///     Loads events by <c>EventType</c>
+    ///     Reads events by <c>EventType</c>
     /// </summary>
     /// <param name="direction">Read direction</param>
     /// <param name="eventTypes">Types of event to query</param>
@@ -303,11 +313,11 @@ public interface IEventStore
     ///     from the events in the stream in the order in which they were added
     /// </returns>
     public IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction,
-        Type[] eventTypes, 
+        IReadOnlyCollection<Type> eventTypes, 
         CancellationToken cancellationToken = default);
     
     /// <summary>
-    ///     Loads events by <c>EventType</c>
+    ///     Reads events by <c>EventType</c>
     /// </summary>
     /// <param name="direction">Read direction</param>
     /// <param name="eventTypes">Types of event to query</param>
@@ -318,7 +328,7 @@ public interface IEventStore
     ///     from the events in the stream in the order in which they were added
     /// </returns>
     public IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction,
-        Type[] eventTypes, 
+        IReadOnlyCollection<Type> eventTypes, 
         uint maxCount,
         CancellationToken cancellationToken = default);
     
@@ -340,5 +350,5 @@ public interface IEventStore
     ///     An <see cref="IAsyncEnumerable{T}" /> of <see cref="EventEnvelope" />
     ///     from the events in the stream in the order in which they were added
     /// </returns>
-    public Task<uint> CountByEventType(Type[] eventTypes, CancellationToken cancellationToken);
+    public Task<uint> CountByEventType(IReadOnlyCollection<Type> eventTypes, CancellationToken cancellationToken);
 }

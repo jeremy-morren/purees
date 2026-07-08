@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Moq;
+using NodaTime;
 using PureES.EventStore.EFCore.Subscriptions;
 
 // ReSharper disable MethodHasAsyncOverload
@@ -15,7 +16,8 @@ public abstract class EfCoreEventStoreTestsBase : EventStoreTestsBase
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var start = DateTime.UtcNow;
+        var start = SystemClock.Instance.GetCurrentInstant();
+        
         var handler = new Mock<IEventHandler>();
 
         var list = new List<EventEnvelope>();
@@ -79,8 +81,9 @@ public abstract class EfCoreEventStoreTestsBase : EventStoreTestsBase
             var i = int.Parse(g.Key);
             g.Should().HaveCount(i < 100 ? 3 : 10);
 
-            g.Should().BeInAscendingOrder(e => e.StreamPosition);
-            Assert.All(g, e => e.Timestamp.Should().BeOnOrAfter(start).And.BeBefore(DateTime.UtcNow));
+            g.Should()
+                .BeInAscendingOrder(e => e.StreamPosition)
+                .And.OnlyContain(e => e.Timestamp > start && start < SystemClock.Instance.GetCurrentInstant());
         });
     }
 }

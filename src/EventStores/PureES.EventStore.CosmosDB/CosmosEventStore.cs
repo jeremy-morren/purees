@@ -366,7 +366,8 @@ internal class CosmosEventStore : IEventStore
         }
     }
 
-    private async IAsyncEnumerable<EventEnvelope> ReadInternal(Direction direction,
+    private async IAsyncEnumerable<EventEnvelope> ReadInternal(
+        Direction direction,
         string streamId, 
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
@@ -523,7 +524,9 @@ internal class CosmosEventStore : IEventStore
     public IEventStoreStream ReadPartial(Direction direction, string streamId, uint count, CancellationToken cancellationToken) =>
         new CosmosDBEventStoreStream(direction, streamId, ReadPartialInternal(direction, streamId, count, cancellationToken));
 
-    private async IAsyncEnumerable<EventEnvelope> ReadSliceInternal(string streamId,
+    private async IAsyncEnumerable<EventEnvelope> ReadSliceInternal(
+        Direction direction,
+        string streamId,
         uint startRevision, 
         uint endRevision,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
@@ -531,8 +534,21 @@ internal class CosmosEventStore : IEventStore
         ArgumentNullException.ThrowIfNull(streamId);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(startRevision, endRevision);
 
+        const string query =
+            """
+            select * from c 
+                     where c.eventStreamId = @streamId and 
+                     (c.eventStreamPosition = 0 or (c.eventStreamPosition >= @start and c.eventStreamPosition <= @end))
+            ORDER BY c.eventStreamPosition
+            """;
         var queryDef = new QueryDefinition(
-            "select * from c where c.eventStreamId = @streamId and (c.eventStreamPosition = 0 or (c.eventStreamPosition >= @start and c.eventStreamPosition <= @end)) ORDER BY c.eventStreamPosition");
+            query + 
+            direction switch
+            {
+                Direction.Forwards => " ASC",
+                Direction.Backwards => " DESC",
+                _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
+            });
         
         queryDef = queryDef
             .WithParameter("@streamId", streamId)
@@ -552,7 +568,8 @@ internal class CosmosEventStore : IEventStore
                 if (env.StreamPosition == 0 && startRevision != 0)
                     continue;
                 yield return env;
-                actual = env.StreamPosition;
+                // Actual: we want the max version
+                actual = actual > env.StreamPosition ? actual.Value : env.StreamPosition;
             }
         }
 
@@ -564,17 +581,32 @@ internal class CosmosEventStore : IEventStore
                 await GetRevision(streamId, cancellationToken));
     }
 
-    public IEventStoreStream ReadSlice(string streamId, uint startRevision, uint endRevision, CancellationToken cancellationToken) =>
-        new CosmosDBEventStoreStream(Direction.Forwards, streamId, ReadSliceInternal(streamId, startRevision, endRevision, cancellationToken));
+    public IEventStoreStream ReadSlice(Direction direction, string streamId, uint startRevision, uint endRevision, CancellationToken cancellationToken) =>
+        new CosmosDBEventStoreStream(direction, streamId, ReadSliceInternal(direction, streamId, startRevision, endRevision, cancellationToken));
 
-    private async IAsyncEnumerable<EventEnvelope> ReadSliceInternal(string streamId,
+    private async IAsyncEnumerable<EventEnvelope> ReadSliceInternal(
+        Direction direction, 
+        string streamId,
         uint startRevision, 
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(streamId);
 
+        const string query =
+            """
+            select * from c 
+                     where c.eventStreamId = @streamId and 
+                           (c.eventStreamPosition = 0 OR c.eventStreamPosition >= @start) 
+            ORDER BY c.eventStreamPosition
+            """;
         var queryDef = new QueryDefinition(
-            "select * from c where c.eventStreamId = @streamId and (c.eventStreamPosition = 0 OR c.eventStreamPosition >= @start) ORDER BY c.eventStreamPosition");
+            query + 
+            direction switch
+            {
+                Direction.Forwards => " ASC",
+                Direction.Backwards => " DESC",
+                _ => throw new ArgumentOutOfRangeException(nameof(direction), direction, null)
+            });
         
         queryDef = queryDef
             .WithParameter("@streamId", streamId)
@@ -592,7 +624,8 @@ internal class CosmosEventStore : IEventStore
                 var env = _serializer.Deserialize(e);
                 if (env.StreamPosition == 0 && startRevision != 0) continue;
                 yield return env;
-                actual = env.StreamPosition;
+                // Actual: we want the max version
+                actual = actual > env.StreamPosition ? actual.Value : env.StreamPosition;
             }
         }
 
@@ -603,8 +636,8 @@ internal class CosmosEventStore : IEventStore
                 await GetRevision(streamId, cancellationToken));
     }
 
-    public IEventStoreStream ReadSlice(string streamId, uint startRevision, CancellationToken cancellationToken) =>
-        new CosmosDBEventStoreStream(Direction.Forwards, streamId, ReadSliceInternal(streamId, startRevision, cancellationToken));
+    public IEventStoreStream ReadSlice(Direction direction, string streamId, uint startRevision, CancellationToken cancellationToken) =>
+        new CosmosDBEventStoreStream(direction, streamId, ReadSliceInternal(direction, streamId, startRevision, cancellationToken));
 
     public async IAsyncEnumerable<IEventStoreStream> ReadMany(Direction direction,
         IEnumerable<string> streams, 
@@ -682,7 +715,7 @@ internal class CosmosEventStore : IEventStore
     #region By Event Type
     
     public async IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction, 
-        Type[] eventTypes, 
+        IReadOnlyCollection<Type> eventTypes, 
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         var container = _client.GetContainer();
@@ -707,8 +740,9 @@ internal class CosmosEventStore : IEventStore
         }
     }
     
-    public async IAsyncEnumerable<EventEnvelope> ReadByEventType(Direction direction, 
-        Type[] eventTypes, 
+    public async IAsyncEnumerable<EventEnvelope> ReadByEventType(
+        Direction direction, 
+        IReadOnlyCollection<Type> eventTypes, 
         uint maxCount,
         [EnumeratorCancellation] CancellationToken cancellationToken)
     {
@@ -750,8 +784,11 @@ internal class CosmosEventStore : IEventStore
         return result.Single();
     }
     
-    public async Task<uint> CountByEventType(Type[] eventTypes, CancellationToken cancellationToken)
+    public async Task<uint> CountByEventType(IReadOnlyCollection<Type> eventTypes, CancellationToken cancellationToken)
     {
+        if (eventTypes.Count == 0)
+            return 0;
+        
         var container = _client.GetContainer();
 
         const string query = "select value count(1) from c where SetIntersect(c.eventTypes, @eventTypes)";
@@ -764,7 +801,7 @@ internal class CosmosEventStore : IEventStore
 
     #endregion
     
-    private HashSet<string> GetTypeNames(Type[] eventTypes)
+    private HashSet<string> GetTypeNames(IReadOnlyCollection<Type> eventTypes)
     {
         ArgumentNullException.ThrowIfNull(eventTypes);
         return eventTypes

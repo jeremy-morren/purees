@@ -1,4 +1,5 @@
 ﻿using System.Threading.Tasks.Dataflow;
+using NodaTime;
 
 namespace PureES.EventBus.Tests;
 
@@ -124,7 +125,7 @@ public class EventStreamBlockTests
     private static EventEnvelope NewEnvelope(string streamId, int position) => new(
         streamId,
         (uint)position,
-        DateTime.UtcNow,
+        SystemClock.Instance.GetCurrentInstant(),
         new object(),
         null);
 }

@@ -1,5 +1,6 @@
 ﻿using System.Text.Json;
 using Microsoft.Extensions.Options;
+using NodaTime;
 
 namespace PureES.EventStore.InMemory;
 
@@ -45,7 +46,7 @@ internal class InMemoryEventStoreSerializer
         return new InMemoryEventRecord()
         {
             StreamId = envelope.StreamId,
-            Timestamp = envelope.Timestamp,
+            Timestamp = envelope.Timestamp.ToDateTimeUtc(),
             EventTypes = _typeMap.GetTypeNames(envelope.Event.GetType()),
             Event = @event,
             Metadata = metadata,
@@ -62,7 +63,7 @@ internal class InMemoryEventStoreSerializer
         return new EventEnvelope(
             record.StreamId,
             (uint)record.StreamPos,
-            record.Timestamp,
+            Instant.FromDateTimeUtc(record.Timestamp),
             DeserializeEvent(record.StreamId, record.StreamPos, record.EventTypes[^1], record.Event),
             DeserializeMetadata(record.StreamId, record.StreamPos, record.Metadata));
     }

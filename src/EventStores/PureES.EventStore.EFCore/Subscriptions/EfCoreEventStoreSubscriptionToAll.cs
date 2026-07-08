@@ -47,7 +47,7 @@ internal class EfCoreEventStoreSubscriptionToAll : IEfCoreEventStoreSubscription
         new(
             e.StreamId,
             (uint)e.StreamPos,
-            e.Timestamp.UtcDateTime,
+            e.Timestamp,
             _serializer.DeserializeEvent(e.StreamId, e.StreamPos, e.EventType, e.Event),
             _serializer.DeserializeMetadata(e.StreamId, e.StreamPos, e.Metadata));
 

@@ -1,4 +1,5 @@
 ﻿using System;
+using NodaTime;
 using PureES.Tests.Models;
 using Shouldly;
 using Xunit;
@@ -17,17 +18,6 @@ public class EventEnvelopeTests
             new EventEnvelope<Events.Created, object>(env));
     }
 
-    [Fact]
-    public void NonUtcTimestampShouldThrow()
-    {
-        var ex = Assert.Throws<ArgumentException>(() => new EventEnvelope(
-            Guid.NewGuid().ToString(),
-            Rand.Nextuint(),
-            DateTime.Now,
-            Object,
-            Object));
-        ex.ParamName.ShouldBe("timestamp");
-    }
 
     [Fact]
     public void CastShouldHandleInheritedTypes()
@@ -35,7 +25,7 @@ public class EventEnvelopeTests
         var env = new EventEnvelope(
             Guid.NewGuid().ToString(),
             Rand.Nextuint(),
-            DateTime.UtcNow,
+            SystemClock.Instance.GetCurrentInstant(),
             new EventDerived(),
             Object);
         var casted = env.Cast<EventBase, object>().ShouldNotBeNull();
@@ -45,7 +35,7 @@ public class EventEnvelopeTests
     private static EventEnvelope NewEnvelope() => new(
         Guid.NewGuid().ToString(),
         Rand.Nextuint(),
-        DateTime.UtcNow,
+        SystemClock.Instance.GetCurrentInstant(),
         Events.Created.New(),
         Object);
 
