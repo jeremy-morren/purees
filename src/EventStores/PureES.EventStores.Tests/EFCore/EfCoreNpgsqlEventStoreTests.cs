@@ -1,4 +1,5 @@
 ﻿using System.Data;
+using System.Runtime.InteropServices;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
@@ -16,13 +17,14 @@ public class EfCoreNpgsqlEventStoreTests : EfCoreEventStoreTestsBase
     {
         var ct = TestContext.Current.CancellationToken;
 
+        EnsureDatabaseExists();
         var schema = nameof(CreateScriptShouldBeIdempotent).ToLowerInvariant();
         
         await Execute($"DROP SCHEMA IF EXISTS \"{schema}\" CASCADE");
         
         var services = new ServiceCollection();
 
-        services.AddDbContext<EmptyDbContext>(b => b.UseNpgsql($"{ConnString};Database={DbName}"));
+        services.AddDbContext<EmptyDbContext>(b => b.UseNpgsql($"{ConnString};Database={GetDatabaseName()}"));
 
         services.AddEfCoreEventStore<EmptyDbContext>(o => o.Schema = schema);
         
@@ -36,12 +38,10 @@ public class EfCoreNpgsqlEventStoreTests : EfCoreEventStoreTestsBase
         await Execute(script);
         await Execute(script); //Should not throw
         
-        //Read events should succeed
+        // Read events should succeed
         (await store.ReadAll(ct).ToListAsync(ct)).ShouldBeEmpty();
     }
     
-    private const string ConnString = "Host=localhost;Username=postgres;Password=postgres";
-    private const string DbName = "purees_efcore_tests";
     
     protected override async Task<EventStoreTestHarness> CreateStore(string testName, Action<IServiceCollection> configureServices, CancellationToken ct)
     {
@@ -49,7 +49,7 @@ public class EfCoreNpgsqlEventStoreTests : EfCoreEventStoreTestsBase
         
         var services = new ServiceCollection();
 
-        services.AddDbContext<EmptyDbContext>(b => b.UseNpgsql($"{ConnString};Database={DbName}"));
+        services.AddDbContext<EmptyDbContext>(b => b.UseNpgsql($"{ConnString};Database={GetDatabaseName()}"));
 
         services.AddEfCoreEventStore<EmptyDbContext>()
             .Configure(o => o.Schema = schema)
@@ -73,6 +73,10 @@ public class EfCoreNpgsqlEventStoreTests : EfCoreEventStoreTestsBase
 
         return new EventStoreTestHarness(harness, store);
     }
+    
+    private const string ConnString = "Host=localhost;Username=postgres;Password=postgres";
+    private static string GetDatabaseName() => $"PureES_EFCore_Tests_{GetFrameworkName()}".Replace(".", "").ToLowerInvariant();
+    private static string GetFrameworkName() => RuntimeInformation.FrameworkDescription.Replace(".NET ", "").Replace(".","_");
     
     private class NpgsqlEventStoreTestHarness : IAsyncDisposable, IServiceProvider
     {
@@ -101,7 +105,7 @@ public class EfCoreNpgsqlEventStoreTests : EfCoreEventStoreTestsBase
         // Create database if it doesn't exist
         try
         {
-            ExecuteMaster($"CREATE DATABASE \"{DbName}\"");
+            ExecuteMaster($"CREATE DATABASE \"{GetDatabaseName()}\"");
         }
         catch (NpgsqlException e) when (e.SqlState == "42P04")
         {
@@ -121,7 +125,7 @@ public class EfCoreNpgsqlEventStoreTests : EfCoreEventStoreTestsBase
     
     private static async Task Execute(string sql)
     {
-        using var conn = new NpgsqlConnection($"{ConnString};Database={DbName}");
+        using var conn = new NpgsqlConnection($"{ConnString};Database={GetDatabaseName()}");
         if (conn.State != ConnectionState.Open)
             await conn.OpenAsync();
         using var cmd = conn.CreateCommand();
